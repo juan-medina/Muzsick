@@ -1,0 +1,53 @@
+﻿# ============================================================
+#  Muzsick — .gitignore
+# ============================================================
+
+# ----- Build output ----------------------------------------
+bin/
+obj/
+out/
+publish/
+
+# ----- .NET / NuGet ----------------------------------------
+*.user
+*.suo
+*.userprefs
+*.userosscache
+*.sln.docstates
+project.lock.json
+project.fragment.lock.json
+artifacts/
+packages/
+*.nupkg
+*.snupkg
+
+# ----- Rider -----------------------------------------------
+.idea/
+*.sln.iml
+
+# ----- Visual Studio (in case anyone opens it) -------------
+.vs/
+*.rsuser
+*.VC.db
+*.VC.VC.opendb
+
+# ----- OS --------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ----- Logs & temp -----------------------------------------
+*.log
+*.tmp
+*.temp
+crash-*.txt
+
+# ----- Secrets & config overrides --------------------------
+# Keep settings.json.example in source, ignore real one if it has keys
+secrets.json
+local.settings.json
+
+# ----- Kokoro model files (large — ship via installer) -----
+src/Muzsick/Models/KokoroModels/*.onnx
+src/Muzsick/Models/KokoroModels/*.bin
+src/Muzsick/Models/KokoroModels/*.dat

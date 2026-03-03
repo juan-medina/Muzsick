@@ -10,10 +10,10 @@
         mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="850"
         x:Class="Muzsick.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/muzsick-logo.ico"
         Title="Muzsick"
         Width="600"
-        Height="850"
+        Height="770"
         CanResize="False">
 
     <Design.DataContext>

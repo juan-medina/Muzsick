@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="#FF6B35" stroke="#DD5520" stroke-width="4"/>
+
+  <!-- Radio tower -->
+  <rect x="120" y="80" width="16" height="96" fill="#FFFFFF" rx="2"/>
+  <rect x="118" y="78" width="20" height="8" fill="#FFFFFF" rx="2"/>
+
+  <!-- Radio waves (concentric arcs) -->
+  <!-- Inner wave -->
+  <path d="M 95 128 Q 128 105 161 128" stroke="#FFFFFF" stroke-width="4" fill="none" opacity="0.9"/>
+  <path d="M 95 128 Q 128 151 161 128" stroke="#FFFFFF" stroke-width="4" fill="none" opacity="0.9"/>
+
+  <!-- Middle wave -->
+  <path d="M 75 128 Q 128 95 181 128" stroke="#FFFFFF" stroke-width="3" fill="none" opacity="0.7"/>
+  <path d="M 75 128 Q 128 161 181 128" stroke="#FFFFFF" stroke-width="3" fill="none" opacity="0.7"/>
+
+  <!-- Outer wave -->
+  <path d="M 55 128 Q 128 85 201 128" stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.5"/>
+  <path d="M 55 128 Q 128 171 201 128" stroke="#FFFFFF" stroke-width="2" fill="none" opacity="0.5"/>
+
+  <!-- Small dots for signal -->
+  <circle cx="170" cy="108" r="3" fill="#FFFFFF" opacity="0.8"/>
+  <circle cx="185" cy="118" r="2" fill="#FFFFFF" opacity="0.6"/>
+  <circle cx="190" cy="138" r="2" fill="#FFFFFF" opacity="0.6"/>
+  <circle cx="180" cy="148" r="3" fill="#FFFFFF" opacity="0.8"/>
+</svg>

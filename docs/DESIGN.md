@@ -45,30 +45,30 @@ stream playback, TTS output, and mixing — is handled in-process through Silk.N
 at runtime.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      C# Application                          │
-│                                                              │
-│  ┌──────────────────┐   ICY metadata event                  │
-│  │  LibVLCSharp     │──────────────────────────┐            │
-│  │  Stream Player   │                          ▼            │
-│  └────────┬─────────┘             ┌────────────────────┐    │
-│           │ PCM audio             │  Metadata Service  │    │
-│           ▼                       │  MusicBrainz API   │    │
-│  ┌──────────────────┐             └─────────┬──────────┘    │
-│  │  Silk.NET.OpenAL │◄────────────┐         ▼               │
-│  │  Mixer + Output  │  PCM buffer │  ┌────────────────┐     │
-│  │  + Volume Duck   │◄────────────┘  │  Sherpa-ONNX   │     │
-│  └────────┬─────────┘                │  Kokoro TTS    │     │
-│           │                          └──────┬─────────┘     │
-│           ▼                                  ▲              │
-│       Speakers                      ┌────────┴─────────┐    │
-│                                     │  Commentary Gen  │    │
-│  ┌─────────────────────────────┐    │  Template / AI   │    │
-│  │  Avalonia UI                │    └──────────────────┘    │
-│  │  Song · Artist · Album Art  │                            │
-│  │  Volume · AI Toggle         │                            │
-│  └─────────────────────────────┘                            │
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                      C# Application                        │
+│                                                            │
+│  ┌──────────────────┐   ICY metadata event                 │
+│  │  LibVLCSharp     │────────────────────────┐             │
+│  │  Stream Player   │                        ▼             │
+│  └────────┬─────────┘             ┌────────────────────┐   │
+│           │ PCM audio             │  Metadata Service  │   │
+│           ▼                       │  MusicBrainz API   │   │
+│  ┌──────────────────┐             └─────────┬──────────┘   │
+│  │  Silk.NET.OpenAL │◄────────────┐         ▼              │
+│  │  Mixer + Output  │  PCM buffer │  ┌────────────────┐    │
+│  │  + Volume Duck   │◄────────────┘  │  Sherpa-ONNX   │    │
+│  └────────┬─────────┘                │  Kokoro TTS    │    │
+│           │                          └──────┬─────────┘    │
+│           ▼                                 ▲              │
+│       Speakers                     ┌────────┴─────────┐    │
+│                                    │  Commentary Gen  │    │
+│  ┌─────────────────────────────┐   │  Template / AI   │    │
+│  │  Avalonia UI                │   └──────────────────┘    │
+│  │  Song · Artist · Album Art  │                           │
+│  │  Volume · AI Toggle         │                           │
+│  └─────────────────────────────┘                           │
+└────────────────────────────────────────────────────────────┘
 ```
 
 **Key design principle:** Silk.NET.OpenAL is the single audio output point. LibVLCSharp decodes the stream and feeds
@@ -139,15 +139,65 @@ public interface ITtsBackend
 
 ### 5.4 Metadata — MusicBrainz
 
-When a song change is detected, the artist name and track title are extracted from the ICY metadata string. These are
-used to query the MusicBrainz API to retrieve release year, album name, genre tags, and the MusicBrainz ID. The ID is
-then used to fetch album artwork from the Cover Art Archive.
+When a song change is detected, the artist name and track title are extracted from the ICY metadata string. Both
+values are used together to query the MusicBrainz API — never the artist name alone.
+
+**Why both artist and title are required for lookup**
+
+Searching by artist name alone is unreliable because many artists share the same name. For example, searching for
+"Pedro" may return dozens of unrelated artists from different countries and genres. Searching for the recording
+"Pedro" + "Mi Amor Podrido" narrows the result to a single, unambiguous match. MusicBrainz recording search supports
+this compound query natively.
+
+The lookup flow is:
+
+1. Search MusicBrainz recordings using `artist + title` as the compound key.
+2. From the top recording result, extract the definitive MusicBrainz artist ID.
+3. Use the artist ID to fetch artist metadata (image, bio) from the MusicBrainz artist endpoint.
+4. Use the recording's release ID to fetch album art from the Cover Art Archive.
+
+This approach is reflected in the `IMusicBrainzService` interface, which takes a full `TrackInfo` (containing both
+artist and title) and returns an enriched `TrackInfo` and `ArtistInfo` together:
+
+```csharp
+public interface IMusicBrainzService
+{
+    // Uses artist name AND track title together to unambiguously identify the recording.
+    // Returns originals unchanged if nothing is found.
+    Task<(TrackInfo Track, ArtistInfo Artist)> EnrichAsync(TrackInfo track);
+}
+```
 
 All metadata results are cached in a `ConcurrentDictionary` keyed on `artist+title` to avoid redundant API calls for
 repeated tracks. Cache entries expire after 24 hours.
 
 > ICY metadata reliability varies by station. Some stations report incorrect or missing artist/title data. A future
 > version may add AcoustID audio fingerprinting as a fallback identification method.
+
+**Handling decorated titles**
+
+ICY metadata frequently includes featured artist credits, remix labels, or version tags embedded in the track title
+— for example `"Super Song ft Someone"` or `"Super Song (Radio Edit)"`. MusicBrainz will often not match on these
+decorated strings but will match on the base title.
+
+The lookup strategy inside `MusicBrainzService` is:
+
+1. **Try the exact ICY title first.** If MusicBrainz returns a match for `"Super Song ft Someone"` by `"An Artist"`,
+   use it — it is the most precise result and should be kept.
+2. **If no result, clean the title and retry.** Strip known decorator patterns (featured artists, remix tags, version
+   labels) and search again with the base title `"Super Song"` by `"An Artist"`.
+3. **Preserve the original ICY title in the UI regardless.** The `Title` field on `TrackInfo` always holds the raw
+   ICY string — what is actually playing. Enrichment fields (cover art, year, genre) are populated from whatever
+   MusicBrainz matched, but the displayed title is never overwritten by the search result.
+
+Decorator patterns to strip on retry include:
+
+- Featured artists: `ft.`, `ft`, `feat.`, `feat`, `featuring` (and everything after)
+- Remix tags: `(X Remix)`, `- X Remix`
+- Version labels: `(Radio Edit)`, `(Album Version)`, `(Remastered)`, `(Live)`, `(Acoustic)`
+
+This logic lives entirely inside `MusicBrainzService` — the `IMusicBrainzService` interface and all callers are
+unaffected.
 
 ### 5.5 Commentary Generation
 
@@ -195,12 +245,17 @@ just a control surface.
 | Element               | Description                                                                   |
 |-----------------------|-------------------------------------------------------------------------------|
 | Album art             | Square image (300×300 px), loaded from Cover Art Archive. Placeholder shown while loading. |
+| Artist image          | Circular image (60×60 px) in the header. Placeholder shown while loading.       |
 | Track title           | Large, bold text. Truncated with ellipsis if too long.                        |
 | Artist name           | Smaller, secondary text below the title.                                      |
 | Play / Pause button   | Toggles stream playback.                                                      |
 | Volume slider         | Controls the OpenAL master output gain (0–100%).                              |
 | AI Commentary toggle  | Switches between template and AI commentary modes.                            |
 | Settings button       | Opens a settings panel for stream URL, AI endpoint, API key, voice selection. |
+
+Both image areas display XAML-drawn placeholders (vinyl record graphic for album art, silhouette for artist) when no
+URL is available. The placeholder is replaced by the real image as soon as the metadata service returns a URL. If the
+service returns nothing, the placeholder remains.
 
 ---
 
@@ -253,9 +308,11 @@ src/Muzsick/
 │   └── AzureTtsBackend.cs       # Optional cloud backend (V1+)
 │
 ├── Metadata/
-│   ├── IcyMetadataParser.cs     # Parses Artist - Title from ICY string
-│   ├── MusicBrainzService.cs    # Metadata + cover art fetch + cache
-│   └── TrackInfo.cs             # Data model
+│   ├── TrackInfo.cs             # ICY core fields + enrichment fields
+│   ├── ArtistInfo.cs            # Artist name + enrichment fields (image, bio)
+│   ├── IMusicBrainzService.cs   # Interface: EnrichAsync(TrackInfo)
+│   ├── MusicBrainzService.cs    # Implementation (stub in V0, real in V1)
+│   └── IcyMetadataParser.cs     # Parses Artist - Title from ICY string
 │
 ├── Commentary/
 │   ├── ICommentaryGenerator.cs
@@ -325,6 +382,15 @@ architecture.
 All AI commentary backends (Ollama, OpenAI, LM Studio, or any compatible API) share a single HTTP client targeting
 the OpenAI chat completions endpoint format. The user configures a base URL and optional API key. Switching from a
 local Ollama model to a cloud provider requires only a settings change, not a code change.
+
+### 10.6 Artist Identification Uses Track Title, Not Artist Name Alone
+
+Identifying an artist by name alone is unreliable. Many artists share common names, and a search for a name like
+"Pedro" or "Maria" may return dozens of unrelated artists. Using the recording’s title alongside the artist name
+produces an unambiguous match in the vast majority of cases. MusicBrainz recording search supports compound
+artist+title queries natively, and the resulting recording carries a definitive artist ID that can be used for all
+subsequent artist lookups. This is why `IMusicBrainzService.EnrichAsync` takes the full `TrackInfo` rather than just
+an artist name string.
 
 ---
 

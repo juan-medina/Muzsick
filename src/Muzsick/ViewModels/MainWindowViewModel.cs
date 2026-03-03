@@ -8,32 +8,38 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using Muzsick.Audio;
+using Muzsick.Metadata;
 
 namespace Muzsick.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
 	[ObservableProperty] private string _songTitle = "No track loaded";
-
 	[ObservableProperty] private string _artistName = "Unknown artist";
-
 	[ObservableProperty] private string _albumName = "Unknown album";
-
 	[ObservableProperty] private bool _isPlaying;
-
 	[ObservableProperty] private string? _playlistPath;
+
+	// Null means no image available — UI falls back to placeholder
+	[ObservableProperty] private string? _albumArtUrl;
+	[ObservableProperty] private string? _artistImageUrl;
 
 	private Window? _mainWindow;
 	private readonly StreamPlayer? _streamPlayer;
+	private readonly IMusicBrainzService _metadataService;
 
 	public MainWindowViewModel()
 	{
 #if DEBUG
-		var logger = App.LoggerFactory?.CreateLogger("StreamPlayer");
-		_streamPlayer = new StreamPlayer(logger);
+		var streamLogger = App.LoggerFactory?.CreateLogger("StreamPlayer");
+		var metaLogger = App.LoggerFactory?.CreateLogger("MusicBrainzService");
+		_streamPlayer = new StreamPlayer(streamLogger);
+		_metadataService = new MusicBrainzService(metaLogger);
 #else
 		_streamPlayer = new StreamPlayer();
+		_metadataService = new MusicBrainzService();
 #endif
 		_streamPlayer.StatusChanged += OnStatusChanged;
 		_streamPlayer.TrackChanged += OnTrackChanged;
@@ -76,20 +82,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	{
 		if (_mainWindow == null) return;
 
-		// Create file type filters for playlist files
 		var fileTypeFilter = new FilePickerFileType("Playlist Files")
 		{
 			Patterns = ["*.pls", "*.m3u", "*.m3u8"],
 			MimeTypes = ["audio/x-scpls", "audio/x-mpegurl", "application/vnd.apple.mpegurl"]
 		};
 
-		// Configure the file picker options
 		var options = new FilePickerOpenOptions
 		{
 			Title = "Select Radio Playlist", AllowMultiple = false, FileTypeFilter = [fileTypeFilter]
 		};
 
-		// Show the file picker dialog
 		var result = await _mainWindow.StorageProvider.OpenFilePickerAsync(options);
 
 		if (result.Count > 0)
@@ -97,12 +100,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			var selectedFile = result[0];
 			PlaylistPath = selectedFile.Path.LocalPath;
 
-			// Update the UI to show the selected file
 			SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
 			ArtistName = "Ready to play";
 			AlbumName = PlaylistPath;
+			AlbumArtUrl = null;
+			ArtistImageUrl = null;
 
-			// Stop current playback if playing
 			if (IsPlaying)
 			{
 				_streamPlayer?.Stop();
@@ -111,42 +114,49 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		}
 	}
 
-	private void OnTrackChanged(TrackInfo trackInfo)
+	private async void OnTrackChanged(TrackInfo track)
 	{
-		// Update UI with new track information
-		if (!string.IsNullOrEmpty(trackInfo.Title))
+		try
 		{
-			SongTitle = trackInfo.Title;
-		}
+			// Update text immediately from ICY data
+			SongTitle = !string.IsNullOrEmpty(track.Title) ? track.Title : SongTitle;
+			ArtistName = !string.IsNullOrEmpty(track.Artist) ? track.Artist : "Unknown artist";
+			AlbumName = !string.IsNullOrEmpty(track.Album)
+				? track.Album
+				: !string.IsNullOrEmpty(PlaylistPath)
+					? Path.GetFileNameWithoutExtension(PlaylistPath)
+					: "Unknown album";
 
-		ArtistName = !string.IsNullOrEmpty(trackInfo.Artist) ? trackInfo.Artist : "Unknown artist";
+			// Clear images while fetching — UI shows placeholders
+			AlbumArtUrl = null;
+			ArtistImageUrl = null;
 
-		if (!string.IsNullOrEmpty(trackInfo.Album))
-		{
-			AlbumName = trackInfo.Album;
+			// Enrich in the background — stub returns null URLs so placeholders stay visible for now
+			var (enriched, artist) = await _metadataService.EnrichAsync(track);
+
+			AlbumArtUrl = enriched.CoverArtUrl;
+			ArtistImageUrl = artist.ImageUrl;
+
+			// Use enriched album name if ICY didn't provide one
+			if (string.IsNullOrEmpty(track.Album) && !string.IsNullOrEmpty(enriched.Album))
+				AlbumName = enriched.Album;
 		}
-		else
+		catch (Exception ex)
 		{
-			AlbumName = !string.IsNullOrEmpty(PlaylistPath)
-				? Path.GetFileNameWithoutExtension(PlaylistPath)
-				: "Unknown album";
+			App.LoggerFactory?.CreateLogger("MainWindowViewModel")
+				.LogError(ex, "Error enriching track metadata");
 		}
 	}
 
 	private void OnStatusChanged(string status)
 	{
-		// Update UI based on stream player status, but don't show debug messages
 		if (status.StartsWith("Loading"))
 		{
 			SongTitle = status;
 			ArtistName = "Preparing to connect...";
 			AlbumName = "";
-		}
-		else if (status.StartsWith("Connecting"))
-		{
-			SongTitle = "Connecting to Stream";
-			ArtistName = status;
-			AlbumName = "";
+			AlbumArtUrl = null;
+			ArtistImageUrl = null;
 		}
 		else if (status.StartsWith("Starting"))
 		{
@@ -156,11 +166,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		}
 		else if (status == "Connected to stream")
 		{
-			// Show station name initially while waiting for track info
 			if (!string.IsNullOrEmpty(PlaylistPath))
 			{
-				var stationName = Path.GetFileNameWithoutExtension(PlaylistPath);
-				SongTitle = stationName;
+				SongTitle = Path.GetFileNameWithoutExtension(PlaylistPath);
 				ArtistName = "Live Radio Stream";
 				AlbumName = "Waiting for track information...";
 			}
@@ -168,6 +176,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		else if (status == "Stopped" || status == "Stream ended")
 		{
 			IsPlaying = false;
+			AlbumArtUrl = null;
+			ArtistImageUrl = null;
 			if (!string.IsNullOrEmpty(PlaylistPath))
 			{
 				SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
@@ -181,15 +191,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 				AlbumName = "Unknown album";
 			}
 		}
-		else if (status.StartsWith("Audio engine") || status.StartsWith("Invalid") || status.StartsWith("Failed") ||
-		         status.StartsWith("Playback error"))
+		else if (status.StartsWith("Failed") || status.StartsWith("Playback error") || status == "Connection error")
 		{
 			SongTitle = "Playback Error";
 			ArtistName = status;
 			AlbumName = "";
 			IsPlaying = false;
 		}
-		// Ignore other status messages to avoid debug noise in UI
 	}
 
 	public void Dispose()

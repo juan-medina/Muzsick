@@ -7,15 +7,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using LibVLCSharp.Shared;
 using Microsoft.Extensions.Logging;
+using Muzsick.Metadata;
 
 namespace Muzsick.Audio;
-
-public class TrackInfo
-{
-	public string Title { get; init; } = "";
-	public string Artist { get; init; } = "";
-	public string Album { get; init; } = "";
-}
 
 public class StreamPlayer(ILogger? logger = null) : IDisposable
 {

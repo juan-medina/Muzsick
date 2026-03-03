@@ -16,161 +16,178 @@
         Height="770"
         CanResize="False">
 
-    <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
+	<Design.DataContext>
+		<!-- This only sets the DataContext for the previewer in an IDE,
              to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
-        <vm:MainWindowViewModel />
-    </Design.DataContext>
+		<vm:MainWindowViewModel />
+	</Design.DataContext>
 
-    <DockPanel Background="#2B2B2B" LastChildFill="True">
-        <!-- Header with Artist Image -->
-        <DockPanel DockPanel.Dock="Top" Height="70" Background="#1E1E1E" Margin="0,0,0,0">
-            <Border Width="60" Height="60" Margin="10" Background="#444444" CornerRadius="30">
-                <!-- Artist Placeholder (XAML Graphics) -->
-                <Canvas Width="60" Height="60">
-                    <Ellipse Canvas.Left="0" Canvas.Top="0" Width="60" Height="60" Fill="#2d2d2d" />
-                    <!-- Head -->
-                    <Ellipse Canvas.Left="21" Canvas.Top="9" Width="18" Height="18" Fill="#999999" />
-                    <!-- Body -->
-                    <Ellipse Canvas.Left="15" Canvas.Top="30" Width="30" Height="25" Fill="#999999" />
-                </Canvas>
-            </Border>
-            <StackPanel VerticalAlignment="Center" Margin="10,0,20,0">
-                <TextBlock Text="Now Playing" FontSize="11" Foreground="#888888" />
-                <TextBlock Text="{Binding ArtistName}" FontSize="14" Foreground="#FFFFFF" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
-                <TextBlock Text="{Binding SongTitle}" FontSize="12" Foreground="#CCCCCC" TextTrimming="CharacterEllipsis" />
-            </StackPanel>
-        </DockPanel>
+	<DockPanel Background="#2B2B2B" LastChildFill="True">
 
-        <!-- Main Content Area -->
-        <StackPanel DockPanel.Dock="Top" Spacing="25" Margin="20" VerticalAlignment="Top">
-            <!-- Album Cover -->
-            <Grid HorizontalAlignment="Center" Margin="0,10,0,0">
-                <Border Width="300" Height="300" Background="#444444" CornerRadius="12" Effect="drop-shadow(0 4 8 #00000080)">
-                    <!-- Album Placeholder (XAML Graphics) -->
-                    <Canvas Width="300" Height="300">
-                        <!-- Background -->
-                        <Rectangle Canvas.Left="0" Canvas.Top="0" Width="300" Height="300" Fill="#444444" />
+		<!-- Header with Artist Image -->
+		<DockPanel DockPanel.Dock="Top" Height="70" Background="#1E1E1E" Margin="0,0,0,0">
+			<Border Width="60" Height="60" Margin="10" Background="#444444" CornerRadius="30"
+			        ClipToBounds="True">
+				<Panel>
+					<!-- Placeholder: shown when no artist image available -->
+					<Canvas Width="60" Height="60"
+					        IsVisible="{Binding ArtistImageUrl, Converter={x:Static ObjectConverters.IsNull}}">
+						<Ellipse Canvas.Left="0" Canvas.Top="0" Width="60" Height="60" Fill="#2d2d2d" />
+						<!-- Head -->
+						<Ellipse Canvas.Left="21" Canvas.Top="9" Width="18" Height="18" Fill="#999999" />
+						<!-- Body -->
+						<Ellipse Canvas.Left="15" Canvas.Top="30" Width="30" Height="25" Fill="#999999" />
+					</Canvas>
+					<!-- Real artist image: shown when URL is available -->
+					<Image Source="{Binding ArtistImageUrl}"
+					       Width="60" Height="60"
+					       Stretch="UniformToFill"
+					       IsVisible="{Binding ArtistImageUrl, Converter={x:Static ObjectConverters.IsNotNull}}" />
+				</Panel>
+			</Border>
+			<StackPanel VerticalAlignment="Center" Margin="10,0,20,0">
+				<TextBlock Text="Now Playing" FontSize="11" Foreground="#888888" />
+				<TextBlock Text="{Binding ArtistName}" FontSize="14" Foreground="#FFFFFF" FontWeight="Bold"
+				           TextTrimming="CharacterEllipsis" />
+				<TextBlock Text="{Binding SongTitle}" FontSize="12" Foreground="#CCCCCC" TextTrimming="CharacterEllipsis" />
+			</StackPanel>
+		</DockPanel>
 
-                        <!-- Vinyl record -->
-                        <Ellipse Canvas.Left="10" Canvas.Top="10" Width="280" Height="280" Fill="#1a1a1a" />
-                        <Ellipse Canvas.Left="20" Canvas.Top="20" Width="260" Height="260" Fill="#2d2d2d" />
+		<!-- Main Content Area -->
+		<StackPanel DockPanel.Dock="Top" Spacing="25" Margin="20" VerticalAlignment="Top">
 
-                        <!-- Record grooves -->
-                        <Ellipse Canvas.Left="30" Canvas.Top="30" Width="240" Height="240" Fill="Transparent" Stroke="#1a1a1a" StrokeThickness="2" Opacity="0.3" />
-                        <Ellipse Canvas.Left="50" Canvas.Top="50" Width="200" Height="200" Fill="Transparent" Stroke="#1a1a1a" StrokeThickness="2" Opacity="0.3" />
-                        <Ellipse Canvas.Left="70" Canvas.Top="70" Width="160" Height="160" Fill="Transparent" Stroke="#1a1a1a" StrokeThickness="2" Opacity="0.3" />
-                        <Ellipse Canvas.Left="90" Canvas.Top="90" Width="120" Height="120" Fill="Transparent" Stroke="#1a1a1a" StrokeThickness="2" Opacity="0.3" />
+			<!-- Album Cover -->
+			<Grid HorizontalAlignment="Center" Margin="0,10,0,0">
+				<Border Width="300" Height="300" Background="#444444" CornerRadius="12"
+				        Effect="drop-shadow(0 4 8 #00000080)" ClipToBounds="True">
+					<Panel>
+						<!-- Placeholder: shown when no album art available -->
+						<Canvas Width="300" Height="300"
+						        IsVisible="{Binding AlbumArtUrl, Converter={x:Static ObjectConverters.IsNull}}">
+							<!-- Background -->
+							<Rectangle Canvas.Left="0" Canvas.Top="0" Width="300" Height="300" Fill="#444444" />
+							<!-- Vinyl record -->
+							<Ellipse Canvas.Left="10" Canvas.Top="10" Width="280" Height="280" Fill="#1a1a1a" />
+							<Ellipse Canvas.Left="20" Canvas.Top="20" Width="260" Height="260" Fill="#2d2d2d" />
+							<!-- Record grooves -->
+							<Ellipse Canvas.Left="30" Canvas.Top="30" Width="240" Height="240" Fill="Transparent" Stroke="#1a1a1a"
+							         StrokeThickness="2" Opacity="0.3" />
+							<Ellipse Canvas.Left="50" Canvas.Top="50" Width="200" Height="200" Fill="Transparent" Stroke="#1a1a1a"
+							         StrokeThickness="2" Opacity="0.3" />
+							<Ellipse Canvas.Left="70" Canvas.Top="70" Width="160" Height="160" Fill="Transparent" Stroke="#1a1a1a"
+							         StrokeThickness="2" Opacity="0.3" />
+							<Ellipse Canvas.Left="90" Canvas.Top="90" Width="120" Height="120" Fill="Transparent" Stroke="#1a1a1a"
+							         StrokeThickness="2" Opacity="0.3" />
+							<!-- Center label -->
+							<Ellipse Canvas.Left="115" Canvas.Top="115" Width="70" Height="70" Fill="#FF6B35" />
+							<Ellipse Canvas.Left="125" Canvas.Top="125" Width="50" Height="50" Fill="#2d2d2d" />
+							<Ellipse Canvas.Left="142" Canvas.Top="142" Width="16" Height="16" Fill="#FF6B35" />
+							<!-- Text -->
+							<TextBlock Canvas.Left="130" Canvas.Top="270" Text="No Album Art" FontSize="14" Foreground="#999999" />
+						</Canvas>
+						<!-- Real album art: shown when URL is available -->
+						<Image Source="{Binding AlbumArtUrl}"
+						       Width="300" Height="300"
+						       Stretch="UniformToFill"
+						       IsVisible="{Binding AlbumArtUrl, Converter={x:Static ObjectConverters.IsNotNull}}" />
+					</Panel>
+				</Border>
+			</Grid>
 
-                        <!-- Center label -->
-                        <Ellipse Canvas.Left="115" Canvas.Top="115" Width="70" Height="70" Fill="#FF6B35" />
-                        <Ellipse Canvas.Left="125" Canvas.Top="125" Width="50" Height="50" Fill="#2d2d2d" />
-                        <Ellipse Canvas.Left="142" Canvas.Top="142" Width="16" Height="16" Fill="#FF6B35" />
+			<!-- Song Information -->
+			<StackPanel Spacing="10" HorizontalAlignment="Center" Width="520">
+				<!-- Song Title -->
+				<TextBlock
+					Text="{Binding SongTitle}"
+					FontSize="22"
+					FontWeight="Bold"
+					Foreground="#FFFFFF"
+					TextAlignment="Center"
+					TextTrimming="CharacterEllipsis"
+					LineHeight="26" />
+				<!-- Artist Name -->
+				<TextBlock
+					Text="{Binding ArtistName}"
+					FontSize="16"
+					Foreground="#CCCCCC"
+					TextAlignment="Center"
+					TextTrimming="CharacterEllipsis" />
+				<!-- Album Name -->
+				<TextBlock
+					Text="{Binding AlbumName}"
+					FontSize="14"
+					Foreground="#999999"
+					TextAlignment="Center"
+					TextTrimming="CharacterEllipsis" />
+			</StackPanel>
 
-                        <!-- Text -->
-                        <TextBlock Canvas.Left="130" Canvas.Top="270" Text="No Album Art" FontSize="14" Foreground="#999999" />
-                    </Canvas>
-                </Border>
-            </Grid>
+			<!-- Control Buttons -->
+			<StackPanel Spacing="15" HorizontalAlignment="Center" Margin="0,20,0,40">
+				<!-- Play / Pause Button - Large and Prominent -->
+				<Button
+					Width="140"
+					Height="140"
+					CornerRadius="70"
+					Command="{Binding PlayPauseCommand}"
+					Background="#FF6B35"
+					Foreground="#FFFFFF"
+					HorizontalAlignment="Center"
+					Classes="playButton">
+					<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+						<!-- Play Icon (when not playing) -->
+						<Canvas Width="50" Height="50" IsVisible="{Binding !IsPlaying}">
+							<Polygon Points="15,10 15,40 40,25" Fill="#FFFFFF" />
+						</Canvas>
+						<!-- Pause Icon (when playing) -->
+						<Canvas Width="50" Height="50" IsVisible="{Binding IsPlaying}">
+							<Rectangle Canvas.Left="15" Canvas.Top="10" Width="8" Height="30" Fill="#FFFFFF" />
+							<Rectangle Canvas.Left="27" Canvas.Top="10" Width="8" Height="30" Fill="#FFFFFF" />
+						</Canvas>
+					</StackPanel>
+				</Button>
 
-            <!-- Song Information -->
-            <StackPanel Spacing="10" HorizontalAlignment="Center" Width="520">
-                <!-- Song Title -->
-                <TextBlock
-                    Text="{Binding SongTitle}"
-                    FontSize="22"
-                    FontWeight="Bold"
-                    Foreground="#FFFFFF"
-                    TextAlignment="Center"
-                    TextTrimming="CharacterEllipsis"
-                    LineHeight="26" />
+				<!-- Secondary Button Row -->
+				<StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+					<!-- Browse Button -->
+					<Button
+						Width="160"
+						Height="50"
+						FontSize="14"
+						Command="{Binding BrowsePlaylistCommand}"
+						Background="#333333"
+						Foreground="#FFFFFF"
+						BorderThickness="2"
+						BorderBrush="#555555"
+						CornerRadius="8"
+						Classes="browseButton">
+						<StackPanel Orientation="Horizontal" Spacing="8">
+							<!-- File Icon -->
+							<Canvas Width="16" Height="16" VerticalAlignment="Center">
+								<Path Fill="#CCCCCC" Data="M2 2h4l2 2h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
+							</Canvas>
+							<TextBlock Text="Open Playlist" VerticalAlignment="Center" />
+						</StackPanel>
+					</Button>
+				</StackPanel>
+			</StackPanel>
+		</StackPanel>
+	</DockPanel>
 
-                <!-- Artist Name -->
-                <TextBlock
-                    Text="{Binding ArtistName}"
-                    FontSize="16"
-                    Foreground="#CCCCCC"
-                    TextAlignment="Center"
-                    TextTrimming="CharacterEllipsis" />
-
-                <!-- Album Name -->
-                <TextBlock
-                    Text="{Binding AlbumName}"
-                    FontSize="14"
-                    Foreground="#999999"
-                    TextAlignment="Center"
-                    TextTrimming="CharacterEllipsis" />
-            </StackPanel>
-
-            <!-- Control Buttons -->
-            <StackPanel Spacing="15" HorizontalAlignment="Center" Margin="0,20,0,40">
-                <!-- Play / Pause Button - Large and Prominent -->
-                <Button
-                    Width="140"
-                    Height="140"
-                    CornerRadius="70"
-                    Command="{Binding PlayPauseCommand}"
-                    Background="#FF6B35"
-                    Foreground="#FFFFFF"
-                    HorizontalAlignment="Center"
-                    Classes="playButton">
-                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                        <!-- Play Icon (when not playing) -->
-                        <Canvas Width="50" Height="50" IsVisible="{Binding !IsPlaying}">
-                            <Polygon Points="15,10 15,40 40,25" Fill="#FFFFFF" />
-                        </Canvas>
-                        <!-- Pause Icon (when playing) -->
-                        <Canvas Width="50" Height="50" IsVisible="{Binding IsPlaying}">
-                            <Rectangle Canvas.Left="15" Canvas.Top="10" Width="8" Height="30" Fill="#FFFFFF" />
-                            <Rectangle Canvas.Left="27" Canvas.Top="10" Width="8" Height="30" Fill="#FFFFFF" />
-                        </Canvas>
-                    </StackPanel>
-                </Button>
-
-                <!-- Secondary Button Row -->
-                <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
-                    <!-- Browse Button - Improved Design -->
-                    <Button
-                        Width="160"
-                        Height="50"
-                        FontSize="14"
-                        Command="{Binding BrowsePlaylistCommand}"
-                        Background="#333333"
-                        Foreground="#FFFFFF"
-                        BorderThickness="2"
-                        BorderBrush="#555555"
-                        CornerRadius="8"
-                        Classes="browseButton">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <!-- File Icon -->
-                            <Canvas Width="16" Height="16" VerticalAlignment="Center">
-                                <!-- Folder Icon -->
-                                <Path Fill="#CCCCCC" Data="M2 2h4l2 2h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
-                            </Canvas>
-                            <TextBlock Text="Open Playlist" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </StackPanel>
-        </StackPanel>
-    </DockPanel>
-
-    <Window.Styles>
-        <Style Selector="Button.playButton:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#FF8855" />
-        </Style>
-        <Style Selector="Button.playButton:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#DD5520" />
-        </Style>
-
-        <Style Selector="Button.browseButton:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#444444" />
-            <Setter Property="BorderBrush" Value="#777777" />
-        </Style>
-        <Style Selector="Button.browseButton:pressed /template/ ContentPresenter">
-            <Setter Property="Background" Value="#222222" />
-            <Setter Property="BorderBrush" Value="#888888" />
-        </Style>
-    </Window.Styles>
+	<Window.Styles>
+		<Style Selector="Button.playButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#FF8855" />
+		</Style>
+		<Style Selector="Button.playButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#DD5520" />
+		</Style>
+		<Style Selector="Button.browseButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#444444" />
+			<Setter Property="BorderBrush" Value="#777777" />
+		</Style>
+		<Style Selector="Button.browseButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#222222" />
+			<Setter Property="BorderBrush" Value="#888888" />
+		</Style>
+	</Window.Styles>
 
 </Window>

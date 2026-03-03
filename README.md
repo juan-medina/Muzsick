@@ -1,10 +1,10 @@
 ﻿# Muzsick
 
-> AI-Powered Radio Companion for Windows
+> AI-Powered Radio Companion
 
 Muzsick plays live internet radio streams and enriches the listening experience with AI-generated DJ-style commentary — spoken aloud, mixed seamlessly into the audio, no interruptions.
 
-Built with C# / .NET 9, WPF, NAudio, LibVLCSharp, and Sherpa-ONNX (Kokoro TTS). Runs fully offline after initial setup.
+Built with C# / .NET 9, Avalonia UI, Silk.NET.OpenAL, LibVLCSharp, and Sherpa-ONNX (Kokoro TTS). Runs fully offline after initial setup. Cross-platform — Windows, macOS, and Linux.
 
 ---
 
@@ -16,7 +16,7 @@ Built with C# / .NET 9, WPF, NAudio, LibVLCSharp, and Sherpa-ONNX (Kokoro TTS). 
 
 ## Requirements
 
-- Windows 10 or later
+- Windows, macOS, or Linux
 - .NET 9 SDK (for building from source)
 
 ---

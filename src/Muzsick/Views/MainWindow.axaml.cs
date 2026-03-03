@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Controls;
 using Muzsick.ViewModels;
 
@@ -21,6 +22,15 @@ public partial class MainWindow : Window
             if (DataContext is MainWindowViewModel vm)
             {
                 vm.SetMainWindow(this);
+            }
+        };
+
+        // Clean up resources when window closes
+        Closing += (sender, e) =>
+        {
+            if (DataContext is IDisposable disposable)
+            {
+                disposable.Dispose();
             }
         };
     }

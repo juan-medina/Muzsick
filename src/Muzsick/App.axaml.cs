@@ -9,11 +9,14 @@ using System.Linq;
 using Avalonia.Markup.Xaml;
 using Muzsick.ViewModels;
 using Muzsick.Views;
+using Microsoft.Extensions.Logging;
 
 namespace Muzsick;
 
 public partial class App : Application
 {
+    public static ILoggerFactory? LoggerFactory { get; set; }
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);

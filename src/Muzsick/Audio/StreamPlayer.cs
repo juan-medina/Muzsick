@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
 using LibVLCSharp.Shared;
 using Microsoft.Extensions.Logging;
 
@@ -11,13 +12,14 @@ namespace Muzsick.Audio;
 
 public class TrackInfo
 {
-	public string Title { get; set; } = "";
-	public string Artist { get; set; } = "";
-	public string Album { get; set; } = "";
+	public string Title { get; init; } = "";
+	public string Artist { get; init; } = "";
+	public string Album { get; init; } = "";
 }
 
-public class StreamPlayer : IDisposable
+public class StreamPlayer(ILogger? logger = null) : IDisposable
 {
+	// ReSharper disable once InconsistentNaming
 	private LibVLC? _libVLC;
 	private MediaPlayer? _mediaPlayer;
 	private Media? _currentMedia;
@@ -25,17 +27,9 @@ public class StreamPlayer : IDisposable
 	private Timer? _metadataTimer;
 	private string _lastKnownTitle = "";
 	private string _lastKnownArtist = "";
-	private readonly ILogger? _logger;
-
-	public bool IsPlaying => _mediaPlayer?.IsPlaying ?? false;
 
 	public event Action<string>? StatusChanged;
 	public event Action<TrackInfo>? TrackChanged;
-
-	public StreamPlayer(ILogger? logger = null)
-	{
-		_logger = logger;
-	}
 
 	public void Initialize()
 	{
@@ -43,41 +37,41 @@ public class StreamPlayer : IDisposable
 
 		try
 		{
-			_logger?.LogInformation("Starting LibVLC initialization...");
+			logger?.LogInformation("Starting LibVLC initialization...");
 			StatusChanged?.Invoke("Initializing audio engine...");
 
 			Core.Initialize();
-			_logger?.LogInformation("LibVLC core initialized");
+			logger?.LogInformation("LibVLC core initialized");
 
 			// Create LibVLC instance with basic options
 			_libVLC = new LibVLC("--no-video", "--intf", "dummy");
-			_logger?.LogInformation("LibVLC instance created");
+			logger?.LogInformation("LibVLC instance created");
 
 			_mediaPlayer = new MediaPlayer(_libVLC);
-			_logger?.LogInformation("MediaPlayer created");
+			logger?.LogInformation("MediaPlayer created");
 
 			// Set up event handlers
 			_mediaPlayer.Playing += (_, _) =>
 			{
-				_logger?.LogInformation("Stream started playing");
+				logger?.LogInformation("Stream started playing");
 				StatusChanged?.Invoke("Connected to stream");
 				StartMetadataPolling();
 			};
 			_mediaPlayer.Stopped += (_, _) =>
 			{
-				_logger?.LogInformation("Stream stopped");
+				logger?.LogInformation("Stream stopped");
 				StatusChanged?.Invoke("Stopped");
 				StopMetadataPolling();
 			};
 			_mediaPlayer.EncounteredError += (_, _) =>
 			{
-				_logger?.LogWarning("Stream encountered error");
+				logger?.LogWarning("Stream encountered error");
 				StatusChanged?.Invoke("Connection error");
 				StopMetadataPolling();
 			};
 			_mediaPlayer.EndReached += (_, _) =>
 			{
-				_logger?.LogInformation("Stream end reached");
+				logger?.LogInformation("Stream end reached");
 				StatusChanged?.Invoke("Stream ended");
 				StopMetadataPolling();
 			};
@@ -86,19 +80,19 @@ public class StreamPlayer : IDisposable
 			_mediaPlayer.MediaChanged += OnMediaChanged;
 
 			_isInitialized = true;
-			_logger?.LogInformation("Audio engine initialized successfully");
+			logger?.LogInformation("Audio engine initialized successfully");
 			StatusChanged?.Invoke("Audio engine ready");
 		}
 		catch (Exception ex)
 		{
-			_logger?.LogError(ex, "Failed to initialize audio engine");
+			logger?.LogError(ex, "Failed to initialize audio engine");
 			StatusChanged?.Invoke("Audio engine failed to initialize");
 		}
 	}
 
 	private void OnMediaChanged(object? sender, MediaPlayerMediaChangedEventArgs e)
 	{
-		_logger?.LogInformation("Media changed event fired, Setting up metadata handlers for new media");
+		logger?.LogInformation("Media changed event fired, Setting up metadata handlers for new media");
 		// Set up metadata event handler for the new media
 		e.Media.MetaChanged += OnMetaChanged;
 		e.Media.ParsedChanged += OnParsedChanged;
@@ -109,7 +103,7 @@ public class StreamPlayer : IDisposable
 
 	private void OnMetaChanged(object? sender, MediaMetaChangedEventArgs e)
 	{
-		_logger?.LogDebug("Metadata changed - Type: {MetadataType}", e.MetadataType);
+		logger?.LogDebug("Metadata changed - Type: {MetadataType}", e.MetadataType);
 
 		if (sender is Media media)
 		{
@@ -119,7 +113,7 @@ public class StreamPlayer : IDisposable
 
 	private void OnParsedChanged(object? sender, MediaParsedChangedEventArgs e)
 	{
-		_logger?.LogDebug("Parsed changed - Status: {ParsedStatus}", e.ParsedStatus);
+		logger?.LogDebug("Parsed changed - Status: {ParsedStatus}", e.ParsedStatus);
 
 		if (sender is Media media)
 		{
@@ -132,7 +126,7 @@ public class StreamPlayer : IDisposable
 	{
 		try
 		{
-			_logger?.LogDebug("ExtractAndNotifyTrackInfo called");
+			logger?.LogDebug("ExtractAndNotifyTrackInfo called");
 
 			// Extract ALL possible metadata types
 			var title = media.Meta(MetadataType.Title) ?? "";
@@ -142,23 +136,23 @@ public class StreamPlayer : IDisposable
 			var description = media.Meta(MetadataType.Description) ?? "";
 			var genre = media.Meta(MetadataType.Genre) ?? "";
 
-			_logger?.LogDebug("Raw metadata - Title: '{Title}', Artist: '{Artist}', Album: '{Album}'", title, artist,
+			logger?.LogDebug("Raw metadata - Title: '{Title}', Artist: '{Artist}', Album: '{Album}'", title, artist,
 				album);
-			_logger?.LogDebug(
+			logger?.LogDebug(
 				"Raw metadata - NowPlaying: '{NowPlaying}', Description: '{Description}', Genre: '{Genre}'", nowPlaying,
 				description, genre);
 
 			// Skip if we only have the station name as title
 			if (title == "radio.truckers.fm" || title.Contains("truckers.fm"))
 			{
-				_logger?.LogDebug("Skipping station name, looking for actual track info");
+				logger?.LogDebug("Skipping station name, looking for actual track info");
 				title = ""; // Reset to look for real track info
 			}
 
 			// ICY metadata often comes in NowPlaying field
 			if (!string.IsNullOrEmpty(nowPlaying))
 			{
-				_logger?.LogDebug("Processing NowPlaying metadata: '{NowPlaying}'", nowPlaying);
+				logger?.LogDebug("Processing NowPlaying metadata: '{NowPlaying}'", nowPlaying);
 
 				// If NowPlaying has actual song info (not just station name)
 				if (!nowPlaying.Contains("truckers.fm") && nowPlaying.Trim().Length > 0)
@@ -169,14 +163,14 @@ public class StreamPlayer : IDisposable
 					{
 						artist = parsedArtist;
 						title = parsedTitle;
-						_logger?.LogDebug("Parsed ICY from NowPlaying - Artist: '{Artist}', Title: '{Title}'", artist,
+						logger?.LogDebug("Parsed ICY from NowPlaying - Artist: '{Artist}', Title: '{Title}'", artist,
 							title);
 					}
 					else if (string.IsNullOrEmpty(title))
 					{
 						// Use NowPlaying as title if no parsing worked
 						title = nowPlaying;
-						_logger?.LogDebug("Using NowPlaying as title: '{Title}'", title);
+						logger?.LogDebug("Using NowPlaying as title: '{Title}'", title);
 					}
 				}
 			}
@@ -191,7 +185,7 @@ public class StreamPlayer : IDisposable
 					{
 						artist = parsedArtist;
 						title = parsedTitle;
-						_logger?.LogDebug("Parsed ICY from Title - Artist: '{Artist}', Title: '{Title}'", artist,
+						logger?.LogDebug("Parsed ICY from Title - Artist: '{Artist}', Title: '{Title}'", artist,
 							title);
 					}
 				}
@@ -213,23 +207,23 @@ public class StreamPlayer : IDisposable
 						Album = album
 					};
 
-					_logger?.LogInformation("NEW TRACK DETECTED - Title: '{Title}', Artist: '{Artist}'",
+					logger?.LogInformation("NEW TRACK DETECTED - Title: '{Title}', Artist: '{Artist}'",
 						trackInfo.Title, trackInfo.Artist);
 					TrackChanged?.Invoke(trackInfo);
 				}
 				else
 				{
-					_logger?.LogDebug("Same track as before, not notifying");
+					logger?.LogDebug("Same track as before, not notifying");
 				}
 			}
 			else
 			{
-				_logger?.LogDebug("No meaningful track metadata found, keeping current display");
+				logger?.LogDebug("No meaningful track metadata found, keeping current display");
 			}
 		}
 		catch (Exception ex)
 		{
-			_logger?.LogError(ex, "Error reading metadata");
+			logger?.LogError(ex, "Error reading metadata");
 		}
 	}
 
@@ -249,144 +243,128 @@ public class StreamPlayer : IDisposable
 
 		foreach (var separator in separators)
 		{
-			var parts = icyString.Split(new[] { separator }, 2, StringSplitOptions.RemoveEmptyEntries);
-			if (parts.Length == 2)
+			var parts = icyString.Split([separator], 2, StringSplitOptions.RemoveEmptyEntries);
+			if (parts.Length != 2) continue;
+			if (separator == " by ")
 			{
-				if (separator == " by ")
-				{
-					// "Title by Artist" format
-					title = parts[0].Trim();
-					artist = parts[1].Trim();
-				}
-				else
-				{
-					// "Artist - Title" format
-					artist = parts[0].Trim();
-					title = parts[1].Trim();
-				}
-
-				return;
+				// "Title by Artist" format
+				title = parts[0].Trim();
+				artist = parts[1].Trim();
 			}
+			else
+			{
+				// "Artist - Title" format
+				artist = parts[0].Trim();
+				title = parts[1].Trim();
+			}
+
+			return;
 		}
 
 		// If no separator found, treat the whole string as title
 		title = icyString.Trim();
 	}
 
-	public void PlayPlaylist(string playlistPath)
+	public async Task PlayPlaylist(string playlistPath)
 	{
-		_logger?.LogInformation("PlayPlaylist called with path: {PlaylistPath}", playlistPath);
-
-		if (!_isInitialized)
-		{
-			_logger?.LogError("Audio engine not initialized");
-			StatusChanged?.Invoke("Audio engine not ready");
-			return;
-		}
-
-		if (_mediaPlayer == null || _libVLC == null)
-		{
-			_logger?.LogError("Audio components not available");
-			StatusChanged?.Invoke("Audio components not available");
-			return;
-		}
-
-		Stop();
-
 		try
 		{
-			var fileName = Path.GetFileNameWithoutExtension(playlistPath);
-			_logger?.LogInformation("Loading playlist: {FileName}", fileName);
-			StatusChanged?.Invoke($"Loading {fileName}...");
+			logger?.LogInformation("PlayPlaylist called with path: {PlaylistPath}", playlistPath);
 
-			// Parse the playlist to get the first stream URL
-			var streamUrl = GetFirstStreamFromPlaylist(playlistPath);
-			if (!string.IsNullOrEmpty(streamUrl))
+			if (!_isInitialized)
 			{
-				_logger?.LogInformation("Found stream URL: {StreamUrl}", streamUrl);
-				StatusChanged?.Invoke("Connecting to stream...");
-
-				// Create media directly from stream URL
-				_currentMedia = new Media(_libVLC, streamUrl, FromType.FromLocation);
-
-				// Set up metadata detection with explicit options
-				_currentMedia.AddOption(":meta-policy=1");
-				_currentMedia.AddOption(":network-caching=2000");
-				_currentMedia.AddOption(":icy-metadata=1");
-
-				_logger?.LogDebug("Setting up metadata event handlers on current media");
-				// Set up event handlers before playing
-				_currentMedia.MetaChanged += OnMetaChanged;
-				_currentMedia.ParsedChanged += OnParsedChanged;
-
-				_logger?.LogDebug("Setting media to player and starting playback");
-				_mediaPlayer.Media = _currentMedia;
-			}
-			else
-			{
-				_logger?.LogError("Could not extract stream URL from playlist");
-				StatusChanged?.Invoke("Invalid playlist file");
+				logger?.LogError("Audio engine not initialized");
+				StatusChanged?.Invoke("Audio engine not ready");
 				return;
 			}
 
-			StatusChanged?.Invoke($"Starting {fileName}...");
-			var result = _mediaPlayer.Play();
-			_logger?.LogInformation("MediaPlayer.Play() returned: {Result}", result);
-
-			if (!result)
+			if (_mediaPlayer == null || _libVLC == null)
 			{
-				_logger?.LogError("Failed to start playback");
-				StatusChanged?.Invoke("Failed to start playback");
+				logger?.LogError("Audio components not available");
+				StatusChanged?.Invoke("Audio components not available");
+				return;
 			}
-		}
-		catch (Exception ex)
-		{
-			_logger?.LogError(ex, "Exception in PlayPlaylist");
-			StatusChanged?.Invoke("Playback error occurred");
-		}
-	}
 
-	private string? GetFirstStreamFromPlaylist(string playlistPath)
-	{
-		try
-		{
-			var lines = File.ReadAllLines(playlistPath);
+			Stop();
 
-			// Handle .pls format
-			if (Path.GetExtension(playlistPath).Equals(".pls", StringComparison.OrdinalIgnoreCase))
+			try
 			{
-				foreach (var line in lines)
+				var fileName = Path.GetFileNameWithoutExtension(playlistPath);
+				logger?.LogInformation("Loading playlist: {FileName}", fileName);
+				StatusChanged?.Invoke($"Loading {fileName}...");
+
+				// Create media from playlist and await its parsing with a 5-second timeout
+				_currentMedia = new Media(_libVLC, playlistPath);
+
+				var parseResult = await _currentMedia.Parse(MediaParseOptions.ParseNetwork, timeout: 5000);
+
+				if (parseResult != MediaParsedStatus.Done)
 				{
-					if (line.StartsWith("File1=", StringComparison.OrdinalIgnoreCase))
+					logger?.LogError("Playlist parsing failed or timed out: {Result}", parseResult);
+					StatusChanged?.Invoke("Failed to load playlist");
+					return;
+				}
+
+				logger?.LogInformation("Playlist parsed successfully");
+
+				// Get the first playable item from the parsed playlist
+				var mediaList = _currentMedia.SubItems;
+				if (mediaList.Count > 0)
+				{
+					// Guard: index access on MediaList can return null
+					var firstItem = mediaList[0];
+					if (firstItem == null)
 					{
-						return line.Substring(6).Trim();
+						logger?.LogError("First playlist item was null");
+						StatusChanged?.Invoke("No streams found in playlist");
+						return;
+					}
+
+					// Set up options on the actual stream media
+					firstItem.AddOption(":meta-policy=1");
+					firstItem.AddOption(":network-caching=2000");
+					firstItem.AddOption(":icy-metadata=1");
+
+					logger?.LogDebug("Setting up metadata event handlers on stream media");
+					firstItem.MetaChanged += OnMetaChanged;
+					firstItem.ParsedChanged += OnParsedChanged;
+
+					logger?.LogDebug("Setting stream media to player and starting playback");
+					_mediaPlayer.Media = firstItem;
+					_currentMedia = firstItem; // Update reference to the actual stream
+
+					StatusChanged?.Invoke($"Starting {fileName}...");
+
+					var started = _mediaPlayer.Play();
+					logger?.LogInformation("MediaPlayer.Play() returned: {Result}", started);
+
+					if (!started)
+					{
+						logger?.LogError("Failed to start playback");
+						StatusChanged?.Invoke("Failed to start playback");
 					}
 				}
-			}
-			// Handle .m3u format
-			else if (Path.GetExtension(playlistPath).Equals(".m3u", StringComparison.OrdinalIgnoreCase) ||
-			         Path.GetExtension(playlistPath).Equals(".m3u8", StringComparison.OrdinalIgnoreCase))
-			{
-				foreach (var line in lines)
+				else
 				{
-					if (!string.IsNullOrWhiteSpace(line) && !line.StartsWith("#"))
-					{
-						return line.Trim();
-					}
+					logger?.LogError("No playable items found in playlist");
+					StatusChanged?.Invoke("No streams found in playlist");
 				}
 			}
+			catch (Exception ex)
+			{
+				logger?.LogError(ex, "Exception in PlayPlaylist");
+				StatusChanged?.Invoke("Playback error occurred");
+			}
 		}
-		catch (Exception ex)
+		catch (Exception e)
 		{
-			StatusChanged?.Invoke($"Error parsing playlist: {ex.Message}");
+			logger?.LogError(e, "Unexpected error in PlayPlaylist");
 		}
-
-		return null;
 	}
 
 	private void StartMetadataPolling()
 	{
-		_logger?.LogDebug("Starting metadata polling timer");
+		logger?.LogDebug("Starting metadata polling timer");
 		StopMetadataPolling(); // Stop any existing timer
 
 		// Poll for metadata every 2 seconds
@@ -395,43 +373,39 @@ public class StreamPlayer : IDisposable
 
 	private void StopMetadataPolling()
 	{
-		_logger?.LogDebug("Stopping metadata polling timer");
+		logger?.LogDebug("Stopping metadata polling timer");
 		_metadataTimer?.Dispose();
 		_metadataTimer = null;
 	}
 
 	private void PollMetadata(object? state)
 	{
-		if (_currentMedia != null)
-		{
-			_logger?.LogDebug("Polling metadata...");
-			ExtractAndNotifyTrackInfo(_currentMedia);
-		}
+		if (_currentMedia == null) return;
+		logger?.LogDebug("Polling metadata...");
+		ExtractAndNotifyTrackInfo(_currentMedia);
 	}
 
 	public void Stop()
 	{
-		_logger?.LogInformation("Stop called");
+		logger?.LogInformation("Stop called");
 		StopMetadataPolling();
 
-		if (_mediaPlayer != null && _mediaPlayer.IsPlaying)
+		if (_mediaPlayer is { IsPlaying: true })
 		{
 			_mediaPlayer.Stop();
 		}
 
-		if (_currentMedia != null)
-		{
-			// Clean up event handlers
-			_currentMedia.MetaChanged -= OnMetaChanged;
-			_currentMedia.ParsedChanged -= OnParsedChanged;
-			_currentMedia.Dispose();
-			_currentMedia = null;
-		}
+		if (_currentMedia == null) return;
+		// Clean up event handlers
+		_currentMedia.MetaChanged -= OnMetaChanged;
+		_currentMedia.ParsedChanged -= OnParsedChanged;
+		_currentMedia.Dispose();
+		_currentMedia = null;
 	}
 
 	public void Dispose()
 	{
-		_logger?.LogInformation("Dispose called");
+		logger?.LogInformation("Dispose called");
 		StopMetadataPolling();
 		Stop();
 		_mediaPlayer?.Dispose();

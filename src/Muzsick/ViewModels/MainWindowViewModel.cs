@@ -16,7 +16,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
 	[ObservableProperty] private string _songTitle = "No track loaded";
 
-	[ObservableProperty] private string artistName = "Unknown artist";
+	[ObservableProperty] private string _artistName = "Unknown artist";
 
 	[ObservableProperty] private string _albumName = "Unknown album";
 
@@ -46,27 +46,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	}
 
 	[RelayCommand]
-	private void PlayPause()
+	private async Task PlayPause()
 	{
 		if (_streamPlayer == null) return;
 
 		if (IsPlaying)
 		{
-			// Stop playback
 			_streamPlayer.Stop();
 			IsPlaying = false;
 		}
 		else
 		{
-			// Start playback if we have a playlist
 			if (!string.IsNullOrEmpty(PlaylistPath) && File.Exists(PlaylistPath))
 			{
-				_streamPlayer.PlayPlaylist(PlaylistPath);
+				await _streamPlayer.PlayPlaylist(PlaylistPath);
 				IsPlaying = true;
 			}
 			else
 			{
-				// No playlist selected
 				SongTitle = "No playlist selected";
 				ArtistName = "Please browse for a playlist file";
 				AlbumName = "";
@@ -82,14 +79,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		// Create file type filters for playlist files
 		var fileTypeFilter = new FilePickerFileType("Playlist Files")
 		{
-			Patterns = new[] { "*.pls", "*.m3u", "*.m3u8" },
-			MimeTypes = new[] { "audio/x-scpls", "audio/x-mpegurl", "application/vnd.apple.mpegurl" }
+			Patterns = ["*.pls", "*.m3u", "*.m3u8"],
+			MimeTypes = ["audio/x-scpls", "audio/x-mpegurl", "application/vnd.apple.mpegurl"]
 		};
 
 		// Configure the file picker options
 		var options = new FilePickerOpenOptions
 		{
-			Title = "Select Radio Playlist", AllowMultiple = false, FileTypeFilter = new[] { fileTypeFilter }
+			Title = "Select Radio Playlist", AllowMultiple = false, FileTypeFilter = [fileTypeFilter]
 		};
 
 		// Show the file picker dialog
@@ -122,14 +119,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			SongTitle = trackInfo.Title;
 		}
 
-		if (!string.IsNullOrEmpty(trackInfo.Artist))
-		{
-			ArtistName = trackInfo.Artist;
-		}
-		else
-		{
-			ArtistName = "Unknown artist";
-		}
+		ArtistName = !string.IsNullOrEmpty(trackInfo.Artist) ? trackInfo.Artist : "Unknown artist";
 
 		if (!string.IsNullOrEmpty(trackInfo.Album))
 		{

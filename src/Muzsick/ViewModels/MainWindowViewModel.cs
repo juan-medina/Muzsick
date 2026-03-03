@@ -14,23 +14,18 @@ namespace Muzsick.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase, IDisposable
 {
-	[ObservableProperty]
-	private string songTitle = "No track loaded";
+	[ObservableProperty] private string _songTitle = "No track loaded";
 
-	[ObservableProperty]
-	private string artistName = "Unknown artist";
+	[ObservableProperty] private string artistName = "Unknown artist";
 
-	[ObservableProperty]
-	private string albumName = "Unknown album";
+	[ObservableProperty] private string _albumName = "Unknown album";
 
-	[ObservableProperty]
-	private bool isPlaying = false;
+	[ObservableProperty] private bool _isPlaying;
 
-	[ObservableProperty]
-	private string? playlistPath = null;
+	[ObservableProperty] private string? _playlistPath;
 
 	private Window? _mainWindow;
-	private StreamPlayer? _streamPlayer;
+	private readonly StreamPlayer? _streamPlayer;
 
 	public MainWindowViewModel()
 	{
@@ -53,7 +48,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[RelayCommand]
 	private void PlayPause()
 	{
-
 		if (_streamPlayer == null) return;
 
 		if (IsPlaying)
@@ -95,9 +89,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		// Configure the file picker options
 		var options = new FilePickerOpenOptions
 		{
-			Title = "Select Radio Playlist",
-			AllowMultiple = false,
-			FileTypeFilter = new[] { fileTypeFilter }
+			Title = "Select Radio Playlist", AllowMultiple = false, FileTypeFilter = new[] { fileTypeFilter }
 		};
 
 		// Show the file picker dialog
@@ -109,7 +101,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			PlaylistPath = selectedFile.Path.LocalPath;
 
 			// Update the UI to show the selected file
-			SongTitle = $"Playlist: {System.IO.Path.GetFileNameWithoutExtension(PlaylistPath)}";
+			SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
 			ArtistName = "Ready to play";
 			AlbumName = PlaylistPath;
 
@@ -145,7 +137,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		}
 		else
 		{
-			AlbumName = !string.IsNullOrEmpty(PlaylistPath) ? Path.GetFileNameWithoutExtension(PlaylistPath) : "Unknown album";
+			AlbumName = !string.IsNullOrEmpty(PlaylistPath)
+				? Path.GetFileNameWithoutExtension(PlaylistPath)
+				: "Unknown album";
 		}
 	}
 
@@ -197,7 +191,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 				AlbumName = "Unknown album";
 			}
 		}
-		else if (status.StartsWith("Audio engine") || status.StartsWith("Invalid") || status.StartsWith("Failed") || status.StartsWith("Playback error"))
+		else if (status.StartsWith("Audio engine") || status.StartsWith("Invalid") || status.StartsWith("Failed") ||
+		         status.StartsWith("Playback error"))
 		{
 			SongTitle = "Playback Error";
 			ArtistName = status;

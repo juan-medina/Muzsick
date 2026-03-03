@@ -4,7 +4,6 @@
 using System;
 using System.IO;
 using System.Threading;
-using System.Threading.Tasks;
 using LibVLCSharp.Shared;
 using Microsoft.Extensions.Logging;
 
@@ -58,22 +57,26 @@ public class StreamPlayer : IDisposable
 			_logger?.LogInformation("MediaPlayer created");
 
 			// Set up event handlers
-			_mediaPlayer.Playing += (sender, e) => {
+			_mediaPlayer.Playing += (_, _) =>
+			{
 				_logger?.LogInformation("Stream started playing");
 				StatusChanged?.Invoke("Connected to stream");
 				StartMetadataPolling();
 			};
-			_mediaPlayer.Stopped += (sender, e) => {
+			_mediaPlayer.Stopped += (_, _) =>
+			{
 				_logger?.LogInformation("Stream stopped");
 				StatusChanged?.Invoke("Stopped");
 				StopMetadataPolling();
 			};
-			_mediaPlayer.EncounteredError += (sender, e) => {
+			_mediaPlayer.EncounteredError += (_, _) =>
+			{
 				_logger?.LogWarning("Stream encountered error");
 				StatusChanged?.Invoke("Connection error");
 				StopMetadataPolling();
 			};
-			_mediaPlayer.EndReached += (sender, e) => {
+			_mediaPlayer.EndReached += (_, _) =>
+			{
 				_logger?.LogInformation("Stream end reached");
 				StatusChanged?.Invoke("Stream ended");
 				StopMetadataPolling();
@@ -95,18 +98,13 @@ public class StreamPlayer : IDisposable
 
 	private void OnMediaChanged(object? sender, MediaPlayerMediaChangedEventArgs e)
 	{
-		_logger?.LogInformation("Media changed event fired");
+		_logger?.LogInformation("Media changed event fired, Setting up metadata handlers for new media");
+		// Set up metadata event handler for the new media
+		e.Media.MetaChanged += OnMetaChanged;
+		e.Media.ParsedChanged += OnParsedChanged;
 
-		if (e.Media != null)
-		{
-			_logger?.LogInformation("Setting up metadata handlers for new media");
-			// Set up metadata event handler for the new media
-			e.Media.MetaChanged += OnMetaChanged;
-			e.Media.ParsedChanged += OnParsedChanged;
-
-			// Try to get metadata immediately
-			ExtractAndNotifyTrackInfo(e.Media);
-		}
+		// Try to get metadata immediately
+		ExtractAndNotifyTrackInfo(e.Media);
 	}
 
 	private void OnMetaChanged(object? sender, MediaMetaChangedEventArgs e)
@@ -144,8 +142,11 @@ public class StreamPlayer : IDisposable
 			var description = media.Meta(MetadataType.Description) ?? "";
 			var genre = media.Meta(MetadataType.Genre) ?? "";
 
-			_logger?.LogDebug("Raw metadata - Title: '{Title}', Artist: '{Artist}', Album: '{Album}'", title, artist, album);
-			_logger?.LogDebug("Raw metadata - NowPlaying: '{NowPlaying}', Description: '{Description}', Genre: '{Genre}'", nowPlaying, description, genre);
+			_logger?.LogDebug("Raw metadata - Title: '{Title}', Artist: '{Artist}', Album: '{Album}'", title, artist,
+				album);
+			_logger?.LogDebug(
+				"Raw metadata - NowPlaying: '{NowPlaying}', Description: '{Description}', Genre: '{Genre}'", nowPlaying,
+				description, genre);
 
 			// Skip if we only have the station name as title
 			if (title == "radio.truckers.fm" || title.Contains("truckers.fm"))
@@ -168,7 +169,8 @@ public class StreamPlayer : IDisposable
 					{
 						artist = parsedArtist;
 						title = parsedTitle;
-						_logger?.LogDebug("Parsed ICY from NowPlaying - Artist: '{Artist}', Title: '{Title}'", artist, title);
+						_logger?.LogDebug("Parsed ICY from NowPlaying - Artist: '{Artist}', Title: '{Title}'", artist,
+							title);
 					}
 					else if (string.IsNullOrEmpty(title))
 					{
@@ -189,7 +191,8 @@ public class StreamPlayer : IDisposable
 					{
 						artist = parsedArtist;
 						title = parsedTitle;
-						_logger?.LogDebug("Parsed ICY from Title - Artist: '{Artist}', Title: '{Title}'", artist, title);
+						_logger?.LogDebug("Parsed ICY from Title - Artist: '{Artist}', Title: '{Title}'", artist,
+							title);
 					}
 				}
 			}
@@ -210,7 +213,8 @@ public class StreamPlayer : IDisposable
 						Album = album
 					};
 
-					_logger?.LogInformation("NEW TRACK DETECTED - Title: '{Title}', Artist: '{Artist}'", trackInfo.Title, trackInfo.Artist);
+					_logger?.LogInformation("NEW TRACK DETECTED - Title: '{Title}', Artist: '{Artist}'",
+						trackInfo.Title, trackInfo.Artist);
 					TrackChanged?.Invoke(trackInfo);
 				}
 				else
@@ -260,6 +264,7 @@ public class StreamPlayer : IDisposable
 					artist = parts[0].Trim();
 					title = parts[1].Trim();
 				}
+
 				return;
 			}
 		}

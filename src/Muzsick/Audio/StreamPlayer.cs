@@ -21,6 +21,7 @@ public class StreamPlayer(ILogger? logger = null) : IDisposable
 	private Timer? _metadataTimer;
 	private string _lastKnownTitle = "";
 	private string _lastKnownArtist = "";
+	private readonly IcyMetadataParser _icyParser = new(logger);
 
 	public event Action<string>? StatusChanged;
 	public event Action<TrackInfo>? TrackChanged;
@@ -120,83 +121,25 @@ public class StreamPlayer(ILogger? logger = null) : IDisposable
 		{
 			logger?.LogDebug("ExtractAndNotifyTrackInfo called");
 
-			var title = media.Meta(MetadataType.Title) ?? "";
-			var artist = media.Meta(MetadataType.Artist) ?? "";
-			var album = media.Meta(MetadataType.Album) ?? "";
-			var nowPlaying = media.Meta(MetadataType.NowPlaying) ?? "";
-			var description = media.Meta(MetadataType.Description) ?? "";
-			var genre = media.Meta(MetadataType.Genre) ?? "";
-
-			logger?.LogDebug("Raw metadata - Title: '{Title}', Artist: '{Artist}', Album: '{Album}'", title, artist,
-				album);
-			logger?.LogDebug(
-				"Raw metadata - NowPlaying: '{NowPlaying}', Description: '{Description}', Genre: '{Genre}'", nowPlaying,
-				description, genre);
-
-			if (title.Contains("truckers.fm"))
-			{
-				logger?.LogDebug("Skipping station name, looking for actual track info");
-				title = "";
-			}
-
-			if (!string.IsNullOrEmpty(nowPlaying) && !nowPlaying.Contains("truckers.fm"))
-			{
-				logger?.LogDebug("Processing NowPlaying metadata: '{NowPlaying}'", nowPlaying);
-				ParseIcyMetadata(nowPlaying, out var parsedArtist, out var parsedTitle);
-
-				if (!string.IsNullOrEmpty(parsedArtist) || !string.IsNullOrEmpty(parsedTitle))
-				{
-					artist = parsedArtist;
-					title = parsedTitle;
-					logger?.LogDebug("Parsed ICY from NowPlaying - Artist: '{Artist}', Title: '{Title}'", artist,
-						title);
-				}
-				else if (string.IsNullOrEmpty(title))
-				{
-					title = nowPlaying;
-					logger?.LogDebug("Using NowPlaying as title: '{Title}'", title);
-				}
-			}
-
-			if (!string.IsNullOrEmpty(title) && !title.Contains("truckers.fm") && string.IsNullOrEmpty(artist) &&
-			    title.Contains(" - "))
-			{
-				ParseIcyMetadata(title, out var parsedArtist, out var parsedTitle);
-				if (!string.IsNullOrEmpty(parsedArtist))
-				{
-					artist = parsedArtist;
-					title = parsedTitle;
-					logger?.LogDebug("Parsed ICY from Title - Artist: '{Artist}', Title: '{Title}'", artist, title);
-				}
-			}
-
-			if ((!string.IsNullOrEmpty(title) && !title.Contains("truckers.fm")) || !string.IsNullOrEmpty(artist))
-			{
-				if (title != _lastKnownTitle || artist != _lastKnownArtist)
-				{
-					_lastKnownTitle = title;
-					_lastKnownArtist = artist;
-
-					var trackInfo = new TrackInfo
-					{
-						Title = title,
-						Artist = string.IsNullOrEmpty(artist) ? "Unknown Artist" : artist,
-						Album = album
-					};
-
-					logger?.LogInformation("NEW TRACK DETECTED - Title: '{Title}', Artist: '{Artist}'", trackInfo.Title,
-						trackInfo.Artist);
-					TrackChanged?.Invoke(trackInfo);
-				}
-				else
-				{
-					logger?.LogDebug("Same track as before, not notifying");
-				}
-			}
-			else
+			var trackInfo = _icyParser.ExtractTrackInfo(media);
+			if (trackInfo == null)
 			{
 				logger?.LogDebug("No meaningful track metadata found, keeping current display");
+				return;
 			}
+
+			if (trackInfo.Title == _lastKnownTitle && trackInfo.Artist == _lastKnownArtist)
+			{
+				logger?.LogDebug("Same track as before, not notifying");
+				return;
+			}
+
+			_lastKnownTitle = trackInfo.Title;
+			_lastKnownArtist = trackInfo.Artist;
+
+			logger?.LogInformation("NEW TRACK DETECTED - Title: '{Title}', Artist: '{Artist}'", trackInfo.Title,
+				trackInfo.Artist);
+			TrackChanged?.Invoke(trackInfo);
 		}
 		catch (Exception ex)
 		{
@@ -204,38 +147,6 @@ public class StreamPlayer(ILogger? logger = null) : IDisposable
 		}
 	}
 
-	private void ParseIcyMetadata(string icyString, out string artist, out string title)
-	{
-		artist = "";
-		title = "";
-
-		if (string.IsNullOrEmpty(icyString)) return;
-
-		// Common ICY formats: "Artist - Title", "Artist: Title", "Title by Artist"
-		var separators = new[] { " - ", " – ", " — ", ": ", " by " };
-
-		foreach (var separator in separators)
-		{
-			var parts = icyString.Split([separator], 2, StringSplitOptions.RemoveEmptyEntries);
-			if (parts.Length != 2) continue;
-
-			if (separator == " by ")
-			{
-				title = parts[0].Trim();
-				artist = parts[1].Trim();
-			}
-			else
-			{
-				artist = parts[0].Trim();
-				title = parts[1].Trim();
-			}
-
-			return;
-		}
-
-		// No separator found — treat the whole string as title
-		title = icyString.Trim();
-	}
 
 	public async Task PlayPlaylist(string playlistPath)
 	{

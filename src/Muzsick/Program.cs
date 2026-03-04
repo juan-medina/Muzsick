@@ -28,7 +28,7 @@ sealed class Program
 					options.TimestampFormat = "[yyyy-MM-dd HH:mm:ss.fff] ";
 					options.UseUtcTimestamp = false;
 				})
-				.SetMinimumLevel(LogLevel.Debug);
+				.SetMinimumLevel(LogLevel.Information);
 		});
 
 		// Store logger factory globally for DI

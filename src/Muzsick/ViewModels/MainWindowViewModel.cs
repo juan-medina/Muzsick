@@ -3,8 +3,10 @@
 
 using System;
 using System.IO;
+using System.Net.Http;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -22,13 +24,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private bool _isPlaying;
 	[ObservableProperty] private string? _playlistPath;
 
-	// Null means no image available — UI falls back to placeholder
-	[ObservableProperty] private string? _albumArtUrl;
-	[ObservableProperty] private string? _artistImageUrl;
+	// Bitmap? — null means no image available, UI falls back to placeholder
+	[ObservableProperty] private Bitmap? _albumArt;
+	[ObservableProperty] private Bitmap? _artistImage;
 
 	private Window? _mainWindow;
 	private readonly StreamPlayer? _streamPlayer;
-	private readonly IMusicBrainzService _metadataService;
+	private readonly IMetaService _metadataService;
+	private readonly HttpClient _httpClient;
+	private Guid _currentTrackToken;
 
 	public MainWindowViewModel()
 	{
@@ -36,7 +40,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		var streamLogger = App.LoggerFactory?.CreateLogger("StreamPlayer");
 		var metaLogger = App.LoggerFactory?.CreateLogger("MusicBrainzService");
 		_streamPlayer = new StreamPlayer(streamLogger);
-		_metadataService = new MusicBrainzService(metaLogger);
+		_metadataService = new MusicBrainzMetaService(metaLogger);
+
 #else
 		_streamPlayer = new StreamPlayer();
 		_metadataService = new MusicBrainzService();
@@ -44,6 +49,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_streamPlayer.StatusChanged += OnStatusChanged;
 		_streamPlayer.TrackChanged += OnTrackChanged;
 		_streamPlayer.Initialize();
+		_httpClient = new HttpClient();
+		_httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
+			"Muzsick/0.1 (https://github.com/juan-medina/muzsick)");
 	}
 
 	public void SetMainWindow(Window window)
@@ -103,8 +111,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
 			ArtistName = "Ready to play";
 			AlbumName = PlaylistPath;
-			AlbumArtUrl = null;
-			ArtistImageUrl = null;
+			AlbumArt = null;
+			ArtistImage = null;
 
 			if (IsPlaying)
 			{
@@ -118,7 +126,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	{
 		try
 		{
-			// Update text immediately from ICY data
+			var token = Guid.NewGuid();
+			_currentTrackToken = token;
+
 			SongTitle = !string.IsNullOrEmpty(track.Title) ? track.Title : SongTitle;
 			ArtistName = !string.IsNullOrEmpty(track.Artist) ? track.Artist : "Unknown artist";
 			AlbumName = !string.IsNullOrEmpty(track.Album)
@@ -127,17 +137,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 					? Path.GetFileNameWithoutExtension(PlaylistPath)
 					: "Unknown album";
 
-			// Clear images while fetching — UI shows placeholders
-			AlbumArtUrl = null;
-			ArtistImageUrl = null;
+			AlbumArt = null;
+			ArtistImage = null;
 
-			// Enrich in the background — stub returns null URLs so placeholders stay visible for now
 			var (enriched, artist) = await _metadataService.EnrichAsync(track);
 
-			AlbumArtUrl = enriched.CoverArtUrl;
-			ArtistImageUrl = artist.ImageUrl;
+			if (token != _currentTrackToken) return;
 
-			// Use enriched album name if ICY didn't provide one
+			if (!string.IsNullOrEmpty(enriched.CoverArtUrl))
+				AlbumArt = await LoadBitmapAsync(enriched.CoverArtUrl);
+
+			if (!string.IsNullOrEmpty(artist.ImageUrl))
+				ArtistImage = await LoadBitmapAsync(artist.ImageUrl);
+
 			if (string.IsNullOrEmpty(track.Album) && !string.IsNullOrEmpty(enriched.Album))
 				AlbumName = enriched.Album;
 		}
@@ -148,6 +160,35 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		}
 	}
 
+	/// <summary>
+	/// Downloads an image from a URL and decodes it into an Avalonia Bitmap.
+	/// Avalonia cannot load HTTP URLs from a string binding on Image.Source —
+	/// a Bitmap object is required.
+	/// </summary>
+	private async Task<Bitmap?> LoadBitmapAsync(string url)
+	{
+		try
+		{
+			var response = await _httpClient.GetAsync(url);
+			if (!response.IsSuccessStatusCode)
+			{
+				App.LoggerFactory?.CreateLogger("MainWindowViewModel")
+					.LogWarning("Image download failed: {StatusCode} for {Url}", response.StatusCode, url);
+				return null;
+			}
+
+			var bytes = await response.Content.ReadAsByteArrayAsync();
+			using var ms = new MemoryStream(bytes);
+			return new Bitmap(ms);
+		}
+		catch (Exception ex)
+		{
+			App.LoggerFactory?.CreateLogger("MainWindowViewModel")
+				.LogWarning("Image load failed: {Message} for {Url}", ex.Message, url);
+			return null;
+		}
+	}
+
 	private void OnStatusChanged(string status)
 	{
 		if (status.StartsWith("Loading"))
@@ -155,8 +196,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			SongTitle = status;
 			ArtistName = "Preparing to connect...";
 			AlbumName = "";
-			AlbumArtUrl = null;
-			ArtistImageUrl = null;
+			AlbumArt = null;
+			ArtistImage = null;
 		}
 		else if (status.StartsWith("Starting"))
 		{
@@ -164,44 +205,54 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			ArtistName = status;
 			AlbumName = "";
 		}
-		else if (status == "Connected to stream")
+		else switch (status)
 		{
-			if (!string.IsNullOrEmpty(PlaylistPath))
-			{
+			case "Connected to stream" when string.IsNullOrEmpty(PlaylistPath):
+				return;
+			case "Connected to stream":
 				SongTitle = Path.GetFileNameWithoutExtension(PlaylistPath);
 				ArtistName = "Live Radio Stream";
 				AlbumName = "Waiting for track information...";
-			}
-		}
-		else if (status == "Stopped" || status == "Stream ended")
-		{
-			IsPlaying = false;
-			AlbumArtUrl = null;
-			ArtistImageUrl = null;
-			if (!string.IsNullOrEmpty(PlaylistPath))
+				break;
+			case "Stopped":
+			case "Stream ended":
 			{
-				SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
-				ArtistName = "Ready to play";
-				AlbumName = PlaylistPath;
+				IsPlaying = false;
+				AlbumArt = null;
+				ArtistImage = null;
+				if (!string.IsNullOrEmpty(PlaylistPath))
+				{
+					SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
+					ArtistName = "Ready to play";
+					AlbumName = PlaylistPath;
+				}
+				else
+				{
+					SongTitle = "No track loaded";
+					ArtistName = "Unknown artist";
+					AlbumName = "Unknown album";
+				}
+
+				break;
 			}
-			else
+			default:
 			{
-				SongTitle = "No track loaded";
-				ArtistName = "Unknown artist";
-				AlbumName = "Unknown album";
+				if (status.StartsWith("Failed") || status.StartsWith("Playback error") || status == "Connection error")
+				{
+					SongTitle = "Playback Error";
+					ArtistName = status;
+					AlbumName = "";
+					IsPlaying = false;
+				}
+
+				break;
 			}
-		}
-		else if (status.StartsWith("Failed") || status.StartsWith("Playback error") || status == "Connection error")
-		{
-			SongTitle = "Playback Error";
-			ArtistName = status;
-			AlbumName = "";
-			IsPlaying = false;
 		}
 	}
 
 	public void Dispose()
 	{
+		_httpClient.Dispose();
 		_streamPlayer?.Dispose();
 	}
 }

@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Muzsick.Metadata;
 
-public interface IMusicBrainzService
+public interface IMetaService
 {
 	/// <summary>
 	/// Uses artist name AND track title together to unambiguously identify the recording,

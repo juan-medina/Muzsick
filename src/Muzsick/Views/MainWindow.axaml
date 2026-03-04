@@ -13,7 +13,7 @@
         Icon="/Assets/muzsick-logo.ico"
         Title="Muzsick"
         Width="600"
-        Height="770"
+        Height="850"
         CanResize="False">
 
 	<Design.DataContext>
@@ -119,6 +119,30 @@
 					Foreground="#999999"
 					TextAlignment="Center"
 					TextTrimming="CharacterEllipsis" />
+			</StackPanel>
+
+			<!-- Volume Control -->
+			<StackPanel HorizontalAlignment="Center" Width="520" Spacing="6">
+				<DockPanel>
+					<TextBlock DockPanel.Dock="Left" Text="🔈" FontSize="14" Foreground="#888888" VerticalAlignment="Center" />
+					<TextBlock DockPanel.Dock="Right" Text="🔊" FontSize="14" Foreground="#888888" VerticalAlignment="Center" />
+					<TextBlock DockPanel.Dock="Right"
+					           Text="{Binding Volume, StringFormat={}{0}%}"
+					           FontSize="12"
+					           Foreground="#888888"
+					           Width="36"
+					           TextAlignment="Right"
+					           VerticalAlignment="Center"
+					           Margin="8,0,4,0" />
+					<Slider
+						Minimum="0"
+						Maximum="100"
+						Value="{Binding Volume}"
+						TickFrequency="1"
+						IsSnapToTickEnabled="True"
+						Margin="8,0"
+						VerticalAlignment="Center" />
+				</DockPanel>
 			</StackPanel>
 
 			<!-- Control Buttons -->

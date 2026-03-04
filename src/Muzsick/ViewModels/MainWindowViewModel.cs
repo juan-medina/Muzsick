@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Muzsick.Audio;
+using Muzsick.Config;
 using Muzsick.Metadata;
 using Muzsick.Views;
 
@@ -24,6 +25,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private string _albumName = "Unknown album";
 	[ObservableProperty] private bool _isPlaying;
 	[ObservableProperty] private string? _playlistPath;
+	[ObservableProperty] private int _volume = 50;
 
 	// Bitmap? — null means no image available, UI falls back to placeholder
 	[ObservableProperty] private Bitmap? _albumArt;
@@ -52,11 +54,27 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_httpClient = new HttpClient();
 		_httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
 			"Muzsick/0.1 (https://github.com/juan-medina/muzsick)");
+
+		var settings = SettingsManager.Load();
+		if (settings != null)
+		{
+			_volume = Math.Clamp(settings.Volume, 0, 100);
+			_streamPlayer.SetVolume(_volume);
+		}
 	}
 
 	public void SetMainWindow(Window window)
 	{
 		_mainWindow = window;
+	}
+
+	partial void OnVolumeChanged(int value)
+	{
+		_streamPlayer?.SetVolume(value);
+
+		var settings = SettingsManager.Load() ?? new AppSettings();
+		settings.Volume = value;
+		SettingsManager.Save(settings);
 	}
 
 	[RelayCommand]

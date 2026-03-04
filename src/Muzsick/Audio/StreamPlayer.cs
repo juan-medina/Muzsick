@@ -235,6 +235,13 @@ public class StreamPlayer(ILogger? logger = null) : IDisposable
 		ExtractAndNotifyTrackInfo(_currentMedia);
 	}
 
+	public void SetVolume(int volume)
+	{
+		if (_mediaPlayer == null) return;
+		_mediaPlayer.Volume = Math.Clamp(volume, 0, 100);
+		logger?.LogDebug("Volume set to {Volume}", volume);
+	}
+
 	public void Stop()
 	{
 		logger?.LogInformation("Stop called");

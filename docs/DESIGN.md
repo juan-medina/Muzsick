@@ -53,7 +53,7 @@ at runtime.
 │  │  Stream Player   │                        ▼             │
 │  └────────┬─────────┘             ┌────────────────────┐   │
 │           │ PCM audio             │  Metadata Service  │   │
-│           ▼                       │  MusicBrainz API   │   │
+│           ▼                       │  Last.fm API       │   │
 │  ┌──────────────────┐             └─────────┬──────────┘   │
 │  │  Silk.NET.OpenAL │◄────────────┐         ▼              │
 │  │  Mixer + Output  │  PCM buffer │  ┌────────────────┐    │
@@ -80,18 +80,18 @@ output device directly.
 
 ## 4. Technology Stack
 
-| Component           | Technology                        | Notes                              |
-|---------------------|-----------------------------------|------------------------------------|
-| Language & Runtime  | C# / .NET 9                       | Cross-platform                     |
-| UI Framework        | Avalonia UI                       | Windows, macOS, Linux              |
-| Stream Playback     | LibVLCSharp + VideoLAN.LibVLC     | NuGet + native libs                |
-| Audio Mixing/Output | Silk.NET.OpenAL                   | Cross-platform, replaces NAudio    |
-| Text-to-Speech      | Sherpa-ONNX (C# bindings)         | In-process, no subprocess          |
-| TTS Voice Model     | Kokoro-82M (ONNX export)          | ~80 MB, shipped with installer     |
-| Metadata            | MetaBrainz.MusicBrainz            | NuGet package                      |
-| Cover Art           | MusicBrainz Cover Art Archive     | HTTP via HttpClient                |
-| AI Commentary       | OpenAI-compatible HTTP API        | Optional, user-configured endpoint |
-| Configuration       | System.Text.Json — settings.json  | No registry entries                |
+| Component           | Technology                       | Notes                              |
+|---------------------|----------------------------------|------------------------------------|
+| Language & Runtime  | C# / .NET 9                      | Cross-platform                     |
+| UI Framework        | Avalonia UI                      | Windows, macOS, Linux              |
+| Stream Playback     | LibVLCSharp + VideoLAN.LibVLC    | NuGet + native libs                |
+| Audio Mixing/Output | Silk.NET.OpenAL                  | Cross-platform, replaces NAudio    |
+| Text-to-Speech      | Sherpa-ONNX (C# bindings)        | In-process, no subprocess          |
+| TTS Voice Model     | Kokoro-82M (ONNX export)         | ~80 MB, shipped with installer     |
+| Track Metadata      | Last.fm API (`track.getInfo`)    | HTTP via HttpClient                |
+| Artist Images       | Wikimedia Commons / Wikidata     | HTTP via HttpClient                |
+| AI Commentary       | OpenAI-compatible HTTP API       | Optional, user-configured endpoint |
+| Configuration       | System.Text.Json — settings.json | No registry entries                |
 
 ---
 
@@ -137,39 +137,52 @@ public interface ITtsBackend
 }
 ```
 
-### 5.4 Metadata — MusicBrainz
+### 5.4 Metadata — Last.fm + Wikidata
 
-When a song change is detected, the artist name and track title are extracted from the ICY metadata string. Both
-values are used together to query the MusicBrainz API — never the artist name alone.
+When a song change is detected, the artist name and track title extracted from the ICY metadata are used to look up
+enrichment data from two sources.
 
-**Why both artist and title are required for lookup**
+**Why not MusicBrainz**
 
-Searching by artist name alone is unreliable because many artists share the same name. For example, searching for
-"Pedro" may return dozens of unrelated artists from different countries and genres. Searching for the recording
-"Pedro" + "Mi Amor Podrido" narrows the result to a single, unambiguous match. MusicBrainz recording search supports
-this compound query natively.
+MusicBrainz was evaluated first. The fundamental problem is that its text search was designed for tagging files you
+already own, not for matching radio ICY strings. Searching by `artist + title` frequently surfaces compilation
+releases rather than original studio albums, which makes selecting the right cover art and year unreliable. Even
+MusicBrainz Picard — the official tagger — has this known, unresolved problem; it adds manual sliders for users to
+tune release preferences. The tools in the ecosystem that achieve high match rates (Picard with AcoustID, beets) do
+so via acoustic fingerprinting, which is not available when you have only an ICY string. MusicBrainz text search
+is the wrong tool for this job.
+
+**Track metadata — Last.fm `track.getInfo`**
+
+The Last.fm `track.getInfo` endpoint is designed exactly for `artist + title` lookups from playback events. It
+returns album name, release year, genre tags, and album art URLs in a single call, without requiring compilation
+filtering or release scoring. A free API key is required; no account is needed beyond registration.
 
 The lookup flow is:
 
-1. Search MusicBrainz recordings using `artist + title` as the compound key.
-2. From the top recording result, extract the definitive MusicBrainz artist ID.
-3. Use the artist ID to fetch artist metadata (image, bio) from the MusicBrainz artist endpoint.
-4. Use the recording's release ID to fetch album art from the Cover Art Archive.
+1. Call `track.getInfo` with `artist` and `track` from the ICY string.
+2. If found, extract album name, cover art URL, year, and top tags.
+3. If not found (rare for charted tracks), leave enrichment fields empty — no fallback to a second source.
 
-This approach is reflected in the `IMusicBrainzService` interface, which takes a full `TrackInfo` (containing both
-artist and title) and returns an enriched `TrackInfo` and `ArtistInfo` together:
+**Artist images — Wikidata**
+
+Last.fm does not provide artist portrait images. Wikidata is already used in the project for this purpose and
+continues to serve artist images via the existing Wikidata lookup path.
+
+The combined service interface reflects this two-source design:
 
 ```csharp
-public interface IMusicBrainzService
+public interface IMetaService
 {
-    // Uses artist name AND track title together to unambiguously identify the recording.
+    // Enriches track metadata (album, art, year, tags) via Last.fm
+    // and artist image via Wikidata.
     // Returns originals unchanged if nothing is found.
     Task<(TrackInfo Track, ArtistInfo Artist)> EnrichAsync(TrackInfo track);
 }
 ```
 
-All metadata results are cached in a `ConcurrentDictionary` keyed on `artist+title` to avoid redundant API calls for
-repeated tracks. Cache entries expire after 24 hours.
+All results are cached in a `ConcurrentDictionary` keyed on `artist+title` to avoid redundant API calls for repeated
+tracks. Cache entries expire after 24 hours.
 
 > ICY metadata reliability varies by station. Some stations report incorrect or missing artist/title data. A future
 > version may add AcoustID audio fingerprinting as a fallback identification method.
@@ -177,27 +190,21 @@ repeated tracks. Cache entries expire after 24 hours.
 **Handling decorated titles**
 
 ICY metadata frequently includes featured artist credits, remix labels, or version tags embedded in the track title
-— for example `"Super Song ft Someone"` or `"Super Song (Radio Edit)"`. MusicBrainz will often not match on these
-decorated strings but will match on the base title.
+— for example `"Super Song ft Someone"` or `"Super Song (Radio Edit)"`. Last.fm handles decorated titles better
+than MusicBrainz but still may not match on heavily decorated strings.
 
-The lookup strategy inside `MusicBrainzService` is:
+The lookup strategy is:
 
-1. **Try the exact ICY title first.** If MusicBrainz returns a match for `"Super Song ft Someone"` by `"An Artist"`,
-   use it — it is the most precise result and should be kept.
-2. **If no result, clean the title and retry.** Strip known decorator patterns (featured artists, remix tags, version
-   labels) and search again with the base title `"Super Song"` by `"An Artist"`.
+1. **Try the exact ICY title first.** If Last.fm returns a match, use it.
+2. **If no result, clean the title and retry.** Strip known decorator patterns and search again with the base title.
 3. **Preserve the original ICY title in the UI regardless.** The `Title` field on `TrackInfo` always holds the raw
-   ICY string — what is actually playing. Enrichment fields (cover art, year, genre) are populated from whatever
-   MusicBrainz matched, but the displayed title is never overwritten by the search result.
+   ICY string. Enrichment fields are populated from whatever matched, but the displayed title is never overwritten.
 
 Decorator patterns to strip on retry include:
 
 - Featured artists: `ft.`, `ft`, `feat.`, `feat`, `featuring` (and everything after)
 - Remix tags: `(X Remix)`, `- X Remix`
 - Version labels: `(Radio Edit)`, `(Album Version)`, `(Remastered)`, `(Live)`, `(Acoustic)`
-
-This logic lives entirely inside `MusicBrainzService` — the `IMusicBrainzService` interface and all callers are
-unaffected.
 
 ### 5.5 Commentary Generation
 
@@ -242,16 +249,16 @@ inter-commentary interval (default: 3 songs) prevents back-to-back voiceovers.
 The Avalonia UI is intentionally minimal. The design ethos is that the audio experience is the product — the UI is
 just a control surface.
 
-| Element               | Description                                                                   |
-|-----------------------|-------------------------------------------------------------------------------|
-| Album art             | Square image (300×300 px), loaded from Cover Art Archive. Placeholder shown while loading. |
-| Artist image          | Circular image (60×60 px) in the header. Placeholder shown while loading.       |
-| Track title           | Large, bold text. Truncated with ellipsis if too long.                        |
-| Artist name           | Smaller, secondary text below the title.                                      |
-| Play / Pause button   | Toggles stream playback.                                                      |
-| Volume slider         | Controls the OpenAL master output gain (0–100%).                              |
-| AI Commentary toggle  | Switches between template and AI commentary modes.                            |
-| Settings button       | Opens a settings panel for stream URL, AI endpoint, API key, voice selection. |
+| Element              | Description                                                                      |
+|----------------------|----------------------------------------------------------------------------------|
+| Album art            | Square image (300×300 px), loaded from Last.fm. Placeholder shown while loading. |
+| Artist image         | Circular image (60×60 px) in the header. Placeholder shown while loading.        |
+| Track title          | Large, bold text. Truncated with ellipsis if too long.                           |
+| Artist name          | Smaller, secondary text below the title.                                         |
+| Play / Pause button  | Toggles stream playback.                                                         |
+| Volume slider        | Controls the OpenAL master output gain (0–100%).                                 |
+| AI Commentary toggle | Switches between template and AI commentary modes.                               |
+| Settings button      | Opens a settings panel for stream URL, AI endpoint, API key, voice selection.    |
 
 Both image areas display XAML-drawn placeholders (vinyl record graphic for album art, silhouette for artist) when no
 URL is available. The placeholder is replaced by the real image as soon as the metadata service returns a URL. If the
@@ -310,8 +317,9 @@ src/Muzsick/
 ├── Metadata/
 │   ├── TrackInfo.cs             # ICY core fields + enrichment fields
 │   ├── ArtistInfo.cs            # Artist name + enrichment fields (image, bio)
-│   ├── IMusicBrainzService.cs   # Interface: EnrichAsync(TrackInfo)
-│   ├── MusicBrainzService.cs    # Implementation (stub in V0, real in V1)
+│   ├── IMetaService.cs          # Interface: EnrichAsync(TrackInfo)
+│   ├── LastFmMetaService.cs     # Last.fm track.getInfo implementation
+│   ├── WikidataArtistService.cs # Wikidata artist image lookup
 │   └── IcyMetadataParser.cs     # Parses Artist - Title from ICY string
 │
 ├── Commentary/
@@ -338,12 +346,12 @@ src/Muzsick/
 
 ## 9. Version Roadmap
 
-| Version | Scope            | Key Deliverables                                                                                      |
-|---------|------------------|-------------------------------------------------------------------------------------------------------|
-| V0      | Foundation       | Stream plays, ICY metadata detected, template voiceover mixed with ducking. Kokoro TTS in-process. Minimal Avalonia UI. |
-| V1      | AI Commentary    | Ollama / OpenAI commentary mode. Configurable personality. Metadata enrichment via MusicBrainz. Settings UI. |
-| V2      | Conversation     | User can ask questions about the current track or artist via text input. Context window maintains last N tracks. |
-| V3      | Multi-Station    | Station list, favourites, per-station AI personality presets. Plugin system for custom commentary scripts. |
+| Version | Scope         | Key Deliverables                                                                                                        |
+|---------|---------------|-------------------------------------------------------------------------------------------------------------------------|
+| V0      | Foundation    | Stream plays, ICY metadata detected, template voiceover mixed with ducking. Kokoro TTS in-process. Minimal Avalonia UI. |
+| V1      | AI Commentary | Ollama / OpenAI commentary mode. Configurable personality. Metadata enrichment via Last.fm + Wikidata. Settings UI.     |
+| V2      | Conversation  | User can ask questions about the current track or artist via text input. Context window maintains last N tracks.        |
+| V3      | Multi-Station | Station list, favourites, per-station AI personality presets. Plugin system for custom commentary scripts.              |
 
 ---
 
@@ -383,14 +391,19 @@ All AI commentary backends (Ollama, OpenAI, LM Studio, or any compatible API) sh
 the OpenAI chat completions endpoint format. The user configures a base URL and optional API key. Switching from a
 local Ollama model to a cloud provider requires only a settings change, not a code change.
 
-### 10.6 Artist Identification Uses Track Title, Not Artist Name Alone
+### 10.6 Why Last.fm Instead of MusicBrainz for Track Metadata
 
-Identifying an artist by name alone is unreliable. Many artists share common names, and a search for a name like
-"Pedro" or "Maria" may return dozens of unrelated artists. Using the recording’s title alongside the artist name
-produces an unambiguous match in the vast majority of cases. MusicBrainz recording search supports compound
-artist+title queries natively, and the resulting recording carries a definitive artist ID that can be used for all
-subsequent artist lookups. This is why `IMusicBrainzService.EnrichAsync` takes the full `TrackInfo` rather than just
-an artist name string.
+MusicBrainz was the first candidate. The core problem is that its search index returns too many compilation releases
+for popular tracks, making it difficult to reliably select the original studio album for cover art and year data.
+This is a well-known issue in the ecosystem — even MusicBrainz Picard, the official tagging tool, exposes manual
+"preferred releases" sliders because it cannot solve the problem automatically. The tools that do achieve high
+match rates (Picard, beets) rely on AcoustID acoustic fingerprinting, not text search. An ICY metadata string
+gives us only artist and title — no audio to fingerprint.
+
+Last.fm `track.getInfo` was designed for exactly this use case: resolving a playback event (artist + title) to rich
+metadata. It returns album name, cover art, year, and tags in a single call without requiring release scoring or
+compilation filtering. Artist images are not provided by Last.fm and continue to be sourced from Wikidata, which is
+already integrated for this purpose.
 
 ---
 

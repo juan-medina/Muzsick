@@ -41,7 +41,8 @@ public class StreamPlayer(ILogger? logger = null) : IDisposable
 			logger?.LogInformation("LibVLC instance created");
 
 			_mediaPlayer = new MediaPlayer(_libVLC);
-			logger?.LogInformation("MediaPlayer created");
+			_mediaPlayer.Volume = 50; // Set volume to 50% (0-100 scale)
+			logger?.LogInformation("MediaPlayer created with 50% volume");
 
 			_mediaPlayer.Playing += (_, _) =>
 			{

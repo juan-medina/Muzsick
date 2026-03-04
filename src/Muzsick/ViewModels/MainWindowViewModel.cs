@@ -13,6 +13,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Muzsick.Audio;
 using Muzsick.Metadata;
+using Muzsick.Views;
 
 namespace Muzsick.ViewModels;
 
@@ -44,7 +45,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		ILogger? metaLogger = null;
 #endif
 		_streamPlayer = new StreamPlayer(streamLogger);
-		_metadataService = new LastFmMetaService(App.Settings.LastFmApiKey, metaLogger);
+		_metadataService = new LastFmMetaService(metaLogger);
 		_streamPlayer.StatusChanged += OnStatusChanged;
 		_streamPlayer.TrackChanged += OnTrackChanged;
 		_streamPlayer.Initialize();
@@ -119,6 +120,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 				IsPlaying = false;
 			}
 		}
+	}
+
+	[RelayCommand]
+	private async Task OpenConfig()
+	{
+		if (_mainWindow == null) return;
+
+		var configWindow = new ConfigWindow(isFirstRun: false);
+		await configWindow.ShowDialog(_mainWindow);
 	}
 
 	private async void OnTrackChanged(TrackInfo track)

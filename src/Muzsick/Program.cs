@@ -38,16 +38,6 @@ sealed class Program
 		SettingsManager.EnsureExists();
 		var settings = SettingsManager.Load() ?? new AppSettings();
 
-		if (string.IsNullOrWhiteSpace(settings.LastFmApiKey))
-		{
-			Console.Error.WriteLine(
-				$"[Muzsick] LastFmApiKey is not set in settings.{Environment.NewLine}" +
-				$"  Edit: {SettingsManager.SettingsPath}{Environment.NewLine}" +
-				$"  Get a free key at: https://www.last.fm/api/account/create");
-
-			App.MissingApiKeyError = true;
-		}
-
 		App.Settings = settings;
 
 		BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);

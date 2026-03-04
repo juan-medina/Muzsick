@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2026 Juan Medina
+﻿﻿// SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 
 using System;
@@ -23,15 +23,13 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 	private readonly ILogger? _logger;
 	private readonly HttpClient _httpClient;
 	private readonly WikidataArtistService _wikidata;
-	private readonly string _apiKey;
 
 	private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
 	private readonly SemaphoreSlim _rateLimiter = new(1, 1);
 	private DateTime _lastRequestTime = DateTime.MinValue;
 
-	public LastFmMetaService(string apiKey, ILogger? logger = null)
+	public LastFmMetaService(ILogger? logger = null)
 	{
-		_apiKey = apiKey;
 		_logger = logger;
 
 		_httpClient = new HttpClient();
@@ -183,7 +181,7 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 	private async Task<CacheEntry?> FetchEntryInternalAsync(string artist, string title, bool autocorrect)
 	{
 		var url =
-			$"{_baseUrl}?method=track.getInfo&api_key={_apiKey}" +
+			$"{_baseUrl}?method=track.getInfo&api_key={App.Settings.LastFmApiKey}" +
 			$"&artist={Uri.EscapeDataString(artist)}&track={Uri.EscapeDataString(title)}" +
 			$"&format=json&autocorrect={(autocorrect ? "1" : "0")}";
 
@@ -335,7 +333,7 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 	private async Task<string?> FetchArtistMbidAsync(string artistName)
 	{
 		var url =
-			$"{_baseUrl}?method=artist.getInfo&api_key={_apiKey}" +
+			$"{_baseUrl}?method=artist.getInfo&api_key={App.Settings.LastFmApiKey}" +
 			$"&artist={Uri.EscapeDataString(artistName)}&format=json&autocorrect=1";
 
 		try
@@ -383,7 +381,7 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 	private async Task<string?> SearchCorrectedTitleAsync(string artist, string title)
 	{
 		var url =
-			$"{_baseUrl}?method=track.search&api_key={_apiKey}" +
+			$"{_baseUrl}?method=track.search&api_key={App.Settings.LastFmApiKey}" +
 			$"&track={Uri.EscapeDataString(title)}&artist={Uri.EscapeDataString(artist)}" +
 			$"&format=json&limit=3";
 

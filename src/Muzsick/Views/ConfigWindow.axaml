@@ -1,0 +1,98 @@
+﻿<!--
+    SPDX-FileCopyrightText: 2026 Juan Medina
+    SPDX-License-Identifier: MIT
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Muzsick.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="230"
+        x:Class="Muzsick.Views.ConfigWindow"
+        x:DataType="vm:ConfigWindowViewModel"
+        Icon="/Assets/muzsick-logo.ico"
+        Title="Muzsick — Settings"
+        Width="480"
+        Height="230"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+
+	<Design.DataContext>
+		<!-- Design-time only; real context set in code-behind -->
+	</Design.DataContext>
+
+	<Border Background="#2B2B2B" Padding="24">
+		<StackPanel Spacing="16">
+
+			<TextBlock Text="Last.fm API Key"
+			           FontSize="16"
+			           FontWeight="Bold"
+			           Foreground="#FFFFFF" />
+
+			<StackPanel Spacing="6">
+				<TextBlock Text="Enter your Last.fm API key to enable track metadata and artwork."
+				           FontSize="12"
+				           Foreground="#AAAAAA"
+				           TextWrapping="Wrap" />
+				<HyperlinkButton Content="Get a free key at last.fm/api/account/create"
+				                 NavigateUri="https://www.last.fm/api/account/create"
+				                 FontSize="12"
+				                 Foreground="#FF6B35"
+				                 Padding="0" />
+			</StackPanel>
+
+			<TextBox Text="{Binding ApiKey}"
+			         Watermark="Paste your API key here…"
+			         FontSize="14"
+			         Background="#1E1E1E"
+			         Foreground="#FFFFFF"
+			         BorderBrush="#555555"
+			         BorderThickness="1"
+			         CornerRadius="6"
+			         Padding="10,8" />
+
+			<StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+				<Button Content="Cancel"
+				        Command="{Binding CancelCommand}"
+				        Width="100"
+				        Height="36"
+				        Background="#444444"
+				        Foreground="#FFFFFF"
+				        BorderThickness="0"
+				        CornerRadius="6"
+				        Classes="cancelButton" />
+				<Button Content="Save"
+				        Command="{Binding SaveCommand}"
+				        Width="100"
+				        Height="36"
+				        Background="#FF6B35"
+				        Foreground="#FFFFFF"
+				        BorderThickness="0"
+				        CornerRadius="6"
+				        Classes="saveButton" />
+			</StackPanel>
+
+		</StackPanel>
+	</Border>
+
+	<Window.Styles>
+		<Style Selector="Button.saveButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#FF8855" />
+		</Style>
+		<Style Selector="Button.saveButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#DD5520" />
+		</Style>
+		<Style Selector="Button.saveButton:disabled /template/ ContentPresenter">
+			<Setter Property="Background" Value="#774433" />
+			<Setter Property="Foreground" Value="#888888" />
+		</Style>
+		<Style Selector="Button.cancelButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#555555" />
+		</Style>
+		<Style Selector="Button.cancelButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#333333" />
+		</Style>
+	</Window.Styles>
+
+</Window>
+

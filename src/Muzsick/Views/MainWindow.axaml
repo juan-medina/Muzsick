@@ -24,6 +24,18 @@
 
 		<!-- Header with Artist Image -->
 		<DockPanel DockPanel.Dock="Top" Height="70" Background="#1E1E1E" Margin="0,0,0,0">
+			<!-- Settings button docked to the far right -->
+			<Button DockPanel.Dock="Right"
+			        Command="{Binding OpenConfigCommand}"
+			        Width="36" Height="36"
+			        Margin="10,0"
+			        Background="Transparent"
+			        BorderThickness="0"
+			        VerticalAlignment="Center"
+			        ToolTip.Tip="Settings"
+			        Classes="settingsButton">
+				<TextBlock Text="⚙" FontSize="18" Foreground="#888888" VerticalAlignment="Center" HorizontalAlignment="Center" />
+			</Button>
 			<Border Width="60" Height="60" Margin="10" Background="#444444" CornerRadius="30"
 			        ClipToBounds="True">
 				<Panel>
@@ -169,6 +181,12 @@
 		<Style Selector="Button.browseButton:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#222222" />
 			<Setter Property="BorderBrush" Value="#888888" />
+		</Style>
+		<Style Selector="Button.settingsButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#333333" />
+		</Style>
+		<Style Selector="Button.settingsButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#222222" />
 		</Style>
 	</Window.Styles>
 

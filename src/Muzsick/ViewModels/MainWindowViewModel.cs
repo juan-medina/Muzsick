@@ -63,6 +63,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		{
 			_volume = Math.Clamp(settings.Volume, 0, 100);
 			_streamPlayer.SetVolume(_volume);
+
+			if (!string.IsNullOrEmpty(settings.LastPlaylistPath) && File.Exists(settings.LastPlaylistPath))
+				ApplyPlaylistPath(settings.LastPlaylistPath);
 		}
 	}
 
@@ -139,21 +142,28 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 		if (result.Count > 0)
 		{
-			var selectedFile = result[0];
-			PlaylistPath = selectedFile.Path.LocalPath;
+			ApplyPlaylistPath(result[0].Path.LocalPath);
 
-			SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
-			ArtistName = "Ready to play";
-			AlbumName = PlaylistPath;
-			AlbumArt = null;
-			ArtistImage = null;
-
-			if (IsPlaying)
-			{
-				_streamPlayer?.Stop();
-				IsPlaying = false;
-			}
+			var settings = SettingsManager.Load() ?? new AppSettings();
+			settings.LastPlaylistPath = PlaylistPath;
+			SettingsManager.Save(settings);
 		}
+	}
+
+	private void ApplyPlaylistPath(string path)
+	{
+		if (IsPlaying)
+		{
+			_streamPlayer?.Stop();
+			IsPlaying = false;
+		}
+
+		PlaylistPath = path;
+		SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
+		ArtistName = "Ready to play";
+		AlbumName = PlaylistPath;
+		AlbumArt = null;
+		ArtistImage = null;
 	}
 
 	[RelayCommand]

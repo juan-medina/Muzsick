@@ -15,5 +15,10 @@ public class AppSettings
 	/// Playback volume (0–100). Persisted across sessions.
 	/// </summary>
 	public int Volume { get; set; } = 50;
+
+	/// <summary>
+	/// Absolute path of the last playlist file opened. Restored on next launch.
+	/// </summary>
+	public string? LastPlaylistPath { get; set; }
 }
 

@@ -1,9 +1,10 @@
-﻿// SPDX-FileCopyrightText: 2026 Juan Medina
+﻿﻿// SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 
 using Avalonia;
 using System;
 using Microsoft.Extensions.Logging;
+using Muzsick.Config;
 
 namespace Muzsick;
 
@@ -28,12 +29,26 @@ sealed class Program
 					options.TimestampFormat = "[yyyy-MM-dd HH:mm:ss.fff] ";
 					options.UseUtcTimestamp = false;
 				})
-				.SetMinimumLevel(LogLevel.Information);
+				.SetMinimumLevel(LogLevel.Debug);
 		});
 
 		// Store logger factory globally for DI
 		App.LoggerFactory = loggerFactory;
 #endif
+		SettingsManager.EnsureExists();
+		var settings = SettingsManager.Load() ?? new AppSettings();
+
+		if (string.IsNullOrWhiteSpace(settings.LastFmApiKey))
+		{
+			Console.Error.WriteLine(
+				$"[Muzsick] LastFmApiKey is not set in settings.{Environment.NewLine}" +
+				$"  Edit: {SettingsManager.SettingsPath}{Environment.NewLine}" +
+				$"  Get a free key at: https://www.last.fm/api/account/create");
+
+			App.MissingApiKeyError = true;
+		}
+
+		App.Settings = settings;
 
 		BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
 	}

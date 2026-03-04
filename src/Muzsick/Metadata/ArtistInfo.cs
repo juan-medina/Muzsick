@@ -8,7 +8,7 @@ public class ArtistInfo
 	// Core fields — always populated
 	public string Name { get; init; } = "";
 
-	// Enrichment fields — populated by IMusicBrainzService
+	// Enrichment fields — populated by IMetaService
 	public string? ImageUrl { get; init; }
 	public string? Bio { get; init; }
 	public string? MusicBrainzId { get; init; }

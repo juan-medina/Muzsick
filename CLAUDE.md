@@ -52,7 +52,7 @@ Sherpa-ONNX (TTS PCM)   ─┘
 
 1. ICY metadata event fires — song has changed.
 2. Wait ~3 seconds for stream to stabilise.
-3. Fetch track metadata from MusicBrainz.
+3. Fetch track metadata from Last.fm. Artist image from Wikidata via WikidataArtistService.
 4. Generate commentary (template or AI mode).
 5. Synthesise voiceover via Kokoro TTS.
 6. Duck radio volume to 20% over 500ms.
@@ -64,7 +64,7 @@ Sherpa-ONNX (TTS PCM)   ─┘
 | Version | Scope                  | Key Deliverables                                                              |
 |---------|------------------------|-------------------------------------------------------------------------------|
 | V0      | Foundation             | Stream plays, ICY metadata detected, template voiceover mixed with ducking.   |
-| V1      | AI Commentary          | Ollama / OpenAI commentary. Metadata via MusicBrainz. Settings UI.            |
+| V1      | AI Commentary          | Ollama / OpenAI commentary. Metadata via Last.fm + Wikidata. Settings UI.     |
 | V2      | Conversation           | User can ask questions about the current track via text input.                |
 | V3      | Multi-Station          | Station list, favourites, per-station personality presets.                    |
 
@@ -81,7 +81,7 @@ src/Muzsick/
 │
 ├── Audio/               # LibVLCSharp stream wrapper, OpenAL mixer, ducking
 ├── Tts/                 # ITtsBackend interface + Kokoro implementation
-├── Metadata/            # ICY parser, MusicBrainz service, TrackInfo model
+├── Metadata/            # ICY parser, Last.fm + Wikidata services, TrackInfo model
 ├── Commentary/          # ICommentaryGenerator, template and AI implementations
 ├── Config/              # AppSettings model, settings.json load/save
 │
@@ -100,14 +100,15 @@ src/Muzsick/
 | Stream Playback  | LibVLCSharp + VideoLAN.LibVLC    |
 | Audio Output     | Silk.NET.OpenAL                  |
 | TTS              | Sherpa-ONNX + Kokoro-82M (ONNX)  |
-| Metadata         | MetaBrainz.MusicBrainz           |
+| Metadata         | Last.fm API (`track.getInfo`)    |
+| Artist Images    | Wikimedia / Wikidata             |
 | AI Commentary    | OpenAI-compatible HTTP (optional)|
 | Configuration    | System.Text.Json — settings.json |
 
 ## Code Conventions
 
 - **Naming**: `PascalCase` for types, methods, and properties. `camelCase` for local variables and parameters.
-  `_camelCase` for private fields (underscore prefix). `UPPER_CASE` for constants.
+  `_camelCase` for private fields and constants (underscore prefix, including `const` and `static readonly`).
 - **Namespaces**: Match folder structure exactly. Root namespace is `Muzsick`.
 - **File headers**: Every `.cs` and `.axaml` file begins with SPDX headers:
   ```csharp
@@ -115,10 +116,10 @@ src/Muzsick/
   // SPDX-License-Identifier: MIT
   ```
   For `.axaml` files use XML comment syntax before the root element.
-- **Interfaces**: All major subsystems are behind interfaces (`ITtsBackend`, `ICommentaryGenerator`). Implementations
-  are injected, not instantiated directly in consuming code.
+- **Interfaces**: All major subsystems are behind interfaces (`ITtsBackend`, `ICommentaryGenerator`, `IMetaService`).
+  Services are instantiated in the ViewModel for now — a DI container is not yet wired up.
 - **Async**: Audio synthesis and metadata fetch are always `async`/`await`. Do not block the UI thread.
-- **No**: exceptions for control flow, `Thread.Sleep`, fire-and-forget tasks without handling, raw `new` for services.
+- **No**: exceptions for control flow, `Thread.Sleep`, fire-and-forget tasks without handling.
 - **Comments**: Only for non-obvious logic. No change-log comments in code.
 - **Tabs**: Indentation uses tabs, not spaces. See `.editorconfig`.
 

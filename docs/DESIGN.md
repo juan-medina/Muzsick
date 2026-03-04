@@ -171,16 +171,14 @@ a plain string field in its JSON response. That MBID is the key to the artist im
 
 `WikidataArtistService` owns the full resolution flow and has no dependency on any other metadata service:
 
-1. Receive the MBID string from the caller (currently `MusicBrainzMetaService`, later `LastFmMetaService`).
+1. Receive the MBID string from the caller (`LastFmMetaService`).
 2. Call the MusicBrainz REST API directly (`/ws/2/artist/{mbid}?inc=url-rels`) to retrieve the artist's Wikidata URL.
 3. Extract the Wikidata QID from the URL and call the Wikidata API (P18 claim) to get the image filename.
 4. Build the Wikimedia Commons thumbnail URL from the filename using the MD5-based path scheme.
 
 `WikidataArtistService` uses the `MetaBrainz.MusicBrainz` NuGet package for the url-rels lookup in step 2. This is
-intentional — the dependency lives here rather than in the track metadata service, so that when
-`MusicBrainzMetaService` is eventually replaced by `LastFmMetaService`, the artist image path continues to work
-unchanged. `LastFmMetaService` will extract the MBID string from the Last.fm JSON response and pass it to
-`WikidataArtistService` exactly as `MusicBrainzMetaService` does today.
+intentional — the dependency lives here rather than in the track metadata service, keeping the artist image chain
+self-contained. Any future replacement for `LastFmMetaService` only needs to supply an MBID string.
 
 > Last.fm stores MBIDs as a cross-reference to MusicBrainz. This means the artist image path has a functional
 > dependency on both Last.fm and MusicBrainz remaining in sync. In practice both are long-running open projects and
@@ -201,27 +199,81 @@ public interface IMetaService
 All results are cached in a `ConcurrentDictionary` keyed on `artist+title` to avoid redundant API calls for repeated
 tracks. Cache entries expire after 24 hours.
 
-> ICY metadata reliability varies by station. Some stations report incorrect or missing artist/title data. A future
-> version may add AcoustID audio fingerprinting as a fallback identification method.
+**Track lookup strategy**
 
-**Handling decorated titles**
+ICY metadata from radio stations is unreliable in several ways: artist names are comma-joined when multiple credits
+exist, titles may include featured artist decorators or version labels, compilations can be returned instead of the
+original release, and some stations censor or alter track titles entirely. A single `track.getInfo` call is not
+enough — `LastFmMetaService` uses a multi-stage strategy to maximise the chance of finding a rich result:
 
-ICY metadata frequently includes featured artist credits, remix labels, or version tags embedded in the track title
-— for example `"Super Song ft Someone"` or `"Super Song (Radio Edit)"`. Last.fm handles decorated titles better
-than MusicBrainz but still may not match on heavily decorated strings.
+```
+ICY string: "Wilkinson, ILIRA, iiola, Tom Cane" — "Infinity (feat. ILIRA, iiola & Tom Cane)"
 
-The lookup strategy is:
+Stage 1 — Exact ICY artist + exact ICY title
+  → track.getInfo(artist="Wilkinson, ILIRA, iiola, Tom Cane", track="Infinity (feat. ...)")
+  → Last.fm matches the comma-joined name as an obscure artist entry, returns track with no album/art
+  → result is not rich, continue
 
-1. **Try the exact ICY title first.** If Last.fm returns a match, use it.
-2. **If no result, clean the title and retry.** Strip known decorator patterns and search again with the base title.
-3. **Preserve the original ICY title in the UI regardless.** The `Title` field on `TrackInfo` always holds the raw
-   ICY string. Enrichment fields are populated from whatever matched, but the displayed title is never overwritten.
+Stage 2 — Primary artist + exact ICY title
+  → split artist on first comma → "Wilkinson"
+  → track.getInfo(artist="Wilkinson", track="Infinity (feat. ILIRA, iiola & Tom Cane)")
+  → full album + cover art returned  ✓  stop here
 
-Decorator patterns to strip on retry include:
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
 
-- Featured artists: `ft.`, `ft`, `feat.`, `feat`, `featuring` (and everything after)
-- Remix tags: `(X Remix)`, `- X Remix`
-- Version labels: `(Radio Edit)`, `(Album Version)`, `(Remastered)`, `(Live)`, `(Acoustic)`
+ICY string: "Roddy Ricch" — "The Box"
+
+Stage 1 — Exact match
+  → track.getInfo(artist="Roddy Ricch", track="The Box", autocorrect=1)
+  → autocorrect drifts to compilation "Just Hits" (album.artist = "Various Artists")
+  → IsCompilation = true, retry without autocorrect
+
+Stage 1b — Same args, autocorrect=0
+  → track.getInfo(artist="Roddy Ricch", track="The Box", autocorrect=0)
+  → returns original album "Please Excuse Me for Being Antisocial"  ✓  stop here
+
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+
+ICY string: "Zolita" — "Somebody I Did Once"   (station censored the real title)
+
+Stage 1 — Exact match → error 6, track not found
+Stage 2 — Primary artist same as artist, skip
+Stage 3 — Clean title → no decorators to strip, cleaned == original, skip
+Stage 4 — Primary + cleaned, skip (same as stage 1)
+Stage 5 — track.search fallback
+  → track.search(artist="Zolita", track="Somebody I Did Once")
+  → top result: "Somebody I F*cked Once" by Zolita
+  → artist matches, corrected title differs from original
+  → track.getInfo(artist="Zolita", track="Somebody I F*cked Once")
+  → album + cover art returned  ✓
+```
+
+Each stage only runs if the previous one returned null or a result with no album and no cover art (`IsRich = false`).
+A partial result (MBID found but no art) is kept as a fallback so that at minimum the artist image can still be
+resolved even when no rich track result exists. The original ICY title is always preserved in the UI — the enriched
+album name is displayed separately and the displayed title is never overwritten.
+
+**Compilation detection**
+
+`autocorrect=1` on Last.fm can drift to the most-played version of a track, which is often a compilation rather
+than the artist's own release. `LastFmMetaService` reads the `album.artist` field in the response: if it equals
+`"Various Artists"` the result is flagged as a compilation and the same call is retried with `autocorrect=0`, which
+forces an exact artist match.
+
+**Title cleaning**
+
+If all exact-title attempts fail, the title is stripped of common decorator patterns before retrying:
+
+- Featured artists: `ft.`, `feat.`, `featuring` (and everything after)
+- Parenthetical suffixes: `(Radio Edit)`, `(Remastered)`, `(Live)`, `(Acoustic)`, etc.
+- Dash suffixes: `- Radio Edit`, `- Remix`, etc.
+- Bracket suffixes: `[from ...]`, `[original ...]`
+
+**Artist MBID resolution**
+
+`track.getInfo` includes the artist's MusicBrainz MBID in the response for most artists. For smaller or indie
+artists Last.fm sometimes omits it. In that case `LastFmMetaService` makes a secondary call to `artist.getInfo`
+by name to retrieve the MBID, then passes it to `WikidataArtistService` for the image lookup chain.
 
 ### 5.5 Commentary Generation
 
@@ -314,6 +366,8 @@ written on any settings change. No registry entries are used.
 
 ## 8. Project Structure
 
+Files marked *(planned)* do not yet exist — they represent the target architecture for upcoming versions.
+
 ```
 src/Muzsick/
 ├── App.axaml
@@ -323,32 +377,31 @@ src/Muzsick/
 │
 ├── Audio/
 │   ├── StreamPlayer.cs          # LibVLCSharp wrapper, ICY event source
-│   ├── AudioMixer.cs            # OpenAL context, source management, ducking
-│   └── DuckingController.cs     # Volume fade in/out timing
+│   ├── AudioMixer.cs            # (planned) OpenAL context, source management, ducking
+│   └── DuckingController.cs     # (planned) Volume fade in/out timing
 │
 ├── Tts/
-│   ├── ITtsBackend.cs           # Interface: Task<byte[]> SynthesizeAsync(string)
-│   ├── KokoroTtsBackend.cs      # Sherpa-ONNX / Kokoro implementation
-│   └── AzureTtsBackend.cs       # Optional cloud backend (V1+)
+│   ├── ITtsBackend.cs           # (planned) Interface: Task<byte[]> SynthesizeAsync(string)
+│   ├── KokoroTtsBackend.cs      # (planned) Sherpa-ONNX / Kokoro implementation
+│   └── AzureTtsBackend.cs       # (planned) Optional cloud backend
 │
 ├── Metadata/
 │   ├── TrackInfo.cs             # ICY core fields + enrichment fields
 │   ├── ArtistInfo.cs            # Artist name + enrichment fields (image, bio)
 │   ├── IMetaService.cs          # Interface: EnrichAsync(TrackInfo)
-│   ├── MusicBrainzMetaService.cs# Current IMetaService impl — transitional, replaced by LastFmMetaService in V1
-│   ├── LastFmMetaService.cs     # V1 IMetaService impl — Last.fm track.getInfo
+│   ├── LastFmMetaService.cs     # IMetaService impl — Last.fm track.getInfo
 │   ├── WikidataArtistService.cs # Artist image: MBID → MusicBrainz url-rels → Wikidata → Wikimedia
 │   └── IcyMetadataParser.cs     # Parses Artist - Title from ICY string
 │
 ├── Commentary/
-│   ├── ICommentaryGenerator.cs
-│   ├── TemplateCommentary.cs    # Version 0 — no AI
-│   ├── AiCommentary.cs          # Version 1 — OpenAI-compatible
-│   └── Prompts.cs               # System + user prompt templates
+│   ├── ICommentaryGenerator.cs  # (planned)
+│   ├── TemplateCommentary.cs    # (planned) Version 0 — no AI
+│   ├── AiCommentary.cs          # (planned) Version 1 — OpenAI-compatible
+│   └── Prompts.cs               # (planned) System + user prompt templates
 │
 ├── Config/
-│   ├── AppSettings.cs           # Settings model
-│   └── SettingsManager.cs       # Load / save settings.json
+│   ├── AppSettings.cs           # (planned) Settings model
+│   └── SettingsManager.cs       # (planned) Load / save settings.json
 │
 ├── ViewModels/
 │   └── MainWindowViewModel.cs

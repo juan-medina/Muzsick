@@ -37,14 +37,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	public MainWindowViewModel()
 	{
 #if DEBUG
-		var streamLogger = App.LoggerFactory?.CreateLogger("StreamPlayer");
-		var metaLogger = App.LoggerFactory?.CreateLogger("MusicBrainzService");
+		var streamLogger = App.LoggerFactory?.CreateLogger<StreamPlayer>();
+		var metaLogger = App.LoggerFactory?.CreateLogger<LastFmMetaService>();
 #else
 		ILogger? streamLogger = null;
 		ILogger? metaLogger = null;
 #endif
 		_streamPlayer = new StreamPlayer(streamLogger);
-		_metadataService = new MusicBrainzMetaService(metaLogger);
+		_metadataService = new LastFmMetaService(App.Settings.LastFmApiKey, metaLogger);
 		_streamPlayer.StatusChanged += OnStatusChanged;
 		_streamPlayer.TrackChanged += OnTrackChanged;
 		_streamPlayer.Initialize();
@@ -149,8 +149,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			if (!string.IsNullOrEmpty(artist.ImageUrl))
 				ArtistImage = await LoadBitmapAsync(artist.ImageUrl);
 
-			if (string.IsNullOrEmpty(track.Album) && !string.IsNullOrEmpty(enriched.Album))
-				AlbumName = enriched.Album;
+			var albumName = !string.IsNullOrEmpty(enriched.Album)
+				? enriched.Album
+				: !string.IsNullOrEmpty(track.Album)
+					? track.Album
+					: null;
+
+			if (albumName != null)
+				AlbumName = !string.IsNullOrEmpty(enriched.Year)
+					? $"{albumName} ({enriched.Year})"
+					: albumName;
 		}
 		catch (Exception ex)
 		{
@@ -204,49 +212,51 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			ArtistName = status;
 			AlbumName = "";
 		}
-		else switch (status)
-		{
-			case "Connected to stream" when string.IsNullOrEmpty(PlaylistPath):
-				return;
-			case "Connected to stream":
-				SongTitle = Path.GetFileNameWithoutExtension(PlaylistPath);
-				ArtistName = "Live Radio Stream";
-				AlbumName = "Waiting for track information...";
-				break;
-			case "Stopped":
-			case "Stream ended":
+		else
+			switch (status)
 			{
-				IsPlaying = false;
-				AlbumArt = null;
-				ArtistImage = null;
-				if (!string.IsNullOrEmpty(PlaylistPath))
+				case "Connected to stream" when string.IsNullOrEmpty(PlaylistPath):
+					return;
+				case "Connected to stream":
+					SongTitle = Path.GetFileNameWithoutExtension(PlaylistPath);
+					ArtistName = "Live Radio Stream";
+					AlbumName = "Waiting for track information...";
+					break;
+				case "Stopped":
+				case "Stream ended":
 				{
-					SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
-					ArtistName = "Ready to play";
-					AlbumName = PlaylistPath;
-				}
-				else
-				{
-					SongTitle = "No track loaded";
-					ArtistName = "Unknown artist";
-					AlbumName = "Unknown album";
-				}
-
-				break;
-			}
-			default:
-			{
-				if (status.StartsWith("Failed") || status.StartsWith("Playback error") || status == "Connection error")
-				{
-					SongTitle = "Playback Error";
-					ArtistName = status;
-					AlbumName = "";
 					IsPlaying = false;
-				}
+					AlbumArt = null;
+					ArtistImage = null;
+					if (!string.IsNullOrEmpty(PlaylistPath))
+					{
+						SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
+						ArtistName = "Ready to play";
+						AlbumName = PlaylistPath;
+					}
+					else
+					{
+						SongTitle = "No track loaded";
+						ArtistName = "Unknown artist";
+						AlbumName = "Unknown album";
+					}
 
-				break;
+					break;
+				}
+				default:
+				{
+					if (status.StartsWith("Failed") || status.StartsWith("Playback error") ||
+					    status == "Connection error")
+					{
+						SongTitle = "Playback Error";
+						ArtistName = status;
+						AlbumName = "";
+						IsPlaying = false;
+					}
+
+					break;
+				}
 			}
-		}
 	}
 
 	public void Dispose()

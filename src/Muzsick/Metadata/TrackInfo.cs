@@ -10,7 +10,7 @@ public class TrackInfo
 	public string Artist { get; init; } = "";
 	public string Album { get; init; } = "";
 
-	// Enrichment fields — populated by IMusicBrainzService
+	// Enrichment fields — populated by IMetaService
 	public string? Year { get; init; }
 	public string? Genre { get; init; }
 	public string? CoverArtUrl { get; init; }

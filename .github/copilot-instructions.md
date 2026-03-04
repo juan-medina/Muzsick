@@ -19,7 +19,7 @@ after initial setup.
 - `PascalCase` — types, methods, properties, events
 - `camelCase` — local variables, parameters
 - `_camelCase` — private fields (underscore prefix, no `this.`)
-- `UPPER_CASE` — constants
+- `_camelCase` — constants (private `const` and `static readonly` fields follow the same rule as other private fields)
 - Namespaces match folder structure exactly, rooted at `Muzsick`
 
 ## File Headers
@@ -64,6 +64,7 @@ Every `.axaml` file must start with (before the root element):
 | Stream Playback | LibVLCSharp                    |
 | Audio Output    | Silk.NET.OpenAL                |
 | TTS             | Sherpa-ONNX + Kokoro-82M       |
-| Metadata        | MetaBrainz.MusicBrainz         |
+| Track Metadata  | Last.fm API (`track.getInfo`)  |
+| Artist Images   | Wikimedia / Wikidata           |
 | AI Commentary   | OpenAI-compatible HTTP         |
 | Config          | System.Text.Json               |

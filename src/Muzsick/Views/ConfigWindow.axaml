@@ -46,7 +46,7 @@
 			         FontSize="14"
 			         Background="#1E1E1E"
 			         Foreground="#FFFFFF"
-			         BorderBrush="#555555"
+			         BorderBrush="#777777"
 			         BorderThickness="1"
 			         CornerRadius="6"
 			         Padding="10,8" />

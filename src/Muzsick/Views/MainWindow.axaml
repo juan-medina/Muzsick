@@ -7,13 +7,13 @@
         xmlns:vm="using:Muzsick.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="850"
+        mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="680"
         x:Class="Muzsick.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/muzsick-logo.ico"
         Title="Muzsick"
-        Width="600"
-        Height="850"
+        Width="540"
+        Height="680"
         CanResize="False">
 
 	<Design.DataContext>
@@ -62,10 +62,10 @@
 		</DockPanel>
 
 		<!-- Main Content Area -->
-		<StackPanel DockPanel.Dock="Top" Spacing="25" Margin="20" VerticalAlignment="Top">
+		<StackPanel DockPanel.Dock="Top" Spacing="16" Margin="20,12,20,20" VerticalAlignment="Top">
 
 			<!-- Album Cover -->
-			<Grid HorizontalAlignment="Center" Margin="0,10,0,0">
+			<Grid HorizontalAlignment="Center" Margin="0,0,0,0">
 				<Border Width="300" Height="300" Background="#444444" CornerRadius="12"
 				        Effect="drop-shadow(0 4 8 #00000080)" ClipToBounds="True">
 					<Panel>
@@ -121,72 +121,68 @@
 					TextTrimming="CharacterEllipsis" />
 			</StackPanel>
 
-			<!-- Volume Control -->
-			<StackPanel HorizontalAlignment="Center" Width="520" Spacing="6">
-				<DockPanel>
-					<TextBlock DockPanel.Dock="Left" Text="🔈" FontSize="14" Foreground="#888888" VerticalAlignment="Center" />
-					<TextBlock DockPanel.Dock="Right" Text="🔊" FontSize="14" Foreground="#888888" VerticalAlignment="Center" />
-					<TextBlock DockPanel.Dock="Right"
-					           Text="{Binding Volume, StringFormat={}{0}%}"
-					           FontSize="12"
-					           Foreground="#888888"
-					           Width="36"
-					           TextAlignment="Right"
-					           VerticalAlignment="Center"
-					           Margin="8,0,4,0" />
-					<Slider
-						Minimum="0"
-						Maximum="100"
-						Value="{Binding Volume}"
-						TickFrequency="1"
-						IsSnapToTickEnabled="True"
-						Margin="8,0"
-						VerticalAlignment="Center" />
-				</DockPanel>
-			</StackPanel>
+<!-- Volume Control -->
+<StackPanel HorizontalAlignment="Center" Width="520" Spacing="6">
+    <DockPanel>
+        <Border DockPanel.Dock="Left" Width="36" Margin="4,0,8,0" />
+        <TextBlock DockPanel.Dock="Left" Text="🔈" FontSize="14" Foreground="#888888" VerticalAlignment="Center" />
+        <TextBlock DockPanel.Dock="Right" Text="{Binding Volume, StringFormat={}{0}%}"
+                   FontSize="12" Foreground="#888888" Width="36"
+                   TextAlignment="Right" VerticalAlignment="Center" Margin="8,0,4,0" />
+        <TextBlock DockPanel.Dock="Right" Text="🔊" FontSize="14" Foreground="#888888" VerticalAlignment="Center" />
+        <Slider
+            Minimum="0"
+            Maximum="100"
+            Value="{Binding Volume}"
+            TickFrequency="1"
+            IsSnapToTickEnabled="True"
+            Margin="8,0"
+            VerticalAlignment="Center" />
+    </DockPanel>
+</StackPanel>
 
 			<!-- Control Buttons -->
-			<StackPanel Spacing="15" HorizontalAlignment="Center" Margin="0,20,0,40">
+			<StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" Margin="0,8,0,8">
+				<!-- Open Playlist — secondary action, left of play -->
 				<Button
-					Width="140"
-					Height="140"
-					CornerRadius="70"
+					Width="44"
+					Height="44"
+					CornerRadius="22"
+					Command="{Binding BrowsePlaylistCommand}"
+					Background="#444444"
+					Foreground="#FFFFFF"
+					HorizontalAlignment="Center"
+					Classes="browseButton">
+					<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+						<Canvas Width="16" Height="16">
+							<Path Fill="#FFFFFF" Data="M1 3h5l2 2h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+						</Canvas>
+					</StackPanel>
+				</Button>
+
+				<!-- Play / Pause — primary action -->
+				<Button
+					Width="80"
+					Height="80"
+					CornerRadius="40"
 					Command="{Binding PlayPauseCommand}"
 					Background="#FF6B35"
 					Foreground="#FFFFFF"
 					HorizontalAlignment="Center"
 					Classes="playButton">
 					<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-						<Canvas Width="50" Height="50" IsVisible="{Binding !IsPlaying}">
-							<Polygon Points="15,10 15,40 40,25" Fill="#FFFFFF" />
+						<Canvas Width="28" Height="28" IsVisible="{Binding !IsPlaying}">
+							<Polygon Points="8,4 8,24 24,14" Fill="#FFFFFF" />
 						</Canvas>
-						<Canvas Width="50" Height="50" IsVisible="{Binding IsPlaying}">
-							<Rectangle Canvas.Left="15" Canvas.Top="10" Width="8" Height="30" Fill="#FFFFFF" />
-							<Rectangle Canvas.Left="27" Canvas.Top="10" Width="8" Height="30" Fill="#FFFFFF" />
+						<Canvas Width="28" Height="28" IsVisible="{Binding IsPlaying}">
+							<Rectangle Canvas.Left="7" Canvas.Top="5" Width="5" Height="18" Fill="#FFFFFF" />
+							<Rectangle Canvas.Left="16" Canvas.Top="5" Width="5" Height="18" Fill="#FFFFFF" />
 						</Canvas>
 					</StackPanel>
 				</Button>
 
-				<StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
-					<Button
-						Width="160"
-						Height="50"
-						FontSize="14"
-						Command="{Binding BrowsePlaylistCommand}"
-						Background="#333333"
-						Foreground="#FFFFFF"
-						BorderThickness="2"
-						BorderBrush="#555555"
-						CornerRadius="8"
-						Classes="browseButton">
-						<StackPanel Orientation="Horizontal" Spacing="8">
-							<Canvas Width="16" Height="16" VerticalAlignment="Center">
-								<Path Fill="#CCCCCC" Data="M2 2h4l2 2h6a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
-							</Canvas>
-							<TextBlock Text="Open Playlist" VerticalAlignment="Center" />
-						</StackPanel>
-					</Button>
-				</StackPanel>
+				<!-- Spacer to balance the browse button on the left -->
+				<Border Width="44" Height="44" />
 			</StackPanel>
 		</StackPanel>
 	</DockPanel>
@@ -198,19 +194,18 @@
 		<Style Selector="Button.playButton:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#DD5520" />
 		</Style>
-		<Style Selector="Button.browseButton:pointerover /template/ ContentPresenter">
-			<Setter Property="Background" Value="#444444" />
-			<Setter Property="BorderBrush" Value="#777777" />
-		</Style>
-		<Style Selector="Button.browseButton:pressed /template/ ContentPresenter">
-			<Setter Property="Background" Value="#222222" />
-			<Setter Property="BorderBrush" Value="#888888" />
-		</Style>
+
 		<Style Selector="Button.settingsButton:pointerover /template/ ContentPresenter">
 			<Setter Property="Background" Value="#333333" />
 		</Style>
 		<Style Selector="Button.settingsButton:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#222222" />
+		</Style>
+		<Style Selector="Button.browseButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#555555" />
+		</Style>
+		<Style Selector="Button.browseButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#333333" />
 		</Style>
 	</Window.Styles>
 

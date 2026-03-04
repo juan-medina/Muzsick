@@ -39,13 +39,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 #if DEBUG
 		var streamLogger = App.LoggerFactory?.CreateLogger("StreamPlayer");
 		var metaLogger = App.LoggerFactory?.CreateLogger("MusicBrainzService");
+#else
+		ILogger? streamLogger = null;
+		ILogger? metaLogger = null;
+#endif
 		_streamPlayer = new StreamPlayer(streamLogger);
 		_metadataService = new MusicBrainzMetaService(metaLogger);
-
-#else
-		_streamPlayer = new StreamPlayer();
-		_metadataService = new MusicBrainzService();
-#endif
 		_streamPlayer.StatusChanged += OnStatusChanged;
 		_streamPlayer.TrackChanged += OnTrackChanged;
 		_streamPlayer.Initialize();

@@ -164,12 +164,29 @@ The lookup flow is:
 2. If found, extract album name, cover art URL, year, and top tags.
 3. If not found (rare for charted tracks), leave enrichment fields empty — no fallback to a second source.
 
-**Artist images — Wikidata**
+**Artist images — WikidataArtistService**
 
-Last.fm does not provide artist portrait images. Wikidata is already used in the project for this purpose and
-continues to serve artist images via the existing Wikidata lookup path.
+Last.fm does not provide artist portrait images, but `artist.getInfo` returns the artist's MusicBrainz ID (MBID) as
+a plain string field in its JSON response. That MBID is the key to the artist image chain.
 
-The combined service interface reflects this two-source design:
+`WikidataArtistService` owns the full resolution flow and has no dependency on any other metadata service:
+
+1. Receive the MBID string from the caller (currently `MusicBrainzMetaService`, later `LastFmMetaService`).
+2. Call the MusicBrainz REST API directly (`/ws/2/artist/{mbid}?inc=url-rels`) to retrieve the artist's Wikidata URL.
+3. Extract the Wikidata QID from the URL and call the Wikidata API (P18 claim) to get the image filename.
+4. Build the Wikimedia Commons thumbnail URL from the filename using the MD5-based path scheme.
+
+`WikidataArtistService` uses the `MetaBrainz.MusicBrainz` NuGet package for the url-rels lookup in step 2. This is
+intentional — the dependency lives here rather than in the track metadata service, so that when
+`MusicBrainzMetaService` is eventually replaced by `LastFmMetaService`, the artist image path continues to work
+unchanged. `LastFmMetaService` will extract the MBID string from the Last.fm JSON response and pass it to
+`WikidataArtistService` exactly as `MusicBrainzMetaService` does today.
+
+> Last.fm stores MBIDs as a cross-reference to MusicBrainz. This means the artist image path has a functional
+> dependency on both Last.fm and MusicBrainz remaining in sync. In practice both are long-running open projects and
+> this chain is stable, but it is worth noting as an architectural assumption.
+
+The two-source design is reflected in the shared interface:
 
 ```csharp
 public interface IMetaService
@@ -318,8 +335,9 @@ src/Muzsick/
 │   ├── TrackInfo.cs             # ICY core fields + enrichment fields
 │   ├── ArtistInfo.cs            # Artist name + enrichment fields (image, bio)
 │   ├── IMetaService.cs          # Interface: EnrichAsync(TrackInfo)
-│   ├── LastFmMetaService.cs     # Last.fm track.getInfo implementation
-│   ├── WikidataArtistService.cs # Wikidata artist image lookup
+│   ├── MusicBrainzMetaService.cs# Current IMetaService impl — transitional, replaced by LastFmMetaService in V1
+│   ├── LastFmMetaService.cs     # V1 IMetaService impl — Last.fm track.getInfo
+│   ├── WikidataArtistService.cs # Artist image: MBID → MusicBrainz url-rels → Wikidata → Wikimedia
 │   └── IcyMetadataParser.cs     # Parses Artist - Title from ICY string
 │
 ├── Commentary/
@@ -402,8 +420,24 @@ gives us only artist and title — no audio to fingerprint.
 
 Last.fm `track.getInfo` was designed for exactly this use case: resolving a playback event (artist + title) to rich
 metadata. It returns album name, cover art, year, and tags in a single call without requiring release scoring or
-compilation filtering. Artist images are not provided by Last.fm and continue to be sourced from Wikidata, which is
-already integrated for this purpose.
+compilation filtering. Artist images are not provided by Last.fm and are sourced from Wikidata via
+`WikidataArtistService`.
+
+### 10.7 Why WikidataArtistService Is Self-Contained
+
+Artist image resolution requires a chain of three external calls: MusicBrainz url-rels lookup (MBID → Wikidata URL),
+Wikidata API (QID → image filename), and Wikimedia Commons (filename → thumbnail URL). This chain is independent of
+which service provides track metadata.
+
+`WikidataArtistService` owns all three steps so that it can be called identically by any metadata service
+implementation — current or future — by passing a single MBID string. This means `MusicBrainzMetaService` can be
+removed entirely when `LastFmMetaService` is ready, without touching the artist image path at all. Both services
+get the MBID from their respective API responses (`MusicBrainzMetaService` from the recording's artist credit,
+`LastFmMetaService` from the `artist.mbid` field in Last.fm's JSON) and pass it as a plain string.
+
+The `MetaBrainz.MusicBrainz` NuGet dependency lives in `WikidataArtistService` for the url-rels step. This is
+deliberate — it keeps the dependency out of `LastFmMetaService` while still being available to the service that
+needs it.
 
 ---
 

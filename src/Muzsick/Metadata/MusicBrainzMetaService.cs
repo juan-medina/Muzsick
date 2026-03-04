@@ -3,8 +3,8 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Net.Http;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,6 +19,7 @@ public partial class MusicBrainzMetaService : IMetaService, IDisposable
 	private readonly ILogger? _logger;
 	private readonly Query _query;
 	private readonly HttpClient _httpClient;
+	private readonly WikidataArtistService _wikidata;
 
 	private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
 	private static readonly TimeSpan _cacheTtl = TimeSpan.FromHours(24);
@@ -37,6 +38,8 @@ public partial class MusicBrainzMetaService : IMetaService, IDisposable
 		_httpClient = new HttpClient();
 		_httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
 			"Muzsick/0.1 (https://github.com/juan-medina/muzsick)");
+
+		_wikidata = new WikidataArtistService(_httpClient, logger);
 
 		_ = WarmUpAsync();
 	}
@@ -184,11 +187,9 @@ public partial class MusicBrainzMetaService : IMetaService, IDisposable
 					secondaryTypes,
 					score);
 
-				if (score > bestScore)
-				{
-					bestScore = score;
-					bestRelease = release;
-				}
+				if (score <= bestScore) continue;
+				bestScore = score;
+				bestRelease = release;
 			}
 
 			if (bestRelease != null)
@@ -267,107 +268,12 @@ public partial class MusicBrainzMetaService : IMetaService, IDisposable
 	private static int ScoreRecording(IRecording? recording)
 	{
 		if (recording?.Releases == null) return -1;
-		var best = -1;
-		foreach (var release in recording.Releases)
-		{
-			var s = ScoreRelease(release);
-			if (s > best) best = s;
-		}
-		return best;
+		return recording.Releases.Select(ScoreRelease).Prepend(-1).Max();
 	}
 
 
-	/// <summary>
-	/// Fetches the artist image URL from Wikidata via the MusicBrainz artist's Wikidata relationship.
-	/// Flow: MusicBrainz artist (with url-rels) -> Wikidata QID -> Wikidata API -> image filename -> Wikimedia URL.
-	/// </summary>
-	private async Task<string?> FetchArtistImageUrlAsync(string artistMbid)
-	{
-		try
-		{
-			await ThrottleAsync();
-			var artist = await _query.LookupArtistAsync(new Guid(artistMbid), Include.UrlRelationships);
-
-			if (artist.Relationships == null)
-				return null;
-
-			string? wikidataUrl = null;
-			foreach (var rel in artist.Relationships)
-			{
-				if (rel.Type == "wikidata" && rel.Url?.Resource != null)
-				{
-					wikidataUrl = rel.Url.Resource.ToString();
-					break;
-				}
-			}
-
-			if (wikidataUrl == null)
-				return null;
-
-			var qid = wikidataUrl.TrimEnd('/').Split('/')[^1];
-			if (!qid.StartsWith("Q", StringComparison.OrdinalIgnoreCase))
-				return null;
-
-			_logger?.LogDebug("Metadata: fetching artist image for QID {Qid}", qid);
-
-			var wikidataApiUrl =
-				$"https://www.wikidata.org/w/api.php?action=wbgetclaims&entity={qid}&property=P18&format=json";
-
-			var response = await _httpClient.GetAsync(wikidataApiUrl);
-			if (!response.IsSuccessStatusCode)
-				return null;
-
-			var json = await response.Content.ReadAsStringAsync();
-			using var doc = JsonDocument.Parse(json);
-
-			if (!doc.RootElement.TryGetProperty("claims", out var claims))
-				return null;
-			if (!claims.TryGetProperty("P18", out var p18))
-			{
-				_logger?.LogDebug("Metadata: no P18 image claim found for QID {Qid}", qid);
-				return null;
-			}
-			if (p18.GetArrayLength() == 0)
-				return null;
-
-			var datavalue = p18[0]
-				.GetProperty("mainsnak")
-				.GetProperty("datavalue")
-				.GetProperty("value");
-
-			var filename = datavalue.GetString();
-			if (string.IsNullOrEmpty(filename))
-				return null;
-
-			var imageUrl = BuildWikimediaUrl(filename, 250);
-			_logger?.LogDebug("Metadata: artist image URL '{Url}'", imageUrl);
-			return imageUrl;
-		}
-		catch (Exception ex)
-		{
-			_logger?.LogWarning("Metadata: artist image fetch failed - {Message}", ex.Message);
-			return null;
-		}
-	}
-
-
-	/// <summary>
-	/// Builds a Wikimedia Commons thumbnail URL for a given filename and width.
-	/// Wikimedia uses an MD5-based path: first char / first two chars / filename.
-	/// </summary>
-	private static string BuildWikimediaUrl(string filename, int width)
-	{
-		var normalised = filename.Replace(' ', '_');
-
-		var hash = System.Security.Cryptography.MD5.HashData(
-			System.Text.Encoding.UTF8.GetBytes(normalised));
-		var hex = BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-
-		var a = hex[0];
-		var ab = hex[..2];
-
-		return $"https://upload.wikimedia.org/wikipedia/commons/thumb/{a}/{ab}/{Uri.EscapeDataString(normalised)}/{width}px-{Uri.EscapeDataString(normalised)}";
-	}
+	private Task<string?> FetchArtistImageUrlAsync(string artistMbid)
+		=> _wikidata.FetchImageUrlFromMbidAsync(artistMbid);
 
 
 	private async Task<string?> ResolveRedirectUrlAsync(string coverArtPath)
@@ -379,10 +285,7 @@ public partial class MusicBrainzMetaService : IMetaService, IDisposable
 			var url = $"https://coverartarchive.org/{coverArtPath}/front-250";
 			var response = await _httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
 
-			if (!response.IsSuccessStatusCode)
-				return null;
-
-			return response.RequestMessage?.RequestUri?.ToString();
+			return !response.IsSuccessStatusCode ? null : response.RequestMessage?.RequestUri?.ToString();
 		}
 		catch (Exception ex)
 		{
@@ -407,9 +310,7 @@ public partial class MusicBrainzMetaService : IMetaService, IDisposable
 
 		var artist = new ArtistInfo
 		{
-			Name = original.Artist,
-			ImageUrl = entry.ArtistImageUrl,
-			MusicBrainzId = entry.ArtistMbid,
+			Name = original.Artist, ImageUrl = entry.ArtistImageUrl, MusicBrainzId = entry.ArtistMbid,
 		};
 
 		return (enriched, artist);
@@ -447,7 +348,8 @@ public partial class MusicBrainzMetaService : IMetaService, IDisposable
 		=> value.Replace("\"", "\\\"").Replace(".", "\\.");
 
 
-	[GeneratedRegex(@"\s*[\(\[](?:from|original|official|motion picture|soundtrack)[^\)\]]*[\)\]]", RegexOptions.IgnoreCase)]
+	[GeneratedRegex(@"\s*[\(\[](?:from|original|official|motion picture|soundtrack)[^\)\]]*[\)\]]",
+		RegexOptions.IgnoreCase)]
 	private static partial Regex BracketSuffixPattern();
 
 	[GeneratedRegex(@"\s+(ft\.?|feat\.?|featuring)\s+.+$", RegexOptions.IgnoreCase)]

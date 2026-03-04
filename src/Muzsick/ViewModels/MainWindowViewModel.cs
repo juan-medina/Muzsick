@@ -26,6 +26,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private bool _isPlaying;
 	[ObservableProperty] private string? _playlistPath;
 	[ObservableProperty] private int _volume = 50;
+	[ObservableProperty] private bool _volumeTooltipVisible;
+
+	private System.Threading.CancellationTokenSource? _volumeTooltipCts;
 
 	// Bitmap? — null means no image available, UI falls back to placeholder
 	[ObservableProperty] private Bitmap? _albumArt;
@@ -75,6 +78,19 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		var settings = SettingsManager.Load() ?? new AppSettings();
 		settings.Volume = value;
 		SettingsManager.Save(settings);
+
+		// Show floating label, cancel any previous hide timer
+		_volumeTooltipCts?.Cancel();
+		_volumeTooltipCts = new System.Threading.CancellationTokenSource();
+		VolumeTooltipVisible = true;
+
+		var token = _volumeTooltipCts.Token;
+		_ = Task.Run(async () =>
+		{
+			await Task.Delay(1500, token);
+			if (!token.IsCancellationRequested)
+				Avalonia.Threading.Dispatcher.UIThread.Post(() => VolumeTooltipVisible = false);
+		}, token).ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnCanceled);
 	}
 
 	[RelayCommand]
@@ -289,6 +305,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 	public void Dispose()
 	{
+		_volumeTooltipCts?.Cancel();
+		_volumeTooltipCts?.Dispose();
 		_httpClient.Dispose();
 		_streamPlayer?.Dispose();
 	}

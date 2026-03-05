@@ -11,7 +11,7 @@ using Muzsick.Metadata;
 
 namespace Muzsick.Audio;
 
-public class StreamPlayer(ILogger? logger = null) : IDisposable
+public class StreamPlayer(AudioMixer audioMixer, ILogger? logger = null) : IDisposable
 {
 	// ReSharper disable once InconsistentNaming
 	private LibVLC? _libVLC;
@@ -22,6 +22,16 @@ public class StreamPlayer(ILogger? logger = null) : IDisposable
 	private string _lastKnownTitle = "";
 	private string _lastKnownArtist = "";
 	private readonly IcyMetadataParser _icyParser = new(logger);
+
+	// Keep delegates alive for the lifetime of the player so the GC does not collect them
+	// while LibVLC is still invoking them.
+	private MediaPlayer.LibVLCAudioPlayCb? _playCb;
+	private MediaPlayer.LibVLCAudioFlushCb? _flushCb;
+	private MediaPlayer.LibVLCAudioDrainCb? _drainCb;
+
+	// Fixed audio format negotiated with LibVLC via SetAudioFormat.
+	private const uint _sampleRate = 44100;
+	private const uint _channels = 2;
 
 	public event Action<string>? StatusChanged;
 	public event Action<TrackInfo>? TrackChanged;
@@ -42,8 +52,18 @@ public class StreamPlayer(ILogger? logger = null) : IDisposable
 			logger?.LogInformation("LibVLC instance created");
 
 			_mediaPlayer = new MediaPlayer(_libVLC);
-			_mediaPlayer.Volume = 50; // Set volume to 50% (0-100 scale)
-			logger?.LogInformation("MediaPlayer created with 50% volume");
+			logger?.LogInformation("MediaPlayer created");
+
+			// Wire up audio callbacks — VLC delivers decoded PCM here.
+			// SetAudioFormat tells VLC to decode as signed 16-bit native-endian stereo at 44100 Hz
+			// so we always know the exact format arriving in OnAudioPlay.
+			// Delegates are stored in fields to prevent GC collection.
+			_mediaPlayer.SetAudioFormat("S16N", _sampleRate, _channels);
+
+			_playCb = OnAudioPlay;
+			_flushCb = OnAudioFlush;
+			_drainCb = OnAudioDrain;
+			_mediaPlayer.SetAudioCallbacks(_playCb, null, null, _flushCb, _drainCb);
 
 			_mediaPlayer.Playing += (_, _) =>
 			{
@@ -82,6 +102,25 @@ public class StreamPlayer(ILogger? logger = null) : IDisposable
 			logger?.LogError(ex, "Failed to initialize audio engine");
 			StatusChanged?.Invoke("Audio engine failed to initialize");
 		}
+	}
+
+	// Called from the LibVLC decode thread — copy samples into AudioMixer.
+	private void OnAudioPlay(IntPtr data, IntPtr samples, uint count, long pts)
+	{
+		// count = sample frames; S16N stereo = 2 ch × 2 bytes per frame
+		var byteCount = (int)(count * _channels * 2);
+		audioMixer.EnqueuePcm(samples, byteCount, (int)_sampleRate, (int)_channels);
+	}
+
+	private void OnAudioFlush(IntPtr data, long pts)
+	{
+		logger?.LogDebug("LibVLC flush callback");
+		audioMixer.Flush();
+	}
+
+	private void OnAudioDrain(IntPtr data)
+	{
+		logger?.LogDebug("LibVLC drain callback");
 	}
 
 	private void OnMediaChanged(object? sender, MediaPlayerMediaChangedEventArgs e)
@@ -235,12 +274,6 @@ public class StreamPlayer(ILogger? logger = null) : IDisposable
 		ExtractAndNotifyTrackInfo(_currentMedia);
 	}
 
-	public void SetVolume(int volume)
-	{
-		if (_mediaPlayer == null) return;
-		_mediaPlayer.Volume = Math.Clamp(volume, 0, 100);
-		logger?.LogDebug("Volume set to {Volume}", volume);
-	}
 
 	public void Stop()
 	{

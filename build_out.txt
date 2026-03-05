@@ -1,12 +1,9 @@
   Determining projects to restore...
   All projects are up-to-date for restore.
-C:\Users\mail\Documents\Source\Muzsick\src\Muzsick\Views/ConfigWindow.axaml : Avalonia warning AVLN3001: XAML resource "avares://Muzsick/Views/ConfigWindow.axaml" won't be reachable via runtime loader, as no public constructor was found [C:\Users\mail\Documents\Source\Muzsick\src\Muzsick\Muzsick.csproj]
-  Muzsick -> C:\Users\mail\Documents\Source\Muzsick\src\Muzsick\bin\Debug\net9.0\Muzsick.dll
+  Muzsick -> C:\Users\mail\Documents\Source\Muzsick\src\Muzsick\bin\Release\net9.0\Muzsick.dll
 
 Build succeeded.
-
-C:\Users\mail\Documents\Source\Muzsick\src\Muzsick\Views/ConfigWindow.axaml : Avalonia warning AVLN3001: XAML resource "avares://Muzsick/Views/ConfigWindow.axaml" won't be reachable via runtime loader, as no public constructor was found [C:\Users\mail\Documents\Source\Muzsick\src\Muzsick\Muzsick.csproj]
-    1 Warning(s)
+    0 Warning(s)
     0 Error(s)
 
-Time Elapsed 00:00:02.15
+Time Elapsed 00:00:01.80

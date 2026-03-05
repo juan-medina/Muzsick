@@ -35,6 +35,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private Bitmap? _artistImage;
 
 	private Window? _mainWindow;
+	private readonly AudioMixer _audioMixer;
 	private readonly StreamPlayer? _streamPlayer;
 	private readonly IMetaService _metadataService;
 	private readonly HttpClient _httpClient;
@@ -43,13 +44,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	public MainWindowViewModel()
 	{
 #if DEBUG
+		var mixerLogger = App.LoggerFactory?.CreateLogger<AudioMixer>();
 		var streamLogger = App.LoggerFactory?.CreateLogger<StreamPlayer>();
 		var metaLogger = App.LoggerFactory?.CreateLogger<LastFmMetaService>();
 #else
+		ILogger? mixerLogger = null;
 		ILogger? streamLogger = null;
 		ILogger? metaLogger = null;
 #endif
-		_streamPlayer = new StreamPlayer(streamLogger);
+		_audioMixer = new AudioMixer(mixerLogger);
+		_streamPlayer = new StreamPlayer(_audioMixer, streamLogger);
 		_metadataService = new LastFmMetaService(metaLogger);
 		_streamPlayer.StatusChanged += OnStatusChanged;
 		_streamPlayer.TrackChanged += OnTrackChanged;
@@ -59,14 +63,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			"Muzsick/0.1 (https://github.com/juan-medina/muzsick)");
 
 		var settings = SettingsManager.Load();
-		if (settings != null)
-		{
-			_volume = Math.Clamp(settings.Volume, 0, 100);
-			_streamPlayer.SetVolume(_volume);
+		if (settings == null) return;
+		_volume = Math.Clamp(settings.Volume, 0, 100);
+		_audioMixer.SetVolume(_volume);
 
-			if (!string.IsNullOrEmpty(settings.LastPlaylistPath) && File.Exists(settings.LastPlaylistPath))
-				ApplyPlaylistPath(settings.LastPlaylistPath);
-		}
+		if (!string.IsNullOrEmpty(settings.LastPlaylistPath) && File.Exists(settings.LastPlaylistPath))
+			ApplyPlaylistPath(settings.LastPlaylistPath);
 	}
 
 	public void SetMainWindow(Window window)
@@ -76,7 +78,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 	partial void OnVolumeChanged(int value)
 	{
-		_streamPlayer?.SetVolume(value);
+		_audioMixer.SetVolume(value);
 
 		var settings = SettingsManager.Load() ?? new AppSettings();
 		settings.Volume = value;
@@ -319,5 +321,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_volumeTooltipCts?.Dispose();
 		_httpClient.Dispose();
 		_streamPlayer?.Dispose();
+		_audioMixer.Dispose();
 	}
 }

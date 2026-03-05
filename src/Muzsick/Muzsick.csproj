@@ -1,33 +1,48 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
-    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
-  </PropertyGroup>
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net9.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="Models\" />
-    <AvaloniaResource Include="Assets\**" />
-  </ItemGroup>
+	<PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+		<ApplicationManifest>app.manifest</ApplicationManifest>
+	</PropertyGroup>
 
+	<ItemGroup>
+		<Folder Include="Models\"/>
+		<AvaloniaResource Include="Assets\**"/>
+	</ItemGroup>
 
-  <ItemGroup>
-		<PackageReference Include="MetaBrainz.MusicBrainz" Version="7.0.0" />
-    <PackageReference Include="Avalonia" Version="11.3.12" />
-    <PackageReference Include="Avalonia.Desktop" Version="11.3.12" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.12" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.12" />
-    <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-    <PackageReference Include="Avalonia.Diagnostics" Version="11.3.12">
-      <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
-      <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
-    <PackageReference Include="LibVLCSharp" Version="3.8.5" />
-    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.0" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="MetaBrainz.MusicBrainz" Version="7.0.0"/>
+		<PackageReference Include="Avalonia" Version="11.3.12"/>
+		<PackageReference Include="Avalonia.Desktop" Version="11.3.12"/>
+		<PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.12"/>
+		<PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.12"/>
+		<!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+		<PackageReference Include="Avalonia.Diagnostics" Version="11.3.12">
+			<IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+			<PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+		</PackageReference>
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1"/>
+		<PackageReference Include="LibVLCSharp" Version="3.8.5"/>
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0"/>
+		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.0"/>
+	</ItemGroup>
+
+	<!-- Platform-specific LibVLC native binaries -->
+	<ItemGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+		<PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.21"/>
+	</ItemGroup>
+
+	<ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+		<PackageReference Include="VideoLAN.LibVLC.Linux" Version="3.0.21"/>
+	</ItemGroup>
+
+	<ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+		<PackageReference Include="VideoLAN.LibVLC.Mac" Version="3.0.21"/>
+	</ItemGroup>
+
 </Project>

@@ -1,4 +1,4 @@
-﻿# ============================================================
+﻿﻿# ============================================================
 #  Muzsick — .gitignore
 # ============================================================
 
@@ -47,7 +47,6 @@ crash-*.txt
 secrets.json
 local.settings.json
 
-# ----- Kokoro model files (large — ship via installer) -----
-src/Muzsick/Models/KokoroModels/*.onnx
-src/Muzsick/Models/KokoroModels/*.bin
-src/Muzsick/Models/KokoroModels/*.dat
+# ----- Kokoro model files — tracked via Git LFS, not ignored ------
+# *.onnx / *.bin / *.dat are handled by .gitattributes (Git LFS).
+# Do NOT add them here — that would override LFS tracking and lose them.

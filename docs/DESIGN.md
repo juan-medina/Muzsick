@@ -87,7 +87,7 @@ output device directly.
 | Stream Playback     | LibVLCSharp + VideoLAN.LibVLC    | NuGet + native libs                |
 | Audio Mixing/Output | Silk.NET.OpenAL                  | Cross-platform, replaces NAudio    |
 | Text-to-Speech      | Sherpa-ONNX (C# bindings)        | In-process, no subprocess          |
-| TTS Voice Model     | Kokoro-82M (ONNX export)         | ~80 MB, shipped with installer     |
+| TTS Voice Model     | Kokoro-82M (ONNX export)         | ~80 MB, stored in Git LFS         |
 | Track Metadata      | Last.fm API (`track.getInfo`)    | HTTP via HttpClient                |
 | Artist Images       | Wikimedia Commons / Wikidata     | HTTP via HttpClient                |
 | AI Commentary       | OpenAI-compatible HTTP API       | Optional, user-configured endpoint |
@@ -126,7 +126,7 @@ Sherpa-ONNX provides a C# NuGet package that wraps an ONNX runtime, enabling ful
 The Kokoro-82M model produces natural-sounding speech well suited to DJ-style announcements and runs in real time on
 a modest CPU.
 
-The model file (~80 MB) is bundled with the application installer. No internet connection is required for TTS
+The model file (~80 MB) is stored in the repository via Git LFS and is included in the application build. No internet connection is required for TTS
 synthesis. The TTS backend is abstracted behind an interface, allowing alternative backends to be swapped in without
 changing the mixing logic.
 
@@ -410,7 +410,7 @@ src/Muzsick/
 │   └── MainWindow.axaml
 │
 └── Models/
-    └── KokoroModels/            # Kokoro ONNX model files (~80 MB, not in git)
+    └── KokoroModels/            # Kokoro ONNX model files (~80 MB, stored in Git LFS)
 ```
 
 ---

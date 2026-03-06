@@ -89,7 +89,7 @@ src/Muzsick/
 ├── Views/               # Avalonia AXAML views
 │
 └── Models/
-    └── KokoroModels/    # Kokoro ONNX model files (~80 MB, not in git)
+    └── KokoroModels/    # Kokoro ONNX model files (~80 MB, stored in Git LFS)
 ```
 
 ## Technology Stack
@@ -148,6 +148,10 @@ it, but do not add tests speculatively.
 
 ## Dependencies
 
-All dependencies are managed via NuGet. The Kokoro ONNX model files (~80 MB) are not committed to git — they are
-excluded via `.gitignore` and will be distributed via the installer. See `Models/KokoroModels/` for the expected
-file layout.
+All dependencies are managed via NuGet. The Kokoro ONNX model files (~80 MB) are stored in the repository via
+**Git LFS** — they are tracked by `.gitattributes` (`*.onnx`, `*.bin`, `*.dat`) and are automatically downloaded
+when you clone with `git lfs install` (or `git lfs pull` after a regular clone). See `Models/KokoroModels/` for
+the expected file layout.
+
+> First-time setup: run `git lfs install` once globally, then clone normally. Existing clones: run `git lfs pull`
+> to fetch the model files.

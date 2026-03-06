@@ -52,7 +52,10 @@ Every `.axaml` file must start with (before the root element):
   to an audio device directly.
 - **Silk.NET.OpenAL** is the single audio output point — it receives PCM from the radio stream and TTS engine,
   handles mixing, and controls per-source volume for ducking.
-- **Sherpa-ONNX / Kokoro** synthesises TTS entirely in-process and returns raw PCM bytes.
+- **Sherpa-ONNX / Kokoro** synthesises TTS entirely in-process and returns raw PCM bytes. The Kokoro-82M model
+  files (~80 MB) live in `src/Muzsick/Models/KokoroModels/` and are stored in the repository via **Git LFS**
+  (`.gitattributes` tracks `*.onnx`, `*.bin`, `*.dat`). Run `git lfs install` once globally before cloning;
+  existing clones run `git lfs pull` to fetch the files.
 - All major subsystems are behind interfaces (`ITtsBackend`, `ICommentaryGenerator`). Inject, don't instantiate.
 - Settings live in `settings.json` in the app data folder. No registry entries. API keys are never committed to git.
 

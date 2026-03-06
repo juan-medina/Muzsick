@@ -4,6 +4,7 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
@@ -14,6 +15,7 @@ using Microsoft.Extensions.Logging;
 using Muzsick.Audio;
 using Muzsick.Config;
 using Muzsick.Metadata;
+using Muzsick.Tts;
 using Muzsick.Views;
 
 namespace Muzsick.ViewModels;
@@ -38,8 +40,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private readonly AudioMixer _audioMixer;
 	private readonly StreamPlayer? _streamPlayer;
 	private readonly IMetaService _metadataService;
+	private readonly ITtsBackend _ttsBackend;
 	private readonly HttpClient _httpClient;
-	private Guid _currentTrackToken;
+	private CancellationTokenSource _trackCts = new();
 
 	public MainWindowViewModel()
 	{
@@ -55,6 +58,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_audioMixer = new AudioMixer(mixerLogger);
 		_streamPlayer = new StreamPlayer(_audioMixer, streamLogger);
 		_metadataService = new LastFmMetaService(metaLogger);
+		_ttsBackend = new StubTtsBackend(App.LoggerFactory?.CreateLogger<StubTtsBackend>());
 		_streamPlayer.StatusChanged += OnStatusChanged;
 		_streamPlayer.TrackChanged += OnTrackChanged;
 		_streamPlayer.Initialize();
@@ -179,11 +183,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 	private async void OnTrackChanged(TrackInfo track)
 	{
+		// Cancel everything still running for the previous track.
+		var cts = new CancellationTokenSource();
+		var previous = Interlocked.Exchange(ref _trackCts, cts);
+		await previous.CancelAsync();
+		previous.Dispose();
+
+		var token = cts.Token;
+
 		try
 		{
-			var token = Guid.NewGuid();
-			_currentTrackToken = token;
-
 			SongTitle = !string.IsNullOrEmpty(track.Title) ? track.Title : SongTitle;
 			ArtistName = !string.IsNullOrEmpty(track.Artist) ? track.Artist : "Unknown artist";
 			AlbumName = !string.IsNullOrEmpty(track.Album)
@@ -197,13 +206,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 			var (enriched, artist) = await _metadataService.EnrichAsync(track);
 
-			if (token != _currentTrackToken) return;
+			if (token.IsCancellationRequested) return;
 
 			if (!string.IsNullOrEmpty(enriched.CoverArtUrl))
 				AlbumArt = await LoadBitmapAsync(enriched.CoverArtUrl);
 
+			if (token.IsCancellationRequested) return;
+
 			if (!string.IsNullOrEmpty(artist.ImageUrl))
 				ArtistImage = await LoadBitmapAsync(artist.ImageUrl);
+
+			if (token.IsCancellationRequested) return;
 
 			var albumName = !string.IsNullOrEmpty(enriched.Album)
 				? enriched.Album
@@ -215,11 +228,28 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 				AlbumName = !string.IsNullOrEmpty(enriched.Year)
 					? $"{albumName} ({enriched.Year})"
 					: albumName;
+
+			// §5.6 — wait before generating commentary to avoid interrupting the song intro.
+			await Task.Delay(TimeSpan.FromSeconds(3), token);
+
+			if (token.IsCancellationRequested) return;
+
+			var wavBytes = await _ttsBackend.SynthesizeAsync(
+				$"{track.Title} by {track.Artist}", token);
+
+			if (token.IsCancellationRequested) return;
+
+			if (wavBytes is { Length: > 0 })
+				await _audioMixer.PlayVoiceoverAsync(wavBytes, token);
+		}
+		catch (OperationCanceledException)
+		{
+			// New track arrived — silently discard.
 		}
 		catch (Exception ex)
 		{
 			App.LoggerFactory?.CreateLogger("MainWindowViewModel")
-				.LogError(ex, "Error enriching track metadata");
+				.LogError(ex, "Error processing track");
 		}
 	}
 
@@ -319,6 +349,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	{
 		_volumeTooltipCts?.Cancel();
 		_volumeTooltipCts?.Dispose();
+		_trackCts.Cancel();
+		_trackCts.Dispose();
 		_httpClient.Dispose();
 		_streamPlayer?.Dispose();
 		_audioMixer.Dispose();

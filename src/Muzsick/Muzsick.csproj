@@ -13,7 +13,11 @@
 
 	<ItemGroup>
 		<Folder Include="Models\"/>
-		<AvaloniaResource Include="Assets\**"/>
+		<AvaloniaResource Include="Assets\**" Exclude="Assets\test.wav"/>
+		<!-- Stub TTS audio used during V0 development in place of real synthesis -->
+		<None Include="Assets\test.wav" CopyToOutputDirectory="PreserveNewest">
+			<TargetPath>test.wav</TargetPath>
+		</None>
 	</ItemGroup>
 
 	<ItemGroup>

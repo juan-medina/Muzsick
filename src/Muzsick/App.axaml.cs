@@ -37,7 +37,10 @@ public class App : Application
 			if (string.IsNullOrWhiteSpace(Settings.LastFmApiKey))
 			{
 				mainWindow.Show();
-				var configWindow = new ConfigWindow(isFirstRun: true);
+				var configWindow = new ConfigWindow(isFirstRun: true,
+					mainWindow.DataContext is MainWindowViewModel vm
+						? vm.TtsAvailableVoices
+						: new System.Collections.Generic.Dictionary<string, Tts.VoiceInfo>());
 				configWindow.ShowDialog(mainWindow);
 			}
 		}

@@ -11,6 +11,7 @@ public class TrackInfo
 	public string Album { get; init; } = "";
 
 	// Enrichment fields — populated by IMetaService
+	public string? CanonicalArtist { get; init; }
 	public string? Year { get; init; }
 	public string? Genre { get; init; }
 	public string? CoverArtUrl { get; init; }

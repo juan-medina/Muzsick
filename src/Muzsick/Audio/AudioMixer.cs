@@ -151,10 +151,23 @@ public class AudioMixer : IDisposable
 		if (_disposing || _ducking == null) return;
 		if (wavBytes is not { Length: > 0 }) return;
 
-		if (!ParseWav(wavBytes, out var pcmOffset, out var pcmLength, out var wavSampleRate, out var wavChannels))
+		if (!ParseWav(wavBytes, out var pcmOffset, out var pcmLength, out var wavSampleRate, out var wavChannels, out var audioFormat))
 		{
 			_logger?.LogWarning("PlayVoiceoverAsync: could not parse WAV header");
 			return;
+		}
+
+		// OpenAL-Soft via Silk.NET only exposes int16 buffer formats.
+		// Kokoro outputs 32-bit IEEE float (audioFormat == 3), so convert to int16.
+		byte[] pcmBytes;
+		if (audioFormat == 3)
+		{
+			pcmBytes = ConvertFloat32ToInt16(wavBytes, pcmOffset, pcmLength);
+		}
+		else
+		{
+			pcmBytes = new byte[pcmLength];
+			Array.Copy(wavBytes, pcmOffset, pcmBytes, 0, pcmLength);
 		}
 
 		// Allocate a one-shot buffer for the TTS audio.
@@ -166,11 +179,11 @@ public class AudioMixer : IDisposable
 
 			unsafe
 			{
-				fixed (byte* ptr = wavBytes)
+				fixed (byte* ptr = pcmBytes)
 				{
 					lock (_alLock)
 					{
-						_al.BufferData(ttsBuffer, format, ptr + pcmOffset, pcmLength, wavSampleRate);
+						_al.BufferData(ttsBuffer, format, ptr, pcmBytes.Length, wavSampleRate);
 						_al.SetSourceProperty(_ttsSource, SourceInteger.Buffer, (int)ttsBuffer);
 					}
 				}
@@ -251,17 +264,20 @@ public class AudioMixer : IDisposable
 
 	// Parses a standard PCM WAV header.
 	// Returns true and fills the out parameters on success; false if the header is invalid.
+	// audioFormat: 1 = PCM int16, 3 = IEEE float32
 	private static bool ParseWav(
 		byte[] data,
 		out int pcmOffset,
 		out int pcmLength,
 		out int sampleRate,
-		out int channels)
+		out int channels,
+		out int audioFormat)
 	{
 		pcmOffset = 0;
 		pcmLength = 0;
 		sampleRate = 0;
 		channels = 0;
+		audioFormat = 1;
 
 		// Minimum WAV size: 44 bytes
 		if (data.Length < 44) return false;
@@ -270,6 +286,7 @@ public class AudioMixer : IDisposable
 		if (data[0] != 'R' || data[1] != 'I' || data[2] != 'F' || data[3] != 'F') return false;
 		if (data[8] != 'W' || data[9] != 'A' || data[10] != 'V' || data[11] != 'E') return false;
 
+		audioFormat = BitConverter.ToInt16(data, 20);
 		channels = BitConverter.ToInt16(data, 22);
 		sampleRate = BitConverter.ToInt32(data, 24);
 
@@ -277,7 +294,7 @@ public class AudioMixer : IDisposable
 		var pos = 12;
 		while (pos + 8 <= data.Length)
 		{
-			var chunkId = System.Text.Encoding.ASCII.GetString(data, pos, 4);
+			var chunkId = Encoding.ASCII.GetString(data, pos, 4);
 			var chunkSize = BitConverter.ToInt32(data, pos + 4);
 
 			if (chunkId == "data")
@@ -291,6 +308,24 @@ public class AudioMixer : IDisposable
 		}
 
 		return false;
+	}
+
+	// Converts IEEE float32 PCM bytes to int16 PCM bytes.
+	private static byte[] ConvertFloat32ToInt16(byte[] src, int offset, int length)
+	{
+		var sampleCount = length / sizeof(float);
+		var dst = new byte[sampleCount * sizeof(short)];
+
+		for (var i = 0; i < sampleCount; i++)
+		{
+			var f = BitConverter.ToSingle(src, offset + i * sizeof(float));
+			var clamped = Math.Clamp(f, -1.0f, 1.0f);
+			var s = (short)(clamped * short.MaxValue);
+			dst[i * 2] = (byte)(s & 0xFF);
+			dst[i * 2 + 1] = (byte)(s >> 8);
+		}
+
+		return dst;
 	}
 
 	/// <summary>

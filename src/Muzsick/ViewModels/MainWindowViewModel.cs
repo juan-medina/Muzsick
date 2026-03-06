@@ -30,7 +30,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private int _volume = 50;
 	[ObservableProperty] private bool _volumeTooltipVisible;
 
-	private System.Threading.CancellationTokenSource? _volumeTooltipCts;
+	private CancellationTokenSource? _volumeTooltipCts;
 
 	// Bitmap? — null means no image available, UI falls back to placeholder
 	[ObservableProperty] private Bitmap? _albumArt;
@@ -58,7 +58,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_audioMixer = new AudioMixer(mixerLogger);
 		_streamPlayer = new StreamPlayer(_audioMixer, streamLogger);
 		_metadataService = new LastFmMetaService(metaLogger);
-		_ttsBackend = new StubTtsBackend(App.LoggerFactory?.CreateLogger<StubTtsBackend>());
+		_ttsBackend = new KokoroTtsBackend(logger: App.LoggerFactory?.CreateLogger<KokoroTtsBackend>());
 		_streamPlayer.StatusChanged += OnStatusChanged;
 		_streamPlayer.TrackChanged += OnTrackChanged;
 		_streamPlayer.Initialize();
@@ -90,7 +90,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 		// Show floating label, cancel any previous hide timer
 		_volumeTooltipCts?.Cancel();
-		_volumeTooltipCts = new System.Threading.CancellationTokenSource();
+		_volumeTooltipCts = new CancellationTokenSource();
 		VolumeTooltipVisible = true;
 
 		var token = _volumeTooltipCts.Token;
@@ -183,16 +183,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 	private async void OnTrackChanged(TrackInfo track)
 	{
-		// Cancel everything still running for the previous track.
-		var cts = new CancellationTokenSource();
-		var previous = Interlocked.Exchange(ref _trackCts, cts);
-		await previous.CancelAsync();
-		previous.Dispose();
-
-		var token = cts.Token;
-
 		try
 		{
+			// Cancel everything still running for the previous track.
+			var cts = new CancellationTokenSource();
+			var previous = Interlocked.Exchange(ref _trackCts, cts);
+			await previous.CancelAsync();
+			previous.Dispose();
+
+			var token = cts.Token;
+
 			SongTitle = !string.IsNullOrEmpty(track.Title) ? track.Title : SongTitle;
 			ArtistName = !string.IsNullOrEmpty(track.Artist) ? track.Artist : "Unknown artist";
 			AlbumName = !string.IsNullOrEmpty(track.Album)
@@ -235,7 +235,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			if (token.IsCancellationRequested) return;
 
 			var wavBytes = await _ttsBackend.SynthesizeAsync(
-				$"{track.Title} by {track.Artist}", token);
+				$"NOw playing {track.Title} by {track.Artist}", token);
 
 			if (token.IsCancellationRequested) return;
 

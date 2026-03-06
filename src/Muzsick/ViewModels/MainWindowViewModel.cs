@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -29,6 +30,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private string? _playlistPath;
 	[ObservableProperty] private int _volume = 50;
 	[ObservableProperty] private bool _volumeTooltipVisible;
+	public IReadOnlyDictionary<string, VoiceInfo> TtsAvailableVoices => _ttsBackend.AvailableVoices;
 
 	private CancellationTokenSource? _volumeTooltipCts;
 
@@ -58,7 +60,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_audioMixer = new AudioMixer(mixerLogger);
 		_streamPlayer = new StreamPlayer(_audioMixer, streamLogger);
 		_metadataService = new LastFmMetaService(metaLogger);
-		_ttsBackend = new KokoroTtsBackend(logger: App.LoggerFactory?.CreateLogger<KokoroTtsBackend>());
+		_ttsBackend = new KokoroTtsBackend(
+			voice: App.Settings.TtsVoice,
+			logger: App.LoggerFactory?.CreateLogger<KokoroTtsBackend>());
 		_streamPlayer.StatusChanged += OnStatusChanged;
 		_streamPlayer.TrackChanged += OnTrackChanged;
 		_streamPlayer.Initialize();
@@ -177,8 +181,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	{
 		if (_mainWindow == null) return;
 
-		var configWindow = new ConfigWindow(isFirstRun: false);
-		await configWindow.ShowDialog(_mainWindow);
+		var voices = (_ttsBackend as KokoroTtsBackend)?.AvailableVoices ?? new Dictionary<string, VoiceInfo>();
+		var configWindow = new ConfigWindow(isFirstRun: false, voices);
+		var saved = await configWindow.ShowDialog<bool>(_mainWindow);
+
+		if (saved)
+			_ttsBackend.SetVoice(App.Settings.TtsVoice);
 	}
 
 	private async void OnTrackChanged(TrackInfo track)

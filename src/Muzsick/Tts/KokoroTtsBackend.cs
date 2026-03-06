@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,16 +23,26 @@ public class KokoroTtsBackend : ITtsBackend, IDisposable
 	private const float _speed = 1.0f;
 
 	private readonly ILogger? _logger;
-	private readonly int _speakerId;
+	private int _speakerId;
 	private readonly OfflineTts? _tts;
+	private readonly Dictionary<string, int> _voiceMap;
 	private bool _disposed;
 
-	public KokoroTtsBackend(string voice = "af_heart", ILogger? logger = null)
+	public IReadOnlyDictionary<string, VoiceInfo> AvailableVoices { get; }
+
+	public KokoroTtsBackend(string voice = "af", ILogger? logger = null)
 	{
 		_logger = logger;
-		_speakerId = VoiceToSpeakerId(voice);
 
 		var modelDir = Path.Combine(AppContext.BaseDirectory, "Models", "KokoroModels", _modelSubDir);
+		var voicesBinPath = Path.Combine(modelDir, "voices.bin");
+
+		_voiceMap = LoadVoiceMap();
+		AvailableVoices = BuildVoiceInfoMap();
+
+		_logger?.LogInformation("KokoroTtsBackend: loaded {Count} voices", _voiceMap.Count);
+
+		_speakerId = VoiceToSpeakerId(voice);
 
 		if (!Directory.Exists(modelDir))
 		{
@@ -48,7 +59,7 @@ public class KokoroTtsBackend : ITtsBackend, IDisposable
 					Kokoro = new OfflineTtsKokoroModelConfig
 					{
 						Model = Path.Combine(modelDir, "model.onnx"),
-						Voices = Path.Combine(modelDir, "voices.bin"),
+						Voices = voicesBinPath,
 						Tokens = Path.Combine(modelDir, "tokens.txt"),
 						DataDir = Path.Combine(modelDir, "espeak-ng-data"),
 					},
@@ -60,12 +71,18 @@ public class KokoroTtsBackend : ITtsBackend, IDisposable
 			};
 
 			_tts = new OfflineTts(config);
-			_logger?.LogInformation("KokoroTtsBackend: ready, speaker id={Id}", _speakerId);
+			_logger?.LogInformation("KokoroTtsBackend: ready, voice='{Voice}' speaker id={Id}", voice, _speakerId);
 		}
 		catch (Exception ex)
 		{
 			_logger?.LogError(ex, "KokoroTtsBackend: failed to initialise");
 		}
+	}
+
+	public void SetVoice(string voice)
+	{
+		_speakerId = VoiceToSpeakerId(voice);
+		_logger?.LogInformation("KokoroTtsBackend: voice set to '{Voice}' (speaker id={Id})", voice, _speakerId);
 	}
 
 	public Task<byte[]> SynthesizeAsync(string text, CancellationToken cancellationToken = default)
@@ -101,6 +118,51 @@ public class KokoroTtsBackend : ITtsBackend, IDisposable
 		}
 	}
 
+	private int VoiceToSpeakerId(string voice)
+	{
+		if (_voiceMap.TryGetValue(voice, out var id))
+			return id;
+
+		_logger?.LogWarning("KokoroTtsBackend: unknown voice '{Voice}', defaulting to speaker 0", voice);
+		return 0;
+	}
+
+	private static Dictionary<string, int> LoadVoiceMap()
+	{
+		return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+		{
+			{ "af", 0 },
+			{ "af_bella", 1 },
+			{ "af_nicole", 2 },
+			{ "af_sarah", 3 },
+			{ "af_sky", 4 },
+			{ "am_adam", 5 },
+			{ "am_michael", 6 },
+			{ "bf_emma", 7 },
+			{ "bf_isabella", 8 },
+			{ "bm_george", 9 },
+			{ "bm_lewis", 10 },
+		};
+	}
+
+	private static Dictionary<string, VoiceInfo> BuildVoiceInfoMap()
+	{
+		return new Dictionary<string, VoiceInfo>(StringComparer.OrdinalIgnoreCase)
+		{
+			{ "af", new VoiceInfo("af", "Default", "American Female") },
+			{ "af_bella", new VoiceInfo("af_bella", "Bella", "American Female") },
+			{ "af_nicole", new VoiceInfo("af_nicole", "Nicole", "American Female") },
+			{ "af_sarah", new VoiceInfo("af_sarah", "Sarah", "American Female") },
+			{ "af_sky", new VoiceInfo("af_sky", "Sky", "American Female") },
+			{ "am_adam", new VoiceInfo("am_adam", "Adam", "American Male") },
+			{ "am_michael", new VoiceInfo("am_michael", "Michael", "American Male") },
+			{ "bf_emma", new VoiceInfo("bf_emma", "Emma", "British Female") },
+			{ "bf_isabella", new VoiceInfo("bf_isabella", "Isabella", "British Female") },
+			{ "bm_george", new VoiceInfo("bm_george", "George", "British Male") },
+			{ "bm_lewis", new VoiceInfo("bm_lewis", "Lewis", "British Male") },
+		};
+	}
+
 	/// <summary>
 	/// Encodes float PCM samples as a 32-bit IEEE float WAV file in memory.
 	/// </summary>
@@ -134,39 +196,6 @@ public class KokoroTtsBackend : ITtsBackend, IDisposable
 		return ms.ToArray();
 	}
 
-	private static int VoiceToSpeakerId(string voice) => voice switch
-	{
-		"af_heart"    => 0,
-		"af_alloy"    => 1,
-		"af_aoede"    => 2,
-		"af_bella"    => 3,
-		"af_jessica"  => 4,
-		"af_kore"     => 5,
-		"af_nicole"   => 6,
-		"af_nova"     => 7,
-		"af_river"    => 8,
-		"af_sarah"    => 9,
-		"af_sky"      => 10,
-		"am_adam"     => 11,
-		"am_echo"     => 12,
-		"am_eric"     => 13,
-		"am_fenrir"   => 14,
-		"am_liam"     => 15,
-		"am_michael"  => 16,
-		"am_onyx"     => 17,
-		"am_puck"     => 18,
-		"am_santa"    => 19,
-		"bf_alice"    => 20,
-		"bf_emma"     => 21,
-		"bf_isabella" => 22,
-		"bf_lily"     => 23,
-		"bm_daniel"   => 24,
-		"bm_fable"    => 25,
-		"bm_george"   => 26,
-		"bm_lewis"    => 27,
-		_             => 0,
-	};
-
 	public void Dispose()
 	{
 		if (_disposed) return;
@@ -174,4 +203,3 @@ public class KokoroTtsBackend : ITtsBackend, IDisposable
 		_tts?.Dispose();
 	}
 }
-

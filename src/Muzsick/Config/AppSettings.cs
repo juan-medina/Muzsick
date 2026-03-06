@@ -20,5 +20,10 @@ public class AppSettings
 	/// Absolute path of the last playlist file opened. Restored on next launch.
 	/// </summary>
 	public string? LastPlaylistPath { get; set; }
+
+	/// <summary>
+	/// Kokoro TTS voice identifier. Defaults to "af_heart".
+	/// </summary>
+	public string TtsVoice { get; set; } = "af_heart";
 }
 

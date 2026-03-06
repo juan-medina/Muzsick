@@ -1,4 +1,4 @@
-﻿﻿// SPDX-FileCopyrightText: 2026 Juan Medina
+﻿// SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 
 using System;
@@ -270,14 +270,15 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 						? mbidEl.GetString()
 						: null;
 
-					if (string.IsNullOrWhiteSpace(mbid))
-					{
-						var artistName = artistEl.TryGetProperty("name", out var nameEl)
-							? nameEl.GetString()
-							: null;
-						if (!string.IsNullOrWhiteSpace(artistName))
-							mbid = await FetchArtistMbidAsync(artistName);
-					}
+					var artistName = artistEl.TryGetProperty("name", out var nameEl)
+						? nameEl.GetString()
+						: null;
+
+					if (!string.IsNullOrWhiteSpace(artistName))
+						entry.ArtistName = artistName;
+
+					if (string.IsNullOrWhiteSpace(mbid) && !string.IsNullOrWhiteSpace(artistName))
+						mbid = await FetchArtistMbidAsync(artistName);
 
 					if (!string.IsNullOrWhiteSpace(mbid))
 					{
@@ -434,6 +435,7 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 		{
 			Title = original.Title,
 			Artist = original.Artist,
+			CanonicalArtist = entry.ArtistName,
 			Album = !string.IsNullOrEmpty(original.Album) ? original.Album : entry.Album ?? "",
 			Year = entry.Year,
 			Genre = entry.Genre,
@@ -442,9 +444,7 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 
 		var artist = new ArtistInfo
 		{
-			Name = original.Artist,
-			ImageUrl = entry.ArtistImageUrl,
-			MusicBrainzId = entry.ArtistMbid,
+			Name = original.Artist, ImageUrl = entry.ArtistImageUrl, MusicBrainzId = entry.ArtistMbid,
 		};
 
 		return (enriched, artist);
@@ -489,6 +489,7 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 		public bool IsRich => CoverArtUrl != null || Album != null;
 		public bool IsCompilation { get; set; }
 
+		public string? ArtistName { get; set; }
 		public string? ArtistMbid { get; set; }
 		public string? ArtistImageUrl { get; set; }
 		public string? CoverArtUrl { get; set; }

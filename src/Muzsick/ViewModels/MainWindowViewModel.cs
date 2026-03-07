@@ -31,6 +31,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private int _volume = 50;
 	[ObservableProperty] private bool _volumeTooltipVisible;
 	public IReadOnlyDictionary<string, VoiceInfo> TtsAvailableVoices => _ttsBackend.AvailableVoices;
+	internal ITtsBackend TtsBackend => _ttsBackend;
+	internal AudioMixer AudioMixer => _audioMixer;
 
 	private CancellationTokenSource? _volumeTooltipCts;
 
@@ -61,7 +63,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_streamPlayer = new StreamPlayer(_audioMixer, streamLogger);
 		_metadataService = new LastFmMetaService(metaLogger);
 		_ttsBackend = new KokoroTtsBackend(
-			voice: App.Settings.TtsVoice,
 			logger: App.LoggerFactory?.CreateLogger<KokoroTtsBackend>());
 		_streamPlayer.StatusChanged += OnStatusChanged;
 		_streamPlayer.TrackChanged += OnTrackChanged;
@@ -182,11 +183,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		if (_mainWindow == null) return;
 
 		var voices = (_ttsBackend as KokoroTtsBackend)?.AvailableVoices ?? new Dictionary<string, VoiceInfo>();
-		var configWindow = new ConfigWindow(isFirstRun: false, voices);
-		var saved = await configWindow.ShowDialog<bool>(_mainWindow);
-
-		if (saved)
-			_ttsBackend.SetVoice(App.Settings.TtsVoice);
+		var configWindow = new ConfigWindow(isFirstRun: false, voices, _ttsBackend, _audioMixer);
+		await configWindow.ShowDialog<bool>(_mainWindow);
 	}
 
 	private async void OnTrackChanged(TrackInfo track)
@@ -245,7 +243,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			if (token.IsCancellationRequested) return;
 
 			var announcement = AnnouncementTemplateRenderer.Render(App.Settings.AnnouncementTemplate, enriched);
-			var wavBytes = await _ttsBackend.SynthesizeAsync(announcement, token);
+			var wavBytes = await _ttsBackend.SynthesizeAsync(announcement, App.Settings.TtsVoice, token);
 
 			if (token.IsCancellationRequested) return;
 

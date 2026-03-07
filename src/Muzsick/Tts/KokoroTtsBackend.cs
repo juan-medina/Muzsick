@@ -1,4 +1,4 @@
-﻿// SPDX-FileCopyrightText: 2026 Juan Medina
+﻿﻿// SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 
 using System;
@@ -23,14 +23,13 @@ public class KokoroTtsBackend : ITtsBackend, IDisposable
 	private const float _speed = 1.0f;
 
 	private readonly ILogger? _logger;
-	private int _speakerId;
 	private readonly OfflineTts? _tts;
 	private readonly Dictionary<string, int> _voiceMap;
 	private bool _disposed;
 
 	public IReadOnlyDictionary<string, VoiceInfo> AvailableVoices { get; }
 
-	public KokoroTtsBackend(string voice = "af", ILogger? logger = null)
+	public KokoroTtsBackend(ILogger? logger = null)
 	{
 		_logger = logger;
 
@@ -41,8 +40,6 @@ public class KokoroTtsBackend : ITtsBackend, IDisposable
 		AvailableVoices = BuildVoiceInfoMap();
 
 		_logger?.LogInformation("KokoroTtsBackend: loaded {Count} voices", _voiceMap.Count);
-
-		_speakerId = VoiceToSpeakerId(voice);
 
 		if (!Directory.Exists(modelDir))
 		{
@@ -71,7 +68,7 @@ public class KokoroTtsBackend : ITtsBackend, IDisposable
 			};
 
 			_tts = new OfflineTts(config);
-			_logger?.LogInformation("KokoroTtsBackend: ready, voice='{Voice}' speaker id={Id}", voice, _speakerId);
+			_logger?.LogInformation("KokoroTtsBackend: ready");
 		}
 		catch (Exception ex)
 		{
@@ -79,25 +76,19 @@ public class KokoroTtsBackend : ITtsBackend, IDisposable
 		}
 	}
 
-	public void SetVoice(string voice)
-	{
-		_speakerId = VoiceToSpeakerId(voice);
-		_logger?.LogInformation("KokoroTtsBackend: voice set to '{Voice}' (speaker id={Id})", voice, _speakerId);
-	}
-
-	public Task<byte[]> SynthesizeAsync(string text, CancellationToken cancellationToken = default)
+	public Task<byte[]> SynthesizeAsync(string text, string voice, CancellationToken cancellationToken = default)
 	{
 		if (_tts == null || cancellationToken.IsCancellationRequested)
 			return Task.FromResult(Array.Empty<byte>());
 
-		return Task.Run(() => Synthesize(text, cancellationToken), cancellationToken);
+		return Task.Run(() => Synthesize(text, VoiceToSpeakerId(voice), cancellationToken), cancellationToken);
 	}
 
-	private byte[] Synthesize(string text, CancellationToken cancellationToken)
+	private byte[] Synthesize(string text, int speakerId, CancellationToken cancellationToken)
 	{
 		try
 		{
-			var audio = _tts!.Generate(text, _speed, _speakerId);
+			var audio = _tts!.Generate(text, _speed, speakerId);
 
 			if (cancellationToken.IsCancellationRequested)
 				return Array.Empty<byte>();

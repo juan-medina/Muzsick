@@ -7,12 +7,12 @@
         xmlns:vm="using:Muzsick.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="500"
+        mc:Ignorable="d" d:DesignWidth="580" d:DesignHeight="500"
         x:Class="Muzsick.Views.ConfigWindow"
         x:DataType="vm:ConfigWindowViewModel"
         Icon="/Assets/muzsick-logo.ico"
         Title="Muzsick — Settings"
-        Width="480"
+        Width="580"
         Height="500"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
@@ -124,11 +124,37 @@
 					        CornerRadius="6"
 					        Classes="resetButton" />
 				</Grid>
-				<TextBlock Text="{Binding TemplatePreview, StringFormat='Preview: {0}'}"
-				           FontSize="12"
-				           Foreground="#888888"
-				           FontStyle="Italic"
-				           TextWrapping="Wrap" />
+				<Grid ColumnDefinitions="*,Auto">
+					<TextBlock Grid.Column="0"
+					           Text="{Binding TemplateSample, StringFormat='Sample: {0}'}"
+					           FontSize="12"
+					           Foreground="#888888"
+					           FontStyle="Italic"
+					           TextWrapping="Wrap"
+					           VerticalAlignment="Center" />
+					<Button Grid.Column="1"
+					        Command="{Binding SpeakPreviewCommand}"
+					        Margin="8,0,0,0"
+					        Width="80"
+					        Height="30"
+					        Background="#336655"
+					        Foreground="#FFFFFF"
+					        BorderThickness="0"
+					        CornerRadius="6"
+					        FontSize="12"
+					        Classes="hearButton">
+						<Panel>
+							<TextBlock Text="Hear it"
+							           IsVisible="{Binding !IsTtsPreviewing}"
+							           HorizontalAlignment="Center"
+							           VerticalAlignment="Center" />
+							<TextBlock Text="Speaking…"
+							           IsVisible="{Binding IsTtsPreviewing}"
+							           HorizontalAlignment="Center"
+							           VerticalAlignment="Center" />
+						</Panel>
+					</Button>
+				</Grid>
 			</StackPanel>
 
 			<StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
@@ -177,6 +203,16 @@
 		</Style>
 		<Style Selector="Button.resetButton:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#333333" />
+		</Style>
+		<Style Selector="Button.hearButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#448866" />
+		</Style>
+		<Style Selector="Button.hearButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#224433" />
+		</Style>
+		<Style Selector="Button.hearButton:disabled /template/ ContentPresenter">
+			<Setter Property="Background" Value="#224433" />
+			<Setter Property="Foreground" Value="#888888" />
 		</Style>
 	</Window.Styles>
 

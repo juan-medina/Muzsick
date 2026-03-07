@@ -20,6 +20,10 @@ public partial class ConfigWindowViewModel(bool isFirstRun, IReadOnlyDictionary<
 
 	[ObservableProperty] private VoiceInfo? _selectedVoice;
 
+	[ObservableProperty] private string _announcementTemplate = App.Settings.AnnouncementTemplate;
+
+	[ObservableProperty] private string _templatePreview = "";
+
 	public IReadOnlyList<VoiceInfo> AvailableVoices { get; } = availableVoices.Values.ToList().AsReadOnly();
 
 	private Window? _window;
@@ -30,7 +34,20 @@ public partial class ConfigWindowViewModel(bool isFirstRun, IReadOnlyDictionary<
 		SelectedVoice = availableVoices.TryGetValue(App.Settings.TtsVoice, out var v)
 			? v
 			: AvailableVoices.FirstOrDefault();
+		UpdatePreview();
 	}
+
+	partial void OnAnnouncementTemplateChanged(string value) => UpdatePreview();
+
+	private void UpdatePreview()
+	{
+		TemplatePreview = string.IsNullOrWhiteSpace(AnnouncementTemplate)
+			? ""
+			: AnnouncementTemplateRenderer.RenderPreview(AnnouncementTemplate);
+	}
+
+	[RelayCommand]
+	private void ResetTemplate() => AnnouncementTemplate = AnnouncementTemplateRenderer.DefaultTemplate;
 
 	private bool CanSave() => !string.IsNullOrWhiteSpace(ApiKey);
 
@@ -40,6 +57,7 @@ public partial class ConfigWindowViewModel(bool isFirstRun, IReadOnlyDictionary<
 		App.Settings.LastFmApiKey = ApiKey.Trim();
 		if (SelectedVoice != null)
 			App.Settings.TtsVoice = SelectedVoice.Id;
+		App.Settings.AnnouncementTemplate = AnnouncementTemplate.Trim();
 		SettingsManager.Save(App.Settings);
 		_window?.Close(true);
 	}

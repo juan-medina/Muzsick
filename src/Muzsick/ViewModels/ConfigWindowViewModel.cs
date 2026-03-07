@@ -3,16 +3,23 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Muzsick.Audio;
 using Muzsick.Config;
 using Muzsick.Tts;
 
 namespace Muzsick.ViewModels;
 
-public partial class ConfigWindowViewModel(bool isFirstRun, IReadOnlyDictionary<string, VoiceInfo> availableVoices)
+public partial class ConfigWindowViewModel(
+	bool isFirstRun,
+	IReadOnlyDictionary<string, VoiceInfo> availableVoices,
+	ITtsBackend ttsBackend,
+	AudioMixer audioMixer)
 	: ViewModelBase
 {
 	[ObservableProperty] [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
@@ -22,11 +29,18 @@ public partial class ConfigWindowViewModel(bool isFirstRun, IReadOnlyDictionary<
 
 	[ObservableProperty] private string _announcementTemplate = App.Settings.AnnouncementTemplate;
 
-	[ObservableProperty] private string _templatePreview = "";
+	[ObservableProperty]
+	[NotifyCanExecuteChangedFor(nameof(SpeakPreviewCommand))]
+	private string _templateSample = "";
+
+	[ObservableProperty]
+	[NotifyCanExecuteChangedFor(nameof(SpeakPreviewCommand))]
+	private bool _isTtsPreviewing;
 
 	public IReadOnlyList<VoiceInfo> AvailableVoices { get; } = availableVoices.Values.ToList().AsReadOnly();
 
 	private Window? _window;
+	private CancellationTokenSource _previewCts = new();
 
 	public void SetWindow(Window window)
 	{
@@ -34,20 +48,46 @@ public partial class ConfigWindowViewModel(bool isFirstRun, IReadOnlyDictionary<
 		SelectedVoice = availableVoices.TryGetValue(App.Settings.TtsVoice, out var v)
 			? v
 			: AvailableVoices.FirstOrDefault();
-		UpdatePreview();
+		UpdateSample();
 	}
 
-	partial void OnAnnouncementTemplateChanged(string value) => UpdatePreview();
+	partial void OnAnnouncementTemplateChanged(string value) => UpdateSample();
 
-	private void UpdatePreview()
+	private void UpdateSample()
 	{
-		TemplatePreview = string.IsNullOrWhiteSpace(AnnouncementTemplate)
+		TemplateSample = string.IsNullOrWhiteSpace(AnnouncementTemplate)
 			? ""
 			: AnnouncementTemplateRenderer.RenderPreview(AnnouncementTemplate);
 	}
 
 	[RelayCommand]
 	private void ResetTemplate() => AnnouncementTemplate = AnnouncementTemplateRenderer.DefaultTemplate;
+
+	private bool CanSpeakPreview() => !IsTtsPreviewing && !string.IsNullOrWhiteSpace(TemplateSample);
+
+	[RelayCommand(CanExecute = nameof(CanSpeakPreview))]
+	private async Task SpeakPreview()
+	{
+		await _previewCts.CancelAsync();
+		_previewCts.Dispose();
+		_previewCts = new CancellationTokenSource();
+		var token = _previewCts.Token;
+
+		IsTtsPreviewing = true;
+		try
+		{
+			var voice = SelectedVoice?.Id ?? App.Settings.TtsVoice;
+			var wavBytes = await ttsBackend.SynthesizeAsync(TemplateSample, voice, token);
+
+			if (!token.IsCancellationRequested && wavBytes is { Length: > 0 })
+				await audioMixer.PlayVoiceoverAsync(wavBytes, token);
+		}
+		catch (TaskCanceledException) { }
+		finally
+		{
+			IsTtsPreviewing = false;
+		}
+	}
 
 	private bool CanSave() => !string.IsNullOrWhiteSpace(ApiKey);
 
@@ -74,5 +114,10 @@ public partial class ConfigWindowViewModel(bool isFirstRun, IReadOnlyDictionary<
 		{
 			_window?.Close(false);
 		}
+	}
+
+	public void CancelPreview()
+	{
+		_previewCts.Cancel();
 	}
 }

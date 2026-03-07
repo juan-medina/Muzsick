@@ -226,11 +226,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 			if (token.IsCancellationRequested) return;
 
-			ArtistName = !string.IsNullOrEmpty(enriched.CanonicalArtist)
-				? enriched.CanonicalArtist
-				: !string.IsNullOrEmpty(enriched.Artist)
-					? enriched.Artist
-					: "Unknown artist";
+			ArtistName = !string.IsNullOrEmpty(enriched.Artist) ? enriched.Artist : "Unknown artist";
 
 			var albumName = !string.IsNullOrEmpty(enriched.Album)
 				? enriched.Album
@@ -249,7 +245,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			if (token.IsCancellationRequested) return;
 
 			var wavBytes = await _ttsBackend.SynthesizeAsync(
-				$"Now playing {enriched.Title} by {enriched.CanonicalArtist ?? enriched.Artist}", token);
+				$"Now playing {enriched.Title} by {enriched.Artist}", token);
 
 			if (token.IsCancellationRequested) return;
 

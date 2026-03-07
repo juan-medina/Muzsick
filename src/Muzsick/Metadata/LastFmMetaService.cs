@@ -287,6 +287,14 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 					}
 				}
 
+				// Track name from Last.fm — may be corrected relative to the ICY title.
+				if (trackEl.TryGetProperty("name", out var trackNameEl))
+				{
+					var trackName = trackNameEl.GetString();
+					if (!string.IsNullOrWhiteSpace(trackName))
+						entry.TrackName = trackName;
+				}
+
 				return entry;
 			}
 			catch (Exception ex) when (attempt < _maxRetries)
@@ -433,9 +441,8 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 	{
 		var enriched = new TrackInfo
 		{
-			Title = original.Title,
-			Artist = original.Artist,
-			CanonicalArtist = entry.ArtistName,
+			Title = !string.IsNullOrWhiteSpace(entry.TrackName) ? entry.TrackName : original.Title,
+			Artist = !string.IsNullOrWhiteSpace(entry.ArtistName) ? entry.ArtistName : original.Artist,
 			Album = !string.IsNullOrEmpty(original.Album) ? original.Album : entry.Album ?? "",
 			Year = entry.Year,
 			Genre = entry.Genre,
@@ -444,7 +451,7 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 
 		var artist = new ArtistInfo
 		{
-			Name = original.Artist, ImageUrl = entry.ArtistImageUrl, MusicBrainzId = entry.ArtistMbid,
+			Name = enriched.Artist, ImageUrl = entry.ArtistImageUrl, MusicBrainzId = entry.ArtistMbid,
 		};
 
 		return (enriched, artist);
@@ -489,6 +496,7 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 		public bool IsRich => CoverArtUrl != null || Album != null;
 		public bool IsCompilation { get; set; }
 
+		public string? TrackName { get; set; }
 		public string? ArtistName { get; set; }
 		public string? ArtistMbid { get; set; }
 		public string? ArtistImageUrl { get; set; }

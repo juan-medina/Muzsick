@@ -244,8 +244,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 			if (token.IsCancellationRequested) return;
 
-			var wavBytes = await _ttsBackend.SynthesizeAsync(
-				$"Now playing {enriched.Title} by {enriched.Artist}", token);
+			var announcement = AnnouncementTemplateRenderer.Render(App.Settings.AnnouncementTemplate, enriched);
+			var wavBytes = await _ttsBackend.SynthesizeAsync(announcement, token);
 
 			if (token.IsCancellationRequested) return;
 

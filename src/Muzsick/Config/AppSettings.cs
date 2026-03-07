@@ -25,5 +25,10 @@ public class AppSettings
 	/// Kokoro TTS voice identifier. Defaults to "af_heart".
 	/// </summary>
 	public string TtsVoice { get; set; } = "af_heart";
-}
 
+	/// <summary>
+	/// Template used for track announcements. Supports tokens: {title} {artist} {album} {year} {genre}.
+	/// Wrap optional parts in [...] to silently drop them when any token inside is empty.
+	/// </summary>
+	public string AnnouncementTemplate { get; set; } = AnnouncementTemplateRenderer.DefaultTemplate;
+}

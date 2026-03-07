@@ -7,13 +7,13 @@
         xmlns:vm="using:Muzsick.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="320"
+        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="500"
         x:Class="Muzsick.Views.ConfigWindow"
         x:DataType="vm:ConfigWindowViewModel"
         Icon="/Assets/muzsick-logo.ico"
         Title="Muzsick — Settings"
         Width="480"
-        Height="320"
+        Height="500"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
 
@@ -83,6 +83,54 @@
 				</ComboBox>
 			</StackPanel>
 
+			<StackPanel Spacing="6">
+				<TextBlock Text="Announcement Template"
+				           FontSize="16"
+				           FontWeight="Bold"
+				           Foreground="#FFFFFF" />
+				<TextBlock FontSize="12"
+				           Foreground="#AAAAAA"
+				           TextWrapping="Wrap">
+					<Run Text="Tokens: " />
+					<Run Text="{}{title}  {artist}  {album}  {year}  {genre}" FontFamily="Consolas,Monospace" />
+				</TextBlock>
+				<TextBlock FontSize="12"
+				           Foreground="#AAAAAA"
+				           TextWrapping="Wrap">
+					<Run Text="Optional: " />
+					<Run Text="[token?text]" FontFamily="Consolas,Monospace" />
+					<Run Text=" shows only when that token has a value  ·  e.g. " />
+					<Run Text="[year?, released in {year}]" FontFamily="Consolas,Monospace" />
+				</TextBlock>
+				<Grid ColumnDefinitions="*,Auto">
+					<TextBox Grid.Column="0"
+					         Text="{Binding AnnouncementTemplate}"
+					         FontSize="14"
+					         Background="#1E1E1E"
+					         Foreground="#FFFFFF"
+					         BorderBrush="#777777"
+					         BorderThickness="1"
+					         CornerRadius="6"
+					         Padding="10,8" />
+					<Button Grid.Column="1"
+					        Content="Reset"
+					        Command="{Binding ResetTemplateCommand}"
+					        Margin="8,0,0,0"
+					        Width="60"
+					        Height="36"
+					        Background="#444444"
+					        Foreground="#FFFFFF"
+					        BorderThickness="0"
+					        CornerRadius="6"
+					        Classes="resetButton" />
+				</Grid>
+				<TextBlock Text="{Binding TemplatePreview, StringFormat='Preview: {0}'}"
+				           FontSize="12"
+				           Foreground="#888888"
+				           FontStyle="Italic"
+				           TextWrapping="Wrap" />
+			</StackPanel>
+
 			<StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
 				<Button Content="Cancel"
 				        Command="{Binding CancelCommand}"
@@ -122,6 +170,12 @@
 			<Setter Property="Background" Value="#555555" />
 		</Style>
 		<Style Selector="Button.cancelButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#333333" />
+		</Style>
+		<Style Selector="Button.resetButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#555555" />
+		</Style>
+		<Style Selector="Button.resetButton:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#333333" />
 		</Style>
 	</Window.Styles>

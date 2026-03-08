@@ -12,13 +12,44 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Folder Include="Models\"/>
 		<AvaloniaResource Include="Assets\**"/>
-		<None Include="Models\KokoroModels\**" CopyToOutputDirectory="PreserveNewest">
-			<TargetPath>Models\KokoroModels\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
-		</None>
-
 	</ItemGroup>
+
+	<!--
+		Kokoro TTS model: downloaded from the official sherpa-onnx release on first build,
+		then copied to the output directory on every build (skipped when files are unchanged).
+		The models/ folder at the repo root is gitignored — nothing is committed.
+	-->
+	<Target Name="DownloadKokoroModel"
+	        BeforeTargets="Build"
+	        Condition="!Exists('$([MSBuild]::NormalizePath(&quot;$(MSBuildThisFileDirectory)../../models/KokoroModels/kokoro-en-v0_19/model.onnx&quot;))')">
+		<PropertyGroup>
+			<_KokoroModelsRoot>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)../../models/KokoroModels'))</_KokoroModelsRoot>
+			<_KokoroTarUrl>https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2</_KokoroTarUrl>
+			<_KokoroTempFile>$([MSBuild]::NormalizePath('$(_KokoroModelsRoot)/kokoro-download.tar.bz2'))</_KokoroTempFile>
+		</PropertyGroup>
+		<Message Text="&#x0a;Kokoro TTS model not found — downloading ~335 MB (this happens once).&#x0a;" Importance="high"/>
+		<MakeDir Directories="$(_KokoroModelsRoot)"/>
+		<Exec Command="curl -L --fail -o &quot;$(_KokoroTempFile)&quot; &quot;$(_KokoroTarUrl)&quot;"/>
+		<Exec Command="tar -xjf &quot;$(_KokoroTempFile)&quot; -C &quot;$(_KokoroModelsRoot)&quot;"/>
+		<Delete Files="$(_KokoroTempFile)" Condition="Exists('$(_KokoroTempFile)')"/>
+		<Error Text="Kokoro model download failed. Check your internet connection and run 'dotnet build' again."
+		       Condition="!Exists('$([MSBuild]::NormalizePath(&quot;$(MSBuildThisFileDirectory)../../models/KokoroModels/kokoro-en-v0_19/model.onnx&quot;))')"/>
+	</Target>
+
+	<Target Name="CopyKokoroModelToOutput"
+	        BeforeTargets="Build"
+	        DependsOnTargets="DownloadKokoroModel">
+		<PropertyGroup>
+			<_KokoroModelsRoot>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)../../models/KokoroModels'))</_KokoroModelsRoot>
+		</PropertyGroup>
+		<ItemGroup>
+			<_KokoroFiles Include="$(_KokoroModelsRoot)/**/*"/>
+		</ItemGroup>
+		<Copy SourceFiles="@(_KokoroFiles)"
+		      DestinationFiles="@(_KokoroFiles->'$(OutDir)Models/KokoroModels/%(RecursiveDir)%(Filename)%(Extension)')"
+		      SkipUnchangedFiles="true"/>
+	</Target>
 
 	<ItemGroup>
 		<PackageReference Include="MetaBrainz.MusicBrainz" Version="7.0.0"/>

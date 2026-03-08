@@ -22,10 +22,9 @@
 *.wav   binary
 *.mp3   binary
 
-# ----- Git LFS — large ML model files ----------------------------
-# Kokoro-82M ONNX model + vocabulary/token data (~80 MB total)
-# Tracked via Git LFS so they live in the repo without inflating
-# the regular object store.  Requires `git lfs install` on first clone.
-*.onnx filter=lfs diff=lfs merge=lfs -text
-*.bin  filter=lfs diff=lfs merge=lfs -text
-*.dat  filter=lfs diff=lfs merge=lfs -text
+# ----- Binary assets (ML models) — not tracked, downloaded at build time -----
+# The Kokoro TTS model lives in models/ which is gitignored.
+# MSBuild downloads it automatically on first build via dotnet build.
+*.onnx -text
+*.bin  -text
+*.dat  -text

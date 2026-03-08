@@ -47,6 +47,6 @@ crash-*.txt
 secrets.json
 local.settings.json
 
-# ----- Kokoro model files — tracked via Git LFS, not ignored ------
-# *.onnx / *.bin / *.dat are handled by .gitattributes (Git LFS).
-# Do NOT add them here — that would override LFS tracking and lose them.
+# ----- ML models — downloaded at build time, never committed ----------
+# The Kokoro TTS model is fetched automatically by MSBuild on first build.
+models/

@@ -87,7 +87,7 @@ output device directly.
 | Stream Playback     | LibVLCSharp + VideoLAN.LibVLC    | NuGet + native libs                |
 | Audio Mixing/Output | Silk.NET.OpenAL                  | Cross-platform, replaces NAudio    |
 | Text-to-Speech      | Sherpa-ONNX (C# bindings)        | In-process, no subprocess          |
-| TTS Voice Model     | Kokoro-82M (ONNX export)         | ~80 MB, stored in Git LFS         |
+| TTS Voice Model     | Kokoro-82M (ONNX export)         | ~335 MB, downloaded at build time |
 | Track Metadata      | Last.fm API (`track.getInfo`)    | HTTP via HttpClient                |
 | Artist Images       | Wikimedia Commons / Wikidata     | HTTP via HttpClient                |
 | AI Commentary       | OpenAI-compatible HTTP API       | Optional, user-configured endpoint |
@@ -126,9 +126,19 @@ Sherpa-ONNX provides a C# NuGet package that wraps an ONNX runtime, enabling ful
 The Kokoro-82M model produces natural-sounding speech well suited to DJ-style announcements and runs in real time on
 a modest CPU.
 
-The model file (~80 MB) is stored in the repository via Git LFS and is included in the application build. No internet connection is required for TTS
-synthesis. The TTS backend is abstracted behind an interface, allowing alternative backends to be swapped in without
-changing the mixing logic.
+The model files (~335 MB total: `model.onnx` + `voices.bin` + `espeak-ng-data`) are **not committed to the
+repository**. They live in `models/KokoroModels/` at the repo root, which is gitignored. MSBuild downloads and
+extracts them automatically on the first `dotnet build` via an `<Exec>` target that calls `curl` and `tar` — both
+of which ship with Windows 10+, macOS, and all Linux distributions used in CI. Subsequent builds skip the download
+and only copy changed files to the output directory.
+
+Once downloaded, no internet connection is required for TTS synthesis. The TTS backend is abstracted behind an
+interface, allowing alternative backends to be swapped in without changing the mixing logic.
+
+**CI note:** On GitHub Actions the `models/` folder is not cached between runs, so each job re-downloads the
+~335 MB archive. When a multi-platform build workflow is added (Windows, macOS, Linux), each runner job should
+cache the extracted `models/` folder using `actions/cache` keyed on the model version string (e.g.
+`kokoro-en-v0_19`). This avoids the download on every run and keeps build times reasonable.
 
 ```csharp
 public interface ITtsBackend

@@ -93,15 +93,30 @@
 				           Foreground="#AAAAAA"
 				           TextWrapping="Wrap">
 					<Run Text="Tokens: " />
-					<Run Text="{}{title}  {artist}  {album}  {year}  {genre}" FontFamily="Consolas,Monospace" />
+					<Run Text="{}{title}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+					<Run Text="  " FontFamily="Consolas,Monospace" />
+					<Run Text="{}{artist}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+					<Run Text="  " FontFamily="Consolas,Monospace" />
+					<Run Text="{}{album}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+					<Run Text="  " FontFamily="Consolas,Monospace" />
+					<Run Text="{}{year}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+					<Run Text="  " FontFamily="Consolas,Monospace" />
+					<Run Text="{}{genre}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
 				</TextBlock>
 				<TextBlock FontSize="12"
 				           Foreground="#AAAAAA"
 				           TextWrapping="Wrap">
 					<Run Text="Optional: " />
-					<Run Text="[token?text]" FontFamily="Consolas,Monospace" />
+					<Run Text="[token?" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
+					<Run Text="," FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
+					<Run Text="text" FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
+					<Run Text="]" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
 					<Run Text=" shows only when that token has a value  ·  e.g. " />
-					<Run Text="[year?, released in {year}]" FontFamily="Consolas,Monospace" />
+					<Run Text="[year?" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
+					<Run Text="," FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
+					<Run Text=" released in " FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
+					<Run Text="{}{year}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+					<Run Text="]" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
 				</TextBlock>
 				<Grid ColumnDefinitions="*,Auto">
 					<Border Grid.Column="0"

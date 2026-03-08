@@ -34,7 +34,10 @@
 			        VerticalAlignment="Center"
 			        ToolTip.Tip="Settings"
 			        Classes="settingsButton">
-				<TextBlock Text="⚙" FontSize="18" Foreground="#888888" VerticalAlignment="Center" HorizontalAlignment="Center" />
+				<Canvas Width="16" Height="16">
+					<Path Fill="#888888"
+					      Data="F0 M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34z M8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z" />
+				</Canvas>
 			</Button>
 			<Border Width="60" Height="60" Margin="10" Background="#444444" CornerRadius="30"
 			        ClipToBounds="True">
@@ -124,8 +127,16 @@
 			<!-- Volume Control -->
 			<StackPanel HorizontalAlignment="Center" Width="520" Spacing="6">
 				<DockPanel>
-					<TextBlock DockPanel.Dock="Left" Text="🔈" FontSize="14" Foreground="#888888" VerticalAlignment="Center" />
-					<TextBlock DockPanel.Dock="Right" Text="🔊" FontSize="14" Foreground="#888888" VerticalAlignment="Center" />
+					<Canvas DockPanel.Dock="Left" Width="16" Height="16" VerticalAlignment="Center">
+						<Path Fill="#888888" Data="M2,6 L2,10 L5,10 L9,13 L9,3 L5,6 Z" />
+						<Path Fill="Transparent" Stroke="#888888" StrokeThickness="1.5" Data="M11,6 Q13.5,8 11,10" />
+					</Canvas>
+					<Canvas DockPanel.Dock="Right" Width="16" Height="16" VerticalAlignment="Center">
+						<Path Fill="#888888" Data="M2,6 L2,10 L5,10 L9,13 L9,3 L5,6 Z" />
+						<Path Fill="Transparent" Stroke="#888888" StrokeThickness="1.5" Data="M11,6 Q13.5,8 11,10" />
+						<Path Fill="Transparent" Stroke="#888888" StrokeThickness="1.5" Data="M12.5,4.5 Q15.5,8 12.5,11.5" />
+						<Path Fill="Transparent" Stroke="#888888" StrokeThickness="1.5" Data="M14,3.5 Q17,8 14,12.5" />
+					</Canvas>
 					<Grid Margin="8,0">
 						<Slider
 							Minimum="0"

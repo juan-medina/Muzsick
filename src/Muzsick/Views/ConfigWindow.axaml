@@ -7,12 +7,13 @@
         xmlns:vm="using:Muzsick.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="580" d:DesignHeight="500"
+        xmlns:avaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="500"
         x:Class="Muzsick.Views.ConfigWindow"
         x:DataType="vm:ConfigWindowViewModel"
         Icon="/Assets/muzsick-logo.ico"
         Title="Muzsick — Settings"
-        Width="580"
+        Width="640"
         Height="500"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
@@ -103,15 +104,24 @@
 					<Run Text="[year?, released in {year}]" FontFamily="Consolas,Monospace" />
 				</TextBlock>
 				<Grid ColumnDefinitions="*,Auto">
-					<TextBox Grid.Column="0"
-					         Text="{Binding AnnouncementTemplate}"
-					         FontSize="14"
-					         Background="#1E1E1E"
-					         Foreground="#FFFFFF"
-					         BorderBrush="#777777"
-					         BorderThickness="1"
-					         CornerRadius="6"
-					         Padding="10,8" />
+					<Border Grid.Column="0"
+					        Background="#1E1E1E"
+					        BorderBrush="#777777"
+					        BorderThickness="1"
+					        CornerRadius="6"
+					        Height="36"
+					        ClipToBounds="True">
+						<avaloniaEdit:TextEditor
+							x:Name="TemplateEditor"
+							FontSize="14"
+							FontFamily="Consolas,Monospace"
+							Background="Transparent"
+							Padding="10,4,10,4"
+							HorizontalScrollBarVisibility="Hidden"
+							VerticalScrollBarVisibility="Hidden"
+							WordWrap="False"
+							ShowLineNumbers="False" />
+					</Border>
 					<Button Grid.Column="1"
 					        Content="Reset"
 					        Command="{Binding ResetTemplateCommand}"

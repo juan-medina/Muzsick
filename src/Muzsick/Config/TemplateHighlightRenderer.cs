@@ -13,7 +13,8 @@ namespace Muzsick.Config;
 /// Colours template syntax in the announcement template editor.
 ///
 /// For [year?, released in {year}]:
-///   [year?,      — teal   (opening bracket + guard + operator)
+///   [year?       — teal   (opening bracket + guard + operator)
+///   ,            — white  (separator — not highlighted)
 ///    released in — white  (plain clause text)
 ///   {year}       — orange (token inside clause)
 ///   ]            — teal   (closing bracket)
@@ -76,9 +77,13 @@ public partial class TemplateHighlightRenderer : DocumentColorizingTransformer
 			? m.Index + 1 // [ + body
 			: m.Index + 1 + guard.Length + 2; // [ + guard + ?,
 
-		// Opening: "[guard?," or just "["
-		var openLen = bodyStartIdx - clauseStart;
+		// Opening: "[guard?" (teal) — the comma separator is intentionally excluded
+		var openLen = string.IsNullOrEmpty(guard) ? 1 : 1 + guard.Length + 1; // "[" or "[guard?"
 		Colourise(offset + clauseStart, offset + clauseStart + openLen, _clauseBrush);
+
+		// Comma after guard is plain text, not teal
+		if (!string.IsNullOrEmpty(guard))
+			Colourise(offset + clauseStart + openLen, offset + bodyStartIdx, _normalBrush);
 
 		// Clause body — white base, then tokens on top
 		Colourise(offset + bodyStartIdx, offset + bodyStartIdx + clauseBody.Length, _normalBrush);

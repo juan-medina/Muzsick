@@ -33,7 +33,7 @@ enhancements when the user chooses to provide API keys, but no internet connecti
 
 - This is not a full music player or podcast manager.
 - No user account, login, or cloud sync.
-- No support for DRM-protected streams in V1.
+- No support for DRM-protected streams.
 - Mobile or web versions are out of scope.
 
 ---
@@ -66,7 +66,6 @@ at runtime.
 │  ┌─────────────────────────────┐   │  Template / AI   │    │
 │  │  Avalonia UI                │   └──────────────────┘    │
 │  │  Song · Artist · Album Art  │                           │
-│  │  Volume · AI Toggle         │                           │
 │  └─────────────────────────────┘                           │
 └────────────────────────────────────────────────────────────┘
 ```
@@ -87,7 +86,7 @@ output device directly.
 | Stream Playback     | LibVLCSharp + VideoLAN.LibVLC    | NuGet + native libs                |
 | Audio Mixing/Output | Silk.NET.OpenAL                  | Cross-platform, replaces NAudio    |
 | Text-to-Speech      | Sherpa-ONNX (C# bindings)        | In-process, no subprocess          |
-| TTS Voice Model     | Kokoro-82M (ONNX export)         | ~335 MB, downloaded at build time |
+| TTS Voice Model     | Kokoro-82M (ONNX export)         | Downloaded automatically at build  |
 | Track Metadata      | Last.fm API (`track.getInfo`)    | HTTP via HttpClient                |
 | Artist Images       | Wikimedia Commons / Wikidata     | HTTP via HttpClient                |
 | AI Commentary       | OpenAI-compatible HTTP API       | Optional, user-configured endpoint |
@@ -99,12 +98,11 @@ output device directly.
 
 ### 5.1 Stream Playback — LibVLCSharp
 
-LibVLCSharp provides the official .NET bindings for libvlc, the same engine used by the VLC media player. It supports
-`.pls` and `.m3u` playlist formats, handles reconnection on stream drop, and surfaces ICY metadata change events that
-signal a song transition.
+LibVLCSharp provides the official .NET bindings for libvlc. It supports `.pls` and `.m3u` playlist formats, handles
+reconnection on stream drop, and surfaces ICY metadata change events that signal a song transition.
 
-LibVLCSharp is configured to output decoded PCM audio to a callback that feeds data into an OpenAL streaming buffer,
-rather than directly to a sound device. This gives OpenAL full control over the final output mix.
+LibVLCSharp is configured to output decoded PCM audio via a callback into an OpenAL streaming buffer, rather than
+directly to a sound device. This gives OpenAL full control over the final output mix.
 
 ### 5.2 Audio Mixing and Ducking — Silk.NET.OpenAL
 
@@ -117,8 +115,7 @@ When a voiceover is ready, the following sequence executes:
 2. Begin playing the TTS PCM buffer through the TTS source.
 3. When TTS playback completes, fade radio source gain back to 100% over 800ms.
 
-This is the key advantage of a single audio context. Both sources are mixed by OpenAL natively — no separate routing
-layer or inter-process audio is needed.
+Both sources are mixed by OpenAL natively — no separate routing layer or inter-process audio is needed.
 
 ### 5.3 Text-to-Speech — Sherpa-ONNX + Kokoro
 
@@ -126,387 +123,180 @@ Sherpa-ONNX provides a C# NuGet package that wraps an ONNX runtime, enabling ful
 The Kokoro-82M model produces natural-sounding speech well suited to DJ-style announcements and runs in real time on
 a modest CPU.
 
-The model files (~335 MB total: `model.onnx` + `voices.bin` + `espeak-ng-data`) are **not committed to the
-repository**. They live in `models/KokoroModels/` at the repo root, which is gitignored. MSBuild downloads and
-extracts them automatically on the first `dotnet build` via an `<Exec>` target that calls `curl` and `tar` — both
-of which ship with Windows 10+, macOS, and all Linux distributions used in CI. Subsequent builds skip the download
-and only copy changed files to the output directory.
+The model files are not committed to the repository. MSBuild downloads and extracts them automatically on the first
+`dotnet build`. Subsequent builds skip the download. The `models/` folder at the repo root is gitignored.
 
-Once downloaded, no internet connection is required for TTS synthesis. The TTS backend is abstracted behind an
-interface, allowing alternative backends to be swapped in without changing the mixing logic.
-
-**CI note:** On GitHub Actions the `models/` folder is not cached between runs, so each job re-downloads the
-~335 MB archive. When a multi-platform build workflow is added (Windows, macOS, Linux), each runner job should
-cache the extracted `models/` folder using `actions/cache` keyed on the model version string (e.g.
-`kokoro-en-v0_19`). This avoids the download on every run and keeps build times reasonable.
-
-```csharp
-public interface ITtsBackend
-{
-    Task<byte[]> SynthesizeAsync(string text); // Returns PCM WAV bytes
-}
-```
+Once downloaded, no internet connection is required for TTS synthesis.
 
 ### 5.4 Metadata — Last.fm + Wikidata
 
-When a song change is detected, the artist name and track title extracted from the ICY metadata are used to look up
-enrichment data from two sources.
-
-**Why not MusicBrainz**
-
-MusicBrainz was evaluated first. The fundamental problem is that its text search was designed for tagging files you
-already own, not for matching radio ICY strings. Searching by `artist + title` frequently surfaces compilation
-releases rather than original studio albums, which makes selecting the right cover art and year unreliable. Even
-MusicBrainz Picard — the official tagger — has this known, unresolved problem; it adds manual sliders for users to
-tune release preferences. The tools in the ecosystem that achieve high match rates (Picard with AcoustID, beets) do
-so via acoustic fingerprinting, which is not available when you have only an ICY string. MusicBrainz text search
-is the wrong tool for this job.
+When a song change is detected, the artist name and track title from the ICY metadata are used to look up enrichment
+data from two sources.
 
 **Track metadata — Last.fm `track.getInfo`**
 
 The Last.fm `track.getInfo` endpoint is designed exactly for `artist + title` lookups from playback events. It
-returns album name, release year, genre tags, and album art URLs in a single call, without requiring compilation
-filtering or release scoring. A free API key is required; no account is needed beyond registration.
-
-The lookup flow is:
-
-1. Call `track.getInfo` with `artist` and `track` from the ICY string.
-2. If found, extract album name, cover art URL, year, and top tags.
-3. If not found (rare for charted tracks), leave enrichment fields empty — no fallback to a second source.
+returns album name, release year, genre tags, and album art URLs in a single call. A free API key is required.
 
 **Artist images — WikidataArtistService**
 
-Last.fm does not provide artist portrait images, but `artist.getInfo` returns the artist's MusicBrainz ID (MBID) as
-a plain string field in its JSON response. That MBID is the key to the artist image chain.
+Last.fm does not provide artist portrait images, but its `artist.getInfo` response includes the artist's MusicBrainz
+ID (MBID). `WikidataArtistService` uses that MBID to resolve an image via three external calls: MusicBrainz url-rels
+(MBID → Wikidata URL), Wikidata API (QID → image filename), Wikimedia Commons (filename → thumbnail URL).
 
-`WikidataArtistService` owns the full resolution flow and has no dependency on any other metadata service:
-
-1. Receive the MBID string from the caller (`LastFmMetaService`).
-2. Call the MusicBrainz REST API directly (`/ws/2/artist/{mbid}?inc=url-rels`) to retrieve the artist's Wikidata URL.
-3. Extract the Wikidata QID from the URL and call the Wikidata API (P18 claim) to get the image filename.
-4. Build the Wikimedia Commons thumbnail URL from the filename using the MD5-based path scheme.
-
-`WikidataArtistService` uses the `MetaBrainz.MusicBrainz` NuGet package for the url-rels lookup in step 2. This is
-intentional — the dependency lives here rather than in the track metadata service, keeping the artist image chain
-self-contained. Any future replacement for `LastFmMetaService` only needs to supply an MBID string.
-
-> Last.fm stores MBIDs as a cross-reference to MusicBrainz. This means the artist image path has a functional
-> dependency on both Last.fm and MusicBrainz remaining in sync. In practice both are long-running open projects and
-> this chain is stable, but it is worth noting as an architectural assumption.
-
-The two-source design is reflected in the shared interface:
-
-```csharp
-public interface IMetaService
-{
-    // Enriches track metadata (album, art, year, tags) via Last.fm
-    // and artist image via Wikidata.
-    // Returns originals unchanged if nothing is found.
-    Task<(TrackInfo Track, ArtistInfo Artist)> EnrichAsync(TrackInfo track);
-}
-```
-
-All results are cached in a `ConcurrentDictionary` keyed on `artist+title` to avoid redundant API calls for repeated
-tracks. Cache entries expire after 24 hours.
+This service is self-contained — it takes an MBID string and returns an image URL, with no dependency on which
+metadata service called it. The `MetaBrainz.MusicBrainz` NuGet package lives here for the url-rels step.
 
 **Track lookup strategy**
 
-ICY metadata from radio stations is unreliable in several ways: artist names are comma-joined when multiple credits
-exist, titles may include featured artist decorators or version labels, compilations can be returned instead of the
-original release, and some stations censor or alter track titles entirely. A single `track.getInfo` call is not
-enough — `LastFmMetaService` uses a multi-stage strategy to maximise the chance of finding a rich result:
+ICY metadata is unreliable — artist names are often comma-joined for multi-credit tracks, titles may include
+featured-artist decorators or version labels, and some stations censor or alter titles entirely. `LastFmMetaService`
+uses a multi-stage strategy:
 
 ```
 ICY string: "Wilkinson, ILIRA, iiola, Tom Cane" — "Infinity (feat. ILIRA, iiola & Tom Cane)"
 
 Stage 1 — Exact ICY artist + exact ICY title
-  → track.getInfo(artist="Wilkinson, ILIRA, iiola, Tom Cane", track="Infinity (feat. ...)")
-  → Last.fm matches the comma-joined name as an obscure artist entry, returns track with no album/art
+  → returns track with no album/art (comma-joined name matches obscure entry)
   → result is not rich, continue
 
 Stage 2 — Primary artist + exact ICY title
   → split artist on first comma → "Wilkinson"
-  → track.getInfo(artist="Wilkinson", track="Infinity (feat. ILIRA, iiola & Tom Cane)")
-  → full album + cover art returned  ✓  stop here
+  → full album + cover art returned  ✓
 
-─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
 
 ICY string: "Roddy Ricch" — "The Box"
 
-Stage 1 — Exact match
-  → track.getInfo(artist="Roddy Ricch", track="The Box", autocorrect=1)
-  → autocorrect drifts to compilation "Just Hits" (album.artist = "Various Artists")
-  → IsCompilation = true, retry without autocorrect
+Stage 1 — autocorrect=1 drifts to compilation "Just Hits" (Various Artists)
+  → IsCompilation = true, retry with autocorrect=0
+Stage 1b — returns original album "Please Excuse Me for Being Antisocial"  ✓
 
-Stage 1b — Same args, autocorrect=0
-  → track.getInfo(artist="Roddy Ricch", track="The Box", autocorrect=0)
-  → returns original album "Please Excuse Me for Being Antisocial"  ✓  stop here
-
-─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
 
 ICY string: "Zolita" — "Somebody I Did Once"   (station censored the real title)
 
-Stage 1 — Exact match → error 6, track not found
-Stage 2 — Primary artist same as artist, skip
-Stage 3 — Clean title → no decorators to strip, cleaned == original, skip
-Stage 4 — Primary + cleaned, skip (same as stage 1)
+Stages 1–4 → not found
 Stage 5 — track.search fallback
-  → track.search(artist="Zolita", track="Somebody I Did Once")
   → top result: "Somebody I F*cked Once" by Zolita
-  → artist matches, corrected title differs from original
-  → track.getInfo(artist="Zolita", track="Somebody I F*cked Once")
-  → album + cover art returned  ✓
+  → getInfo with corrected title → album + cover art returned  ✓
 ```
 
-Each stage only runs if the previous one returned null or a result with no album and no cover art (`IsRich = false`).
-A partial result (MBID found but no art) is kept as a fallback so that at minimum the artist image can still be
-resolved even when no rich track result exists. The original ICY title is always preserved in the UI — the enriched
-album name is displayed separately and the displayed title is never overwritten.
-
-**Compilation detection**
-
-`autocorrect=1` on Last.fm can drift to the most-played version of a track, which is often a compilation rather
-than the artist's own release. `LastFmMetaService` reads the `album.artist` field in the response: if it equals
-`"Various Artists"` the result is flagged as a compilation and the same call is retried with `autocorrect=0`, which
-forces an exact artist match.
-
-**Title cleaning**
-
-If all exact-title attempts fail, the title is stripped of common decorator patterns before retrying:
-
-- Featured artists: `ft.`, `feat.`, `featuring` (and everything after)
-- Parenthetical suffixes: `(Radio Edit)`, `(Remastered)`, `(Live)`, `(Acoustic)`, etc.
-- Dash suffixes: `- Radio Edit`, `- Remix`, etc.
-- Bracket suffixes: `[from ...]`, `[original ...]`
-
-**Artist MBID resolution**
-
-`track.getInfo` includes the artist's MusicBrainz MBID in the response for most artists. For smaller or indie
-artists Last.fm sometimes omits it. In that case `LastFmMetaService` makes a secondary call to `artist.getInfo`
-by name to retrieve the MBID, then passes it to `WikidataArtistService` for the image lookup chain.
+Each stage only runs if the previous returned null or a non-rich result (no album, no cover art). All results are
+cached keyed on `artist+title` and expire after 24 hours.
 
 ### 5.5 Commentary Generation
 
-Commentary is generated in two modes, switchable at runtime.
+Commentary is generated from a user-editable template with token substitution. Supported tokens: `{title}`,
+`{artist}`, `{album}`, `{year}`, `{genre}`. Optional clauses (`[token?, text]`) are silently dropped when the
+guarded token is empty, keeping announcements natural when enrichment data is partial.
 
-**Version 0 — Template Mode**
-
-A set of hand-written templates are filled with metadata values. No AI required. Example output:
-*"Up next — Don't Stop Me Now by Queen, from the 1978 album Jazz. A classic."*
-
-**Version 1 — AI Mode**
-
-A structured prompt is sent to an OpenAI-compatible chat completions endpoint. The prompt includes track metadata and
-instructs the model to respond with a short (2–3 sentence) DJ-style commentary in a configurable personality. The
-user can point this at a local Ollama instance or any cloud endpoint.
+The default template is:
 
 ```
-POST {baseUrl}/v1/chat/completions
-{
-  "model": "...",
-  "messages": [
-    { "role": "system", "content": "You are a warm, knowledgeable radio DJ..." },
-    { "role": "user",   "content": "Track: {title} by {artist}, {year}, album {album}..." }
-  ],
-  "max_tokens": 120
-}
+Now playing {title} by {artist}[year?, released in {year}]
 ```
 
-All AI commentary backends (Ollama, OpenAI, LM Studio, or any compatible API) share a single HTTP client targeting
-the OpenAI chat completions format. Switching from a local model to a cloud provider requires only a settings change.
+The template is editable in the settings window with live syntax highlighting and a speak-preview button that
+synthesises the rendered result through the TTS engine before saving.
 
 ### 5.6 Commentary Timing
 
-Commentary fires at the start of a new song, not mid-track. The application waits approximately 3 seconds after the
-ICY event before beginning TTS synthesis, to avoid interrupting a song that is mid-fade or mid-intro. A minimum
-inter-commentary interval (default: 3 songs) prevents back-to-back voiceovers.
+Commentary fires at the start of a new song. The application waits approximately 3 seconds after the ICY event
+before beginning metadata fetch and TTS synthesis, to avoid interrupting a song that is mid-fade or mid-intro. If a
+new track arrives before the previous voiceover completes, the previous work is cancelled.
 
 ---
 
 ## 6. User Interface
 
-The Avalonia UI is intentionally minimal. The design ethos is that the audio experience is the product — the UI is
-just a control surface.
+The Avalonia UI is intentionally minimal — the audio experience is the product; the UI is a control surface.
 
-| Element              | Description                                                                      |
-|----------------------|----------------------------------------------------------------------------------|
-| Album art            | Square image (300×300 px), loaded from Last.fm. Placeholder shown while loading. |
-| Artist image         | Circular image (60×60 px) in the header. Placeholder shown while loading.        |
-| Track title          | Large, bold text. Truncated with ellipsis if too long.                           |
-| Artist name          | Smaller, secondary text below the title.                                         |
-| Play / Pause button  | Toggles stream playback.                                                         |
-| Volume slider        | Controls the OpenAL master output gain (0–100%).                                 |
-| AI Commentary toggle | Switches between template and AI commentary modes.                               |
-| Settings button      | Opens a settings panel for stream URL, AI endpoint, API key, voice selection.    |
-
-Both image areas display XAML-drawn placeholders (vinyl record graphic for album art, silhouette for artist) when no
-URL is available. The placeholder is replaced by the real image as soon as the metadata service returns a URL. If the
-service returns nothing, the placeholder remains.
+| Element             | Description                                                                 |
+|---------------------|-----------------------------------------------------------------------------|
+| Album art           | Loaded from Last.fm. XAML vinyl-record placeholder shown while loading.     |
+| Artist image        | Circular image in the header. XAML silhouette placeholder while loading.    |
+| Track title         | Large, bold. Truncated with ellipsis if too long.                           |
+| Artist name         | Secondary text below the title.                                             |
+| Play / Pause        | Toggles stream playback.                                                    |
+| Volume slider       | Controls OpenAL master output gain (0–100%). Persisted across sessions.     |
+| Settings button     | Opens the settings window: API key, TTS voice, announcement template.       |
+| About button        | Opens the about window with version info and attribution.                   |
 
 ---
 
 ## 7. Configuration
 
-User preferences are stored in a `settings.json` file in the application data folder. The file is read on startup and
-written on any settings change. No registry entries are used.
+User preferences are stored in `settings.json` in the application data folder. Read on startup, written on any
+change. No registry entries.
 
 ```json
 {
-  "streamUrl": "http://example-stream.com/radio.m3u",
-  "volume": 80,
-  "commentary": {
-    "enabled": true,
-    "mode": "ai",
-    "minIntervalSongs": 3,
-    "personality": "warm"
-  },
-  "ai": {
-    "baseUrl": "http://localhost:11434",
-    "model": "llama3",
-    "apiKey": ""
-  },
-  "tts": {
-    "backend": "kokoro",
-    "voice": "af_heart"
-  }
+  "LastFmApiKey": "",
+  "Volume": 50,
+  "LastPlaylistPath": null,
+  "TtsVoice": "af_heart",
+  "AnnouncementTemplate": "Now playing {title} by {artist}[year?, released in {year}]"
 }
 ```
 
 ---
 
-## 8. Project Structure
+## 8. Version Roadmap
 
-Files marked *(planned)* do not yet exist — they represent the target architecture for upcoming versions.
+| Version | Scope                  | Key Deliverables                                                                                                         |
+|---------|------------------------|--------------------------------------------------------------------------------------------------------------------------|
+| 1.0     | Foundation *(current)* | Stream plays, ICY metadata detected, template voiceover mixed with ducking. Kokoro TTS in-process. Minimal Avalonia UI. |
+| TBD     | AI Commentary          | Ollama / OpenAI commentary mode. Configurable personality.                                                               |
+| TBD     | Conversation           | User can ask questions about the current track via text input.                                                           |
+| TBD     | Multi-Station          | Station list, favourites, per-station personality presets.                                                               |
 
-```
-src/Muzsick/
-├── App.axaml
-├── App.axaml.cs
-├── Program.cs
-├── ViewLocator.cs
-│
-├── Audio/
-│   ├── StreamPlayer.cs          # LibVLCSharp wrapper, ICY event source
-│   ├── AudioMixer.cs            # (planned) OpenAL context, source management, ducking
-│   └── DuckingController.cs     # (planned) Volume fade in/out timing
-│
-├── Tts/
-│   ├── ITtsBackend.cs           # (planned) Interface: Task<byte[]> SynthesizeAsync(string)
-│   ├── KokoroTtsBackend.cs      # (planned) Sherpa-ONNX / Kokoro implementation
-│   └── AzureTtsBackend.cs       # (planned) Optional cloud backend
-│
-├── Metadata/
-│   ├── TrackInfo.cs             # ICY core fields + enrichment fields
-│   ├── ArtistInfo.cs            # Artist name + enrichment fields (image, bio)
-│   ├── IMetaService.cs          # Interface: EnrichAsync(TrackInfo)
-│   ├── LastFmMetaService.cs     # IMetaService impl — Last.fm track.getInfo
-│   ├── WikidataArtistService.cs # Artist image: MBID → MusicBrainz url-rels → Wikidata → Wikimedia
-│   └── IcyMetadataParser.cs     # Parses Artist - Title from ICY string
-│
-├── Commentary/
-│   ├── ICommentaryGenerator.cs  # (planned)
-│   ├── TemplateCommentary.cs    # (planned) Version 0 — no AI
-│   ├── AiCommentary.cs          # (planned) Version 1 — OpenAI-compatible
-│   └── Prompts.cs               # (planned) System + user prompt templates
-│
-├── Config/
-│   ├── AppSettings.cs           # (planned) Settings model
-│   └── SettingsManager.cs       # (planned) Load / save settings.json
-│
-├── ViewModels/
-│   └── MainWindowViewModel.cs
-│
-├── Views/
-│   └── MainWindow.axaml
-│
-└── Models/
-    └── KokoroModels/            # Kokoro ONNX model files (~80 MB, stored in Git LFS)
-```
+Future version numbers will be decided when the scope of each increment is clear.
 
 ---
 
-## 9. Version Roadmap
+## 9. Key Design Decisions
 
-| Version | Scope         | Key Deliverables                                                                                                        |
-|---------|---------------|-------------------------------------------------------------------------------------------------------------------------|
-| V0      | Foundation    | Stream plays, ICY metadata detected, template voiceover mixed with ducking. Kokoro TTS in-process. Minimal Avalonia UI. |
-| V1      | AI Commentary | Ollama / OpenAI commentary mode. Configurable personality. Metadata enrichment via Last.fm + Wikidata. Settings UI.     |
-| V2      | Conversation  | User can ask questions about the current track or artist via text input. Context window maintains last N tracks.        |
-| V3      | Multi-Station | Station list, favourites, per-station AI personality presets. Plugin system for custom commentary scripts.              |
+### 9.1 Why Silk.NET.OpenAL over NAudio
 
----
+NAudio's audio output layer (WasapiOut, WaveOutEvent) is Windows-only. OpenAL via Silk.NET is genuinely
+cross-platform and natively supports multiple simultaneous audio sources with per-source gain control, making ducking
+a first-class operation.
 
-## 10. Key Design Decisions
+### 9.2 Why Sherpa-ONNX over Piper
 
-### 10.1 Why C# over Python
+Piper is a standalone executable. Calling it as a subprocess means it cannot participate in the same OpenAL audio
+context, making clean ducking impossible. Sherpa-ONNX runs entirely in-process via a C# NuGet package.
 
-Audio mixing with proper volume ducking requires in-process participation in the same audio context, which is
-straightforward in C# but awkward in Python. Avalonia provides a native cross-platform UI with less boilerplate than
-Python alternatives. The entire application including TTS inference can be compiled into a self-contained installer
-with no user-facing runtime dependencies.
-
-### 10.2 Why Sherpa-ONNX over Piper
-
-Piper is a high-quality local TTS engine but is distributed as a standalone executable. Calling it as a subprocess
-means it cannot participate in the same audio context, making clean ducking impossible without a separate audio
-routing layer. Sherpa-ONNX provides equivalent voice quality via a proper C# NuGet package, runs entirely
-in-process, and exposes async synthesis APIs that integrate cleanly with the rest of the codebase.
-
-### 10.3 Why Silk.NET.OpenAL over NAudio
-
-NAudio's mixing primitives are cross-platform but its audio output layer (WasapiOut, WaveOutEvent) is Windows-only.
-OpenAL via Silk.NET is genuinely cross-platform — Windows, macOS, and Linux — and natively supports multiple
-simultaneous audio sources with per-source gain control. This makes ducking a first-class operation rather than
-something bolted on top of a Windows-only output driver. Silk.NET is a .NET Foundation project with active
-maintenance and regular releases.
-
-### 10.4 Why Avalonia over WPF
+### 9.3 Why Avalonia over WPF
 
 WPF is Windows-only. Avalonia provides a near-identical XAML-based development experience while targeting Windows,
-macOS, and Linux from a single codebase. The Avalonia MVVM template maps directly to the application's ViewModel
-architecture.
+macOS, and Linux from a single codebase.
 
-### 10.5 Single AI Client for All Backends
+### 9.4 Why Last.fm Instead of MusicBrainz for Track Metadata
 
-All AI commentary backends (Ollama, OpenAI, LM Studio, or any compatible API) share a single HTTP client targeting
-the OpenAI chat completions endpoint format. The user configures a base URL and optional API key. Switching from a
-local Ollama model to a cloud provider requires only a settings change, not a code change.
-
-### 10.6 Why Last.fm Instead of MusicBrainz for Track Metadata
-
-MusicBrainz was the first candidate. The core problem is that its search index returns too many compilation releases
-for popular tracks, making it difficult to reliably select the original studio album for cover art and year data.
-This is a well-known issue in the ecosystem — even MusicBrainz Picard, the official tagging tool, exposes manual
-"preferred releases" sliders because it cannot solve the problem automatically. The tools that do achieve high
-match rates (Picard, beets) rely on AcoustID acoustic fingerprinting, not text search. An ICY metadata string
-gives us only artist and title — no audio to fingerprint.
+MusicBrainz text search was designed for tagging files you already own, not for matching radio ICY strings. It
+frequently surfaces compilation releases for popular tracks. The tools that achieve high match rates (MusicBrainz
+Picard, beets) do so via AcoustID acoustic fingerprinting — not available when you have only an ICY string.
 
 Last.fm `track.getInfo` was designed for exactly this use case: resolving a playback event (artist + title) to rich
-metadata. It returns album name, cover art, year, and tags in a single call without requiring release scoring or
-compilation filtering. Artist images are not provided by Last.fm and are sourced from Wikidata via
-`WikidataArtistService`.
+metadata in a single call.
 
-### 10.7 Why WikidataArtistService Is Self-Contained
+### 9.5 Why WikidataArtistService Is Self-Contained
 
-Artist image resolution requires a chain of three external calls: MusicBrainz url-rels lookup (MBID → Wikidata URL),
-Wikidata API (QID → image filename), and Wikimedia Commons (filename → thumbnail URL). This chain is independent of
-which service provides track metadata.
+Artist image resolution chains through three external services (MusicBrainz → Wikidata → Wikimedia). Keeping this
+chain in one self-contained service means any future replacement for `LastFmMetaService` only needs to supply an
+MBID string — it does not need to know anything about how images are resolved.
 
-`WikidataArtistService` owns all three steps so that it can be called identically by any metadata service
-implementation — current or future — by passing a single MBID string. This means `MusicBrainzMetaService` can be
-removed entirely when `LastFmMetaService` is ready, without touching the artist image path at all. Both services
-get the MBID from their respective API responses (`MusicBrainzMetaService` from the recording's artist credit,
-`LastFmMetaService` from the `artist.mbid` field in Last.fm's JSON) and pass it as a plain string.
+### 9.6 Single AI Client for All Commentary Backends
 
-The `MetaBrainz.MusicBrainz` NuGet dependency lives in `WikidataArtistService` for the url-rels step. This is
-deliberate — it keeps the dependency out of `LastFmMetaService` while still being available to the service that
-needs it.
+All AI commentary backends share a single HTTP client targeting the OpenAI chat completions endpoint format.
+Switching from a local Ollama model to a cloud provider requires only a settings change, not a code change.
 
 ---
 
-## 11. Open Questions for Future Versions
+## 10. Open Questions for Future Versions
 
 - AcoustID / Chromaprint fingerprinting as a fallback when ICY metadata is absent or incorrect.
 - Conversation mode context management — how many tracks to retain in the AI context window before summarising.
-- Whether to surface a waveform visualiser in the UI (V2+ consideration).
 - Package distribution strategy per platform (Windows installer, macOS `.app`, Linux AppImage / Flatpak).

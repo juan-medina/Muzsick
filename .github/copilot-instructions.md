@@ -1,14 +1,16 @@
 ﻿# Copilot Instructions
 
+For architecture, technology choices, and design decisions see [`docs/DESIGN.md`](docs/DESIGN.md).
+
 ## Project
 
 **Muzsick** — a cross-platform desktop radio companion built with C# / .NET 9 and Avalonia UI. It plays live internet
-radio streams and mixes in AI-generated DJ-style voiceovers using local TTS (Sherpa-ONNX / Kokoro). Runs fully offline
-after initial setup.
+radio streams and mixes in AI-generated DJ-style voiceovers using local TTS (Sherpa-ONNX / Kokoro). Designed and
+built by one developer.
 
 ## Principles
 
-- Follow YAGNI — only implement what is needed right now, not what might be needed later.
+- **YAGNI** — only implement what is needed right now, not what might be needed later.
 - No speculative abstractions. Add interfaces when there is more than one implementation, not before.
 - No exceptions for control flow. Prefer returning `null` or a result type for expected failures.
 - Do not block the UI thread. Audio synthesis and network calls are always `async`/`await`.
@@ -16,22 +18,21 @@ after initial setup.
 
 ## Naming Conventions
 
-- `PascalCase` — types, methods, properties, events
-- `camelCase` — local variables, parameters
-- `_camelCase` — private fields (underscore prefix, no `this.`)
-- `_camelCase` — constants (private `const` and `static readonly` fields follow the same rule as other private fields)
-- Namespaces match folder structure exactly, rooted at `Muzsick`
+- `PascalCase` — types, methods, properties, events.
+- `camelCase` — local variables, parameters.
+- `_camelCase` — private fields, including `const` and `static readonly`.
+- Namespaces match folder structure exactly, rooted at `Muzsick`.
 
 ## File Headers
 
-Every `.cs` file must start with:
+Every `.cs` file:
 
 ```csharp
 // SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 ```
 
-Every `.axaml` file must start with (before the root element):
+Every `.axaml` file (before the root element):
 
 ```xml
 <!--
@@ -46,28 +47,12 @@ Every `.axaml` file must start with (before the root element):
 - Allman brace style — opening brace on its own line.
 - One blank line between members. Two blank lines between type declarations.
 
-## Architecture Notes
+## Error Handling
 
-- **LibVLCSharp** is a PCM source only — it decodes the radio stream and fires ICY metadata events. It never writes
-  to an audio device directly.
-- **Silk.NET.OpenAL** is the single audio output point — it receives PCM from the radio stream and TTS engine,
-  handles mixing, and controls per-source volume for ducking.
-- **Sherpa-ONNX / Kokoro** synthesises TTS entirely in-process and returns raw PCM bytes. The Kokoro-82M model
-  files (~80 MB) live in `src/Muzsick/Models/KokoroModels/` and are stored in the repository via **Git LFS**
-  (`.gitattributes` tracks `*.onnx`, `*.bin`, `*.dat`). Run `git lfs install` once globally before cloning;
-  existing clones run `git lfs pull` to fetch the files.
-- All major subsystems are behind interfaces (`ITtsBackend`, `ICommentaryGenerator`). Inject, don't instantiate.
-- Settings live in `settings.json` in the app data folder. No registry entries. API keys are never committed to git.
+Prefer returning `null` or a result type over throwing for expected failures. Log errors at the point where they are
+handled, not where they originate. Do not swallow exceptions silently.
 
-## Technology Stack
+## Configuration
 
-| Role            | Library                        |
-|-----------------|--------------------------------|
-| UI              | Avalonia UI                    |
-| Stream Playback | LibVLCSharp                    |
-| Audio Output    | Silk.NET.OpenAL                |
-| TTS             | Sherpa-ONNX + Kokoro-82M       |
-| Track Metadata  | Last.fm API (`track.getInfo`)  |
-| Artist Images   | Wikimedia / Wikidata           |
-| AI Commentary   | OpenAI-compatible HTTP         |
-| Config          | System.Text.Json               |
+Settings live in `settings.json` in the application data folder. No registry entries. API keys are never committed
+to git.

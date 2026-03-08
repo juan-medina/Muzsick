@@ -187,6 +187,13 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		await configWindow.ShowDialog<bool>(_mainWindow);
 	}
 
+	[RelayCommand]
+	private async Task OpenAbout()
+	{
+		if (_mainWindow == null) return;
+		await new AboutWindow().ShowDialog(_mainWindow);
+	}
+
 	private async void OnTrackChanged(TrackInfo track)
 	{
 		try

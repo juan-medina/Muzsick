@@ -1,0 +1,262 @@
+<!--
+    SPDX-FileCopyrightText: 2026 Juan Medina
+    SPDX-License-Identifier: MIT
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Muzsick.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="460" d:DesignHeight="640"
+        x:Class="Muzsick.Views.AboutWindow"
+        x:DataType="vm:AboutWindowViewModel"
+        Icon="/Assets/muzsick-logo.ico"
+        Title="Muzsick — About"
+        Width="460"
+        Height="640"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+
+	<Border Background="#2B2B2B" Padding="24">
+		<DockPanel LastChildFill="True">
+
+			<!-- Close button — always at the bottom -->
+			<StackPanel DockPanel.Dock="Bottom"
+			            Orientation="Horizontal"
+			            HorizontalAlignment="Right"
+			            Margin="0,16,0,0">
+				<Button Content="Close"
+				        Command="{Binding CloseCommand}"
+				        Width="80"
+				        Background="#444444"
+				        Foreground="#FFFFFF"
+				        BorderThickness="0"
+				        CornerRadius="6"
+				        HorizontalContentAlignment="Center"
+				        Classes="closeButton" />
+			</StackPanel>
+
+			<!-- Scrollable content -->
+			<ScrollViewer VerticalScrollBarVisibility="Auto">
+				<StackPanel Spacing="12">
+
+					<!-- App identity -->
+					<StackPanel Spacing="4">
+						<StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+							<Viewbox Width="48" Height="48" VerticalAlignment="Center">
+								<Canvas Width="256" Height="256">
+									<Ellipse Canvas.Left="8" Canvas.Top="8" Width="240" Height="240"
+									         Fill="#FF6B35" Stroke="#DD5520" StrokeThickness="4" />
+									<Rectangle Canvas.Left="120" Canvas.Top="80" Width="16" Height="96"
+									           Fill="#FFFFFF" RadiusX="2" RadiusY="2" />
+									<Rectangle Canvas.Left="118" Canvas.Top="78" Width="20" Height="8"
+									           Fill="#FFFFFF" RadiusX="2" RadiusY="2" />
+									<Path Data="M 95 128 Q 128 105 161 128" Stroke="#FFFFFF" StrokeThickness="4" Fill="Transparent" Opacity="0.9" />
+									<Path Data="M 95 128 Q 128 151 161 128" Stroke="#FFFFFF" StrokeThickness="4" Fill="Transparent" Opacity="0.9" />
+									<Path Data="M 75 128 Q 128 95 181 128" Stroke="#FFFFFF" StrokeThickness="3" Fill="Transparent" Opacity="0.7" />
+									<Path Data="M 75 128 Q 128 161 181 128" Stroke="#FFFFFF" StrokeThickness="3" Fill="Transparent" Opacity="0.7" />
+									<Path Data="M 55 128 Q 128 85 201 128" Stroke="#FFFFFF" StrokeThickness="2" Fill="Transparent" Opacity="0.5" />
+									<Path Data="M 55 128 Q 128 171 201 128" Stroke="#FFFFFF" StrokeThickness="2" Fill="Transparent" Opacity="0.5" />
+									<Ellipse Canvas.Left="167" Canvas.Top="105" Width="6" Height="6" Fill="#FFFFFF" Opacity="0.8" />
+									<Ellipse Canvas.Left="183" Canvas.Top="116" Width="4" Height="4" Fill="#FFFFFF" Opacity="0.6" />
+									<Ellipse Canvas.Left="188" Canvas.Top="136" Width="4" Height="4" Fill="#FFFFFF" Opacity="0.6" />
+									<Ellipse Canvas.Left="177" Canvas.Top="145" Width="6" Height="6" Fill="#FFFFFF" Opacity="0.8" />
+								</Canvas>
+							</Viewbox>
+							<TextBlock Text="Muzsick"
+							           FontSize="22"
+							           FontWeight="Bold"
+							           Foreground="#FF6B35"
+							           VerticalAlignment="Center" />
+						</StackPanel>
+						<TextBlock Text="{Binding AppVersion}"
+						           FontSize="13"
+						           Foreground="#888888" />
+						<TextBlock Text="AI-Powered Radio Companion"
+						           FontSize="12"
+						           Foreground="#AAAAAA" />
+						<TextBlock
+							Text="Plays live internet radio and enriches it with AI-generated DJ commentary synthesised entirely on your device."
+							FontSize="12"
+							Foreground="#777777"
+							TextWrapping="Wrap" />
+					</StackPanel>
+
+					<!-- Repository -->
+					<StackPanel Spacing="4">
+						<TextBlock Text="Source Code"
+						           FontSize="13"
+						           FontWeight="Bold"
+						           Foreground="#CCCCCC" />
+						<HyperlinkButton Content="github.com/juan-medina/Muzsick"
+						                 NavigateUri="https://github.com/juan-medina/Muzsick"
+						                 FontSize="12"
+						                 Foreground="#FF6B35"
+						                 Padding="0" />
+					</StackPanel>
+
+					<Separator Background="#444444" Height="1" />
+
+					<!-- Author -->
+					<StackPanel Spacing="4">
+						<TextBlock Text="Author"
+						           FontSize="16"
+						           FontWeight="Bold"
+						           Foreground="#FFFFFF" />
+						<TextBlock Text="Juan Medina"
+						           FontSize="14"
+						           Foreground="#CCCCCC" />
+						<HyperlinkButton Content="juan-medina.com"
+						                 NavigateUri="https://juan-medina.com/"
+						                 FontSize="12"
+						                 Foreground="#FF6B35"
+						                 Padding="0" />
+					</StackPanel>
+
+					<Separator Background="#444444" Height="1" />
+
+					<!-- Open-source libraries -->
+					<StackPanel Spacing="8">
+						<TextBlock Text="Open-Source Libraries"
+						           FontSize="16"
+						           FontWeight="Bold"
+						           Foreground="#FFFFFF" />
+
+						<DockPanel LastChildFill="False">
+							<TextBlock DockPanel.Dock="Left" Text="Avalonia UI"
+							           FontSize="12" Foreground="#CCCCCC"
+							           Width="160" VerticalAlignment="Center" />
+							<HyperlinkButton DockPanel.Dock="Left"
+							                 Content="avaloniaui.net"
+							                 NavigateUri="https://avaloniaui.net/"
+							                 FontSize="12" Foreground="#FF6B35" Padding="0"
+							                 VerticalAlignment="Center" />
+						</DockPanel>
+
+						<DockPanel LastChildFill="False">
+							<TextBlock DockPanel.Dock="Left" Text="LibVLCSharp"
+							           FontSize="12" Foreground="#CCCCCC"
+							           Width="160" VerticalAlignment="Center" />
+							<HyperlinkButton DockPanel.Dock="Left"
+							                 Content="code.videolan.org/videolan/LibVLCSharp"
+							                 NavigateUri="https://code.videolan.org/videolan/LibVLCSharp"
+							                 FontSize="12" Foreground="#FF6B35" Padding="0"
+							                 VerticalAlignment="Center" />
+						</DockPanel>
+
+						<DockPanel LastChildFill="False">
+							<TextBlock DockPanel.Dock="Left" Text="Silk.NET.OpenAL"
+							           FontSize="12" Foreground="#CCCCCC"
+							           Width="160" VerticalAlignment="Center" />
+							<HyperlinkButton DockPanel.Dock="Left"
+							                 Content="dotnet.github.io/Silk.NET"
+							                 NavigateUri="https://dotnet.github.io/Silk.NET/"
+							                 FontSize="12" Foreground="#FF6B35" Padding="0"
+							                 VerticalAlignment="Center" />
+						</DockPanel>
+
+						<DockPanel LastChildFill="False">
+							<TextBlock DockPanel.Dock="Left" Text="Sherpa-ONNX"
+							           FontSize="12" Foreground="#CCCCCC"
+							           Width="160" VerticalAlignment="Center" />
+							<HyperlinkButton DockPanel.Dock="Left"
+							                 Content="github.com/k2-fsa/sherpa-onnx"
+							                 NavigateUri="https://github.com/k2-fsa/sherpa-onnx"
+							                 FontSize="12" Foreground="#FF6B35" Padding="0"
+							                 VerticalAlignment="Center" />
+						</DockPanel>
+
+						<DockPanel LastChildFill="False">
+							<TextBlock DockPanel.Dock="Left" Text="Kokoro TTS"
+							           FontSize="12" Foreground="#CCCCCC"
+							           Width="160" VerticalAlignment="Center" />
+							<HyperlinkButton DockPanel.Dock="Left"
+							                 Content="github.com/hexgrad/kokoro"
+							                 NavigateUri="https://github.com/hexgrad/kokoro"
+							                 FontSize="12" Foreground="#FF6B35" Padding="0"
+							                 VerticalAlignment="Center" />
+						</DockPanel>
+					</StackPanel>
+
+					<Separator Background="#444444" Height="1" />
+
+					<!-- Data services and community projects -->
+					<StackPanel Spacing="8">
+						<TextBlock Text="Data &amp; Community"
+						           FontSize="16"
+						           FontWeight="Bold"
+						           Foreground="#FFFFFF" />
+						<TextBlock Text="Open services and community projects that power the metadata features."
+						           FontSize="11"
+						           Foreground="#777777"
+						           TextWrapping="Wrap" />
+
+						<DockPanel LastChildFill="False">
+							<TextBlock DockPanel.Dock="Left" Text="Last.fm"
+							           FontSize="12" Foreground="#CCCCCC"
+							           Width="160" VerticalAlignment="Center" />
+							<HyperlinkButton DockPanel.Dock="Left"
+							                 Content="last.fm"
+							                 NavigateUri="https://www.last.fm/"
+							                 FontSize="12" Foreground="#FF6B35" Padding="0"
+							                 VerticalAlignment="Center" />
+						</DockPanel>
+
+						<DockPanel LastChildFill="False">
+							<TextBlock DockPanel.Dock="Left" Text="MusicBrainz"
+							           FontSize="12" Foreground="#CCCCCC"
+							           Width="160" VerticalAlignment="Center" />
+							<HyperlinkButton DockPanel.Dock="Left"
+							                 Content="musicbrainz.org"
+							                 NavigateUri="https://musicbrainz.org/"
+							                 FontSize="12" Foreground="#FF6B35" Padding="0"
+							                 VerticalAlignment="Center" />
+						</DockPanel>
+
+						<DockPanel LastChildFill="False">
+							<TextBlock DockPanel.Dock="Left" Text="Wikidata"
+							           FontSize="12" Foreground="#CCCCCC"
+							           Width="160" VerticalAlignment="Center" />
+							<HyperlinkButton DockPanel.Dock="Left"
+							                 Content="wikidata.org"
+							                 NavigateUri="https://www.wikidata.org/"
+							                 FontSize="12" Foreground="#FF6B35" Padding="0"
+							                 VerticalAlignment="Center" />
+						</DockPanel>
+
+						<DockPanel LastChildFill="False">
+							<TextBlock DockPanel.Dock="Left" Text="Wikimedia Commons"
+							           FontSize="12" Foreground="#CCCCCC"
+							           Width="160" VerticalAlignment="Center" />
+							<HyperlinkButton DockPanel.Dock="Left"
+							                 Content="commons.wikimedia.org"
+							                 NavigateUri="https://commons.wikimedia.org/"
+							                 FontSize="12" Foreground="#FF6B35" Padding="0"
+							                 VerticalAlignment="Center" />
+						</DockPanel>
+					</StackPanel>
+
+					<Separator Background="#444444" Height="1" />
+
+					<!-- License -->
+					<TextBlock Text="Released under the MIT License."
+					           FontSize="11"
+					           Foreground="#555555"
+					           HorizontalAlignment="Center" />
+
+				</StackPanel>
+			</ScrollViewer>
+
+		</DockPanel>
+	</Border>
+
+	<Window.Styles>
+		<Style Selector="Button.closeButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#555555" />
+		</Style>
+		<Style Selector="Button.closeButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#333333" />
+		</Style>
+	</Window.Styles>
+
+</Window>

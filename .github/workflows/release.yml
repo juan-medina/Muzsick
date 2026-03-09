@@ -34,6 +34,7 @@ jobs:
 
             -   name: Install LibVLC (Linux)
                 if: matrix.rid == 'linux-x64'
+                shell: bash
                 run: sudo apt-get install -y libvlc-dev libvlc5 libvlccore9
 
             -   name: Cache Kokoro model
@@ -45,14 +46,15 @@ jobs:
 
             -   name: Download Kokoro model
                 if: steps.kokoro-cache.outputs.cache-hit != 'true'
+                shell: bash
                 run: |
                     mkdir -p models/KokoroModels
-                    curl -L --fail -o models/KokoroModels/kokoro.tar.bz2 \
-                      https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2
+                    curl -L --fail -o models/KokoroModels/kokoro.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2
                     tar -xjf models/KokoroModels/kokoro.tar.bz2 -C models/KokoroModels
                     rm models/KokoroModels/kokoro.tar.bz2
 
             -   name: Publish
+                shell: bash
                 run: |
                     dotnet publish src/Muzsick/Muzsick.csproj \
                       -c Release \
@@ -63,11 +65,12 @@ jobs:
 
             -   name: Zip artifact (Windows)
                 if: matrix.rid == 'win-x64'
-                run: Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath Muzsick-${{ github.ref_name }}-${{ matrix.rid }}.zip
                 shell: pwsh
+                run: Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath Muzsick-${{ github.ref_name }}-${{ matrix.rid }}.zip
 
             -   name: Zip artifact (Linux / macOS)
                 if: matrix.rid != 'win-x64'
+                shell: bash
                 run: zip -r Muzsick-${{ github.ref_name }}-${{ matrix.rid }}.zip publish/${{ matrix.rid }}
 
             -   name: Upload artifact
@@ -88,6 +91,7 @@ jobs:
                     path: artifacts
 
             -   name: Upload to release
+                shell: bash
                 run: gh release upload ${{ github.ref_name }} $(find artifacts -name "*.zip")
                 env:
                     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

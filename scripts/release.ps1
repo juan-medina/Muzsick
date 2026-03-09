@@ -41,7 +41,7 @@ if ($status) {
 
 # --- Check for unpushed commits ---
 
-$unpushed = git -C $repoRoot log --oneline @{u}..HEAD 2>$null
+$unpushed = git -C $repoRoot log --oneline "@{u}..HEAD" 2>$null
 if ($unpushed) {
     Write-Error "There are unpushed commits. Please push before releasing.`n$unpushed"
     exit 1

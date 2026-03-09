@@ -32,6 +32,10 @@ jobs:
                 with:
                     dotnet-version: '9.0.x'
 
+            -   name: Install LibVLC (Linux)
+                if: matrix.rid == 'linux-x64'
+                run: sudo apt-get install -y libvlc-dev libvlc5 libvlccore9
+
             -   name: Cache Kokoro model
                 uses: actions/cache@v4
                 with:
@@ -74,8 +78,7 @@ jobs:
                     path: artifacts
 
             -   name: Upload to release
-                run: |
-                    gh release upload ${{ github.ref_name }} artifacts/**/*.zip
+                run: gh release upload ${{ github.ref_name }} $(find artifacts -name "*.zip")
                 env:
                     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                     GH_REPO: ${{ github.repository }}

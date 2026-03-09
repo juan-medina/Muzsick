@@ -60,13 +60,13 @@ jobs:
                       -c Release \
                       -r ${{ matrix.rid }} \
                       --self-contained true \
-                      /p:EnableVersionBump=false \
+                      -p:EnableVersionBump=false \
                       -o publish/${{ matrix.rid }}
 
             -   name: Zip artifact (Windows)
                 if: matrix.rid == 'win-x64'
                 shell: pwsh
-                run: Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath Muzsick-${{ github.ref_name }}-${{ matrix.rid }}.zip
+                run: Compress-Archive -Path publish\${{ matrix.rid }}\* -DestinationPath Muzsick-${{ github.ref_name }}-${{ matrix.rid }}.zip
 
             -   name: Zip artifact (Linux / macOS)
                 if: matrix.rid != 'win-x64'

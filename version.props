@@ -1,10 +1,10 @@
 <!-- SPDX-FileCopyrightText: 2026 Juan Medina -->
 <!-- SPDX-License-Identifier: MIT -->
 <Project>
-	<PropertyGroup>
-		<VersionMajor>0</VersionMajor>
-		<VersionMinor>1</VersionMinor>
-		<VersionBuild>568</VersionBuild>
-		<Version>$(VersionMajor).$(VersionMinor).$(VersionBuild)</Version>
-	</PropertyGroup>
+  <PropertyGroup>
+    <VersionMajor>0</VersionMajor>
+    <VersionMinor>1</VersionMinor>
+    <VersionBuild>569</VersionBuild>
+    <Version>$(VersionMajor).$(VersionMinor).$(VersionBuild)</Version>
+  </PropertyGroup>
 </Project>

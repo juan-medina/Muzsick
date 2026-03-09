@@ -37,10 +37,20 @@ jobs:
                 run: sudo apt-get install -y libvlc-dev libvlc5 libvlccore9
 
             -   name: Cache Kokoro model
+                id: kokoro-cache
                 uses: actions/cache@v4
                 with:
                     path: models/KokoroModels
                     key: kokoro-model-v1
+
+            -   name: Download Kokoro model
+                if: steps.kokoro-cache.outputs.cache-hit != 'true'
+                run: |
+                    mkdir -p models/KokoroModels
+                    curl -L --fail -o models/KokoroModels/kokoro.tar.bz2 \
+                      https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2
+                    tar -xjf models/KokoroModels/kokoro.tar.bz2 -C models/KokoroModels
+                    rm models/KokoroModels/kokoro.tar.bz2
 
             -   name: Publish
                 run: |

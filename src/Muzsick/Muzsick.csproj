@@ -102,7 +102,7 @@
 	</ItemGroup>
 
 	<ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
-		<PackageReference Include="VideoLAN.LibVLC.Linux" Version="3.0.21"/>
+		<PackageReference Include="VideoLAN.LibVLC.Linux.x64" Version="3.0.21"/>
 	</ItemGroup>
 
 	<ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">

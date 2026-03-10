@@ -5,7 +5,7 @@
 	<Import Project="$(MSBuildThisFileDirectory)../../version.props"/>
 
 	<PropertyGroup>
-		<OutputType>Exe</OutputType>
+		<OutputType>WinExe</OutputType>
 		<TargetFramework>net9.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -15,13 +15,14 @@
 
 	<PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
 		<ApplicationManifest>app.manifest</ApplicationManifest>
+		<ApplicationIcon>Assets\muzsick-logo.ico</ApplicationIcon>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<AvaloniaResource Include="Assets\**"/>
 	</ItemGroup>
 
-	<!-- Bump build number on every local build. Disabled on CI via /p:EnableVersionBump=false -->
+	<!-- Bump build number on every local build. Disabled on CI via -p:EnableVersionBump=false -->
 	<Target Name="BumpVersion" BeforeTargets="BeforeBuild" Condition="'$(EnableVersionBump)' == 'true'">
 		<PropertyGroup>
 			<_VersionPropsPath>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)../../version.props'))</_VersionPropsPath>
@@ -41,7 +42,7 @@
 
 	<!--
 		Kokoro TTS model: downloaded from the official sherpa-onnx release on first build,
-		then copied to the output directory on every build (skipped when files are unchanged).
+		then copied to the output directory on every build and publish.
 		The models/ folder at the repo root is gitignored — nothing is committed.
 	-->
 	<Target Name="DownloadKokoroModel"
@@ -62,7 +63,7 @@
 	</Target>
 
 	<Target Name="CopyKokoroModelToOutput"
-					BeforeTargets="Build"
+					BeforeTargets="Build;Publish"
 					DependsOnTargets="DownloadKokoroModel">
 		<PropertyGroup>
 			<_KokoroModelsRoot>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)../../models/KokoroModels'))</_KokoroModelsRoot>

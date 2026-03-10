@@ -63,7 +63,7 @@
 	</Target>
 
 	<Target Name="CopyKokoroModelToOutput"
-					BeforeTargets="Build;Publish"
+					BeforeTargets="Build"
 					DependsOnTargets="DownloadKokoroModel">
 		<PropertyGroup>
 			<_KokoroModelsRoot>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)../../models/KokoroModels'))</_KokoroModelsRoot>
@@ -73,6 +73,20 @@
 		</ItemGroup>
 		<Copy SourceFiles="@(_KokoroFiles)"
 					DestinationFiles="@(_KokoroFiles->'$(OutDir)Models/KokoroModels/%(RecursiveDir)%(Filename)%(Extension)')"
+					SkipUnchangedFiles="true"/>
+	</Target>
+
+	<Target Name="CopyKokoroModelToPublish"
+					AfterTargets="Publish"
+					DependsOnTargets="DownloadKokoroModel">
+		<PropertyGroup>
+			<_KokoroModelsRoot>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)../../models/KokoroModels'))</_KokoroModelsRoot>
+		</PropertyGroup>
+		<ItemGroup>
+			<_KokoroFiles Include="$(_KokoroModelsRoot)/**/*"/>
+		</ItemGroup>
+		<Copy SourceFiles="@(_KokoroFiles)"
+					DestinationFiles="@(_KokoroFiles->'$(PublishDir)Models/KokoroModels/%(RecursiveDir)%(Filename)%(Extension)')"
 					SkipUnchangedFiles="true"/>
 	</Target>
 

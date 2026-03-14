@@ -206,6 +206,7 @@
 					Background="#444444"
 					Foreground="#FFFFFF"
 					HorizontalAlignment="Center"
+					ToolTip.Tip="Open playlist"
 					Classes="browseButton">
 					<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
 						<Canvas Width="16" Height="16">
@@ -223,6 +224,7 @@
 					Background="#FF6B35"
 					Foreground="#FFFFFF"
 					HorizontalAlignment="Center"
+					ToolTip.Tip="Play / Pause"
 					Classes="playButton">
 					<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
 						<Canvas Width="28" Height="28" IsVisible="{Binding !IsPlaying}">
@@ -235,8 +237,24 @@
 					</StackPanel>
 				</Button>
 
-				<!-- Spacer to balance the browse button on the left -->
-				<Border Width="44" Height="44" />
+				<!-- Replay Announcement — disabled until the first announcement has played -->
+				<Button
+					Width="44"
+					Height="44"
+					CornerRadius="22"
+					Command="{Binding ReplayAnnouncementCommand}"
+					Background="#444444"
+					Foreground="#FFFFFF"
+					HorizontalAlignment="Center"
+					ToolTip.Tip="Replay last announcement"
+					Classes="replayButton">
+					<Canvas Width="16" Height="16">
+						<Path Fill="#FFFFFF"
+						      Data="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 0-.908-.417A4 4 0 1 1 8 4v1z" />
+						<Path Fill="#FFFFFF"
+						      Data="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
+					</Canvas>
+				</Button>
 			</StackPanel>
 		</StackPanel>
 	</DockPanel>
@@ -260,6 +278,15 @@
 		</Style>
 		<Style Selector="Button.browseButton:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#333333" />
+		</Style>
+		<Style Selector="Button.replayButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#555555" />
+		</Style>
+		<Style Selector="Button.replayButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#333333" />
+		</Style>
+		<Style Selector="Button.replayButton:disabled">
+			<Setter Property="Opacity" Value="0.35" />
 		</Style>
 		<Style Selector="Button.aboutButton:pointerover /template/ ContentPresenter">
 			<Setter Property="Background" Value="#333333" />

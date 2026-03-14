@@ -47,6 +47,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private readonly ITtsBackend _ttsBackend;
 	private readonly HttpClient _httpClient;
 	private CancellationTokenSource _trackCts = new();
+	private CancellationTokenSource _voiceoverCts = new();
+	private byte[]? _lastAnnouncementWav;
 
 	public MainWindowViewModel()
 	{
@@ -204,6 +206,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			await previous.CancelAsync();
 			previous.Dispose();
 
+
 			var token = cts.Token;
 
 			SongTitle = !string.IsNullOrEmpty(track.Title) ? track.Title : SongTitle;
@@ -255,7 +258,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			if (token.IsCancellationRequested) return;
 
 			if (wavBytes is { Length: > 0 })
-				await _audioMixer.PlayVoiceoverAsync(wavBytes, token);
+			{
+				_lastAnnouncementWav = wavBytes;
+				Avalonia.Threading.Dispatcher.UIThread.Post(
+					ReplayAnnouncementCommand.NotifyCanExecuteChanged);
+				await PlayAnnouncementAsync(wavBytes);
+			}
 		}
 		catch (OperationCanceledException)
 		{
@@ -267,6 +275,25 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 				.LogError(ex, "Error processing track");
 		}
 	}
+
+	// Atomically cancels any playing announcement and starts a new one.
+	// This is the single choke-point — call it from everywhere (track change, replay, config preview).
+	private async Task PlayAnnouncementAsync(byte[] wavBytes)
+	{
+		var cts = new CancellationTokenSource();
+		var prev = Interlocked.Exchange(ref _voiceoverCts, cts);
+		prev.Cancel();
+		prev.Dispose();
+		await _audioMixer.PlayVoiceoverAsync(wavBytes, cts.Token);
+	}
+
+	[RelayCommand(CanExecute = nameof(CanReplayAnnouncement))]
+	private async Task ReplayAnnouncement()
+	{
+		await PlayAnnouncementAsync(_lastAnnouncementWav!);
+	}
+
+	private bool CanReplayAnnouncement() => _lastAnnouncementWav is { Length: > 0 };
 
 	/// <summary>
 	/// Downloads an image from a URL and decodes it into an Avalonia Bitmap.
@@ -366,6 +393,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_volumeTooltipCts?.Dispose();
 		_trackCts.Cancel();
 		_trackCts.Dispose();
+		_voiceoverCts.Cancel();
+		_voiceoverCts.Dispose();
 		_httpClient.Dispose();
 		_streamPlayer?.Dispose();
 		_audioMixer.Dispose();

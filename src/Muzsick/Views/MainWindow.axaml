@@ -70,23 +70,33 @@
 					      Data="F0 M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872l-.1-.34z M8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z" />
 				</Canvas>
 			</Button>
-			<Border Width="60" Height="60" Margin="10" Background="#444444" CornerRadius="30"
-			        ClipToBounds="True">
-				<Panel>
-					<!-- Placeholder: shown when no artist image available -->
-					<Canvas Width="60" Height="60"
-					        IsVisible="{Binding ArtistImage, Converter={x:Static ObjectConverters.IsNull}}">
-						<Ellipse Canvas.Left="0" Canvas.Top="0" Width="60" Height="60" Fill="#2d2d2d" />
-						<Ellipse Canvas.Left="21" Canvas.Top="9" Width="18" Height="18" Fill="#999999" />
-						<Ellipse Canvas.Left="15" Canvas.Top="30" Width="30" Height="25" Fill="#999999" />
-					</Canvas>
-					<!-- Real artist image: shown when Bitmap is available -->
-					<Image Source="{Binding ArtistImage}"
-					       Width="60" Height="60"
-					       Stretch="UniformToFill"
-					       IsVisible="{Binding ArtistImage, Converter={x:Static ObjectConverters.IsNotNull}}" />
-				</Panel>
-			</Border>
+			<!-- Artist image — click to open Last.fm artist page -->
+			<Button Command="{Binding OpenLastFmCommand}"
+			        CommandParameter="{Binding ArtistLastFmUrl}"
+			        IsEnabled="{Binding ArtistLastFmUrl, Converter={x:Static ObjectConverters.IsNotNull}}"
+			        Width="60" Height="60" Margin="10"
+			        Background="Transparent" BorderThickness="0" Padding="0"
+			        VerticalAlignment="Center"
+			        Focusable="False"
+			        Classes="lastFmLink">
+				<Border Width="60" Height="60" Background="#444444" CornerRadius="30"
+				        ClipToBounds="True">
+					<Panel>
+						<!-- Placeholder: shown when no artist image available -->
+						<Canvas Width="60" Height="60"
+						        IsVisible="{Binding ArtistImage, Converter={x:Static ObjectConverters.IsNull}}">
+							<Ellipse Canvas.Left="0" Canvas.Top="0" Width="60" Height="60" Fill="#2d2d2d" />
+							<Ellipse Canvas.Left="21" Canvas.Top="9" Width="18" Height="18" Fill="#999999" />
+							<Ellipse Canvas.Left="15" Canvas.Top="30" Width="30" Height="25" Fill="#999999" />
+						</Canvas>
+						<!-- Real artist image: shown when Bitmap is available -->
+						<Image Source="{Binding ArtistImage}"
+						       Width="60" Height="60"
+						       Stretch="UniformToFill"
+						       IsVisible="{Binding ArtistImage, Converter={x:Static ObjectConverters.IsNotNull}}" />
+					</Panel>
+				</Border>
+			</Button>
 			<StackPanel VerticalAlignment="Center" Margin="10,0,20,0">
 				<TextBlock Text="Now Playing" FontSize="11" Foreground="#888888" />
 				<TextBlock Text="{Binding ArtistName}" FontSize="14" Foreground="#FFFFFF" FontWeight="Bold"
@@ -110,61 +120,92 @@
 		<!-- Main Content Area -->
 		<StackPanel DockPanel.Dock="Top" Spacing="16" Margin="20,12,20,20" VerticalAlignment="Top">
 
-			<!-- Album Cover -->
+			<!-- Album Cover — click to open Last.fm album page -->
 			<Grid HorizontalAlignment="Center" Margin="0,0,0,0">
-				<Border Width="300" Height="300" Background="#444444" CornerRadius="12"
-				        Effect="drop-shadow(0 4 8 #00000080)" ClipToBounds="True">
-					<Panel>
-						<!-- Placeholder: shown when no album art available -->
-						<Canvas Width="300" Height="300"
-						        IsVisible="{Binding AlbumArt, Converter={x:Static ObjectConverters.IsNull}}">
-							<Rectangle Canvas.Left="0" Canvas.Top="0" Width="300" Height="300" Fill="#444444" />
-							<Ellipse Canvas.Left="10" Canvas.Top="10" Width="280" Height="280" Fill="#1a1a1a" />
-							<Ellipse Canvas.Left="20" Canvas.Top="20" Width="260" Height="260" Fill="#2d2d2d" />
-							<Ellipse Canvas.Left="30" Canvas.Top="30" Width="240" Height="240" Fill="Transparent" Stroke="#1a1a1a"
-							         StrokeThickness="2" Opacity="0.3" />
-							<Ellipse Canvas.Left="50" Canvas.Top="50" Width="200" Height="200" Fill="Transparent" Stroke="#1a1a1a"
-							         StrokeThickness="2" Opacity="0.3" />
-							<Ellipse Canvas.Left="70" Canvas.Top="70" Width="160" Height="160" Fill="Transparent" Stroke="#1a1a1a"
-							         StrokeThickness="2" Opacity="0.3" />
-							<Ellipse Canvas.Left="90" Canvas.Top="90" Width="120" Height="120" Fill="Transparent" Stroke="#1a1a1a"
-							         StrokeThickness="2" Opacity="0.3" />
-							<Ellipse Canvas.Left="115" Canvas.Top="115" Width="70" Height="70" Fill="#FF6B35" />
-							<Ellipse Canvas.Left="125" Canvas.Top="125" Width="50" Height="50" Fill="#2d2d2d" />
-							<Ellipse Canvas.Left="142" Canvas.Top="142" Width="16" Height="16" Fill="#FF6B35" />
-							<TextBlock Canvas.Left="130" Canvas.Top="270" Text="No Album Art" FontSize="14" Foreground="#999999" />
-						</Canvas>
-						<!-- Real album art: shown when Bitmap is available -->
-						<Image Source="{Binding AlbumArt}"
-						       Width="300" Height="300"
-						       Stretch="UniformToFill"
-						       IsVisible="{Binding AlbumArt, Converter={x:Static ObjectConverters.IsNotNull}}" />
-					</Panel>
-				</Border>
+				<Button Command="{Binding OpenLastFmCommand}"
+				        CommandParameter="{Binding AlbumLastFmUrl}"
+				        IsEnabled="{Binding AlbumLastFmUrl, Converter={x:Static ObjectConverters.IsNotNull}}"
+				        Background="Transparent" BorderThickness="0" Padding="0"
+				        Focusable="False"
+				        Classes="lastFmLink">
+					<Border Width="300" Height="300" Background="#444444" CornerRadius="12"
+					        Effect="drop-shadow(0 4 8 #00000080)" ClipToBounds="True">
+						<Panel>
+							<!-- Placeholder: shown when no album art available -->
+							<Canvas Width="300" Height="300"
+							        IsVisible="{Binding AlbumArt, Converter={x:Static ObjectConverters.IsNull}}">
+								<Rectangle Canvas.Left="0" Canvas.Top="0" Width="300" Height="300" Fill="#444444" />
+								<Ellipse Canvas.Left="10" Canvas.Top="10" Width="280" Height="280" Fill="#1a1a1a" />
+								<Ellipse Canvas.Left="20" Canvas.Top="20" Width="260" Height="260" Fill="#2d2d2d" />
+								<Ellipse Canvas.Left="30" Canvas.Top="30" Width="240" Height="240" Fill="Transparent" Stroke="#1a1a1a"
+								         StrokeThickness="2" Opacity="0.3" />
+								<Ellipse Canvas.Left="50" Canvas.Top="50" Width="200" Height="200" Fill="Transparent" Stroke="#1a1a1a"
+								         StrokeThickness="2" Opacity="0.3" />
+								<Ellipse Canvas.Left="70" Canvas.Top="70" Width="160" Height="160" Fill="Transparent" Stroke="#1a1a1a"
+								         StrokeThickness="2" Opacity="0.3" />
+								<Ellipse Canvas.Left="90" Canvas.Top="90" Width="120" Height="120" Fill="Transparent" Stroke="#1a1a1a"
+								         StrokeThickness="2" Opacity="0.3" />
+								<Ellipse Canvas.Left="115" Canvas.Top="115" Width="70" Height="70" Fill="#FF6B35" />
+								<Ellipse Canvas.Left="125" Canvas.Top="125" Width="50" Height="50" Fill="#2d2d2d" />
+								<Ellipse Canvas.Left="142" Canvas.Top="142" Width="16" Height="16" Fill="#FF6B35" />
+								<TextBlock Canvas.Left="130" Canvas.Top="270" Text="No Album Art" FontSize="14" Foreground="#999999" />
+							</Canvas>
+							<!-- Real album art: shown when Bitmap is available -->
+							<Image Source="{Binding AlbumArt}"
+							       Width="300" Height="300"
+							       Stretch="UniformToFill"
+							       IsVisible="{Binding AlbumArt, Converter={x:Static ObjectConverters.IsNotNull}}" />
+						</Panel>
+					</Border>
+				</Button>
 			</Grid>
 
 			<!-- Song Information -->
-			<StackPanel Spacing="10" HorizontalAlignment="Center" Width="520">
-				<TextBlock
-					Text="{Binding SongTitle}"
-					FontSize="22"
-					FontWeight="Bold"
-					Foreground="#FFFFFF"
-					TextAlignment="Center"
-					TextTrimming="CharacterEllipsis"
-					LineHeight="26" />
-				<TextBlock
-					Text="{Binding ArtistName}"
-					FontSize="16"
-					Foreground="#CCCCCC"
-					TextAlignment="Center"
-					TextTrimming="CharacterEllipsis" />
-				<TextBlock
-					Text="{Binding AlbumName}"
-					FontSize="14"
-					Foreground="#999999"
-					TextAlignment="Center"
-					TextTrimming="CharacterEllipsis" />
+			<StackPanel Spacing="4" HorizontalAlignment="Center" Width="520">
+				<Button Command="{Binding OpenLastFmCommand}"
+				        CommandParameter="{Binding TrackLastFmUrl}"
+				        IsEnabled="{Binding TrackLastFmUrl, Converter={x:Static ObjectConverters.IsNotNull}}"
+				        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+				        Background="Transparent" BorderThickness="0" Padding="2,0"
+				        Focusable="False"
+				        Classes="lastFmLink">
+					<TextBlock
+						Text="{Binding SongTitle}"
+						FontSize="22"
+						FontWeight="Bold"
+						Foreground="#FFFFFF"
+						TextAlignment="Center"
+						TextTrimming="CharacterEllipsis"
+						LineHeight="26" />
+				</Button>
+				<Button Command="{Binding OpenLastFmCommand}"
+				        CommandParameter="{Binding ArtistLastFmUrl}"
+				        IsEnabled="{Binding ArtistLastFmUrl, Converter={x:Static ObjectConverters.IsNotNull}}"
+				        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+				        Background="Transparent" BorderThickness="0" Padding="2,0"
+				        Focusable="False"
+				        Classes="lastFmLink">
+					<TextBlock
+						Text="{Binding ArtistName}"
+						FontSize="16"
+						Foreground="#CCCCCC"
+						TextAlignment="Center"
+						TextTrimming="CharacterEllipsis" />
+				</Button>
+				<Button Command="{Binding OpenLastFmCommand}"
+				        CommandParameter="{Binding AlbumLastFmUrl}"
+				        IsEnabled="{Binding AlbumLastFmUrl, Converter={x:Static ObjectConverters.IsNotNull}}"
+				        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+				        Background="Transparent" BorderThickness="0" Padding="2,0"
+				        Focusable="False"
+				        Classes="lastFmLink">
+					<TextBlock
+						Text="{Binding AlbumName}"
+						FontSize="14"
+						Foreground="#999999"
+						TextAlignment="Center"
+						TextTrimming="CharacterEllipsis" />
+				</Button>
 			</StackPanel>
 
 			<!-- Volume Control -->
@@ -272,6 +313,31 @@
 	</DockPanel>
 
 	<Window.Styles>
+		<Style Selector="Button.lastFmLink">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="BorderThickness" Value="0" />
+			<Setter Property="Padding" Value="0" />
+			<Setter Property="Cursor" Value="Hand" />
+		</Style>
+		<Style Selector="Button.lastFmLink /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+		</Style>
+		<Style Selector="Button.lastFmLink:pointerover">
+			<Setter Property="Opacity" Value="0.72" />
+		</Style>
+		<Style Selector="Button.lastFmLink:pressed">
+			<Setter Property="Opacity" Value="0.50" />
+		</Style>
+		<!-- Disabled: no cursor change is handled by Avalonia automatically,
+		     but we must prevent the default opacity dimming so it looks like plain text/image. -->
+		<Style Selector="Button.lastFmLink:disabled">
+			<Setter Property="Opacity" Value="1" />
+		</Style>
+		<Style Selector="Button.lastFmLink:disabled /template/ ContentPresenter">
+			<Setter Property="Background" Value="Transparent" />
+			<Setter Property="Opacity" Value="1" />
+		</Style>
+
 		<Style Selector="Button.playButton:pointerover /template/ ContentPresenter">
 			<Setter Property="Background" Value="#FF8855" />
 		</Style>

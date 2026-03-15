@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Threading;
@@ -32,6 +33,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private int _volume = 50;
 	[ObservableProperty] private bool _volumeTooltipVisible;
 	[ObservableProperty] private string? _updateMessage;
+	[ObservableProperty] private string? _artistLastFmUrl;
+	[ObservableProperty] private string? _albumLastFmUrl;
+	[ObservableProperty] private string? _trackLastFmUrl;
 	public IReadOnlyDictionary<string, VoiceInfo> TtsAvailableVoices => _ttsBackend.AvailableVoices;
 	internal ITtsBackend TtsBackend => _ttsBackend;
 	internal AudioMixer AudioMixer => _audioMixer;
@@ -192,6 +196,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		AlbumName = PlaylistPath;
 		AlbumArt = null;
 		ArtistImage = null;
+		ArtistLastFmUrl = null;
+		AlbumLastFmUrl = null;
+		TrackLastFmUrl = null;
 	}
 
 	[RelayCommand]
@@ -234,6 +241,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 			AlbumArt = null;
 			ArtistImage = null;
+			ArtistLastFmUrl = null;
+			AlbumLastFmUrl = null;
+			TrackLastFmUrl = null;
 
 			var (enriched, artist) = await _metadataService.EnrichAsync(track);
 
@@ -261,6 +271,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 				AlbumName = !string.IsNullOrEmpty(enriched.Year)
 					? $"{albumName} ({enriched.Year})"
 					: albumName;
+
+			ArtistLastFmUrl = BuildLastFmArtistUrl(enriched.Artist);
+			AlbumLastFmUrl = BuildLastFmAlbumUrl(enriched.Artist, enriched.Album);
+			TrackLastFmUrl = BuildLastFmTrackUrl(enriched.Artist, enriched.Title);
 
 			// §5.6 — wait before generating commentary to avoid interrupting the song intro.
 			await Task.Delay(TimeSpan.FromSeconds(3), token);
@@ -309,6 +323,33 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	}
 
 	private bool CanReplayAnnouncement() => _lastAnnouncementWav is { Length: > 0 };
+
+	[RelayCommand]
+	private void OpenLastFm(string? url)
+	{
+		if (string.IsNullOrEmpty(url)) return;
+		try
+		{
+			Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+		}
+		catch (Exception ex)
+		{
+			App.LoggerFactory?.CreateLogger("MainWindowViewModel")
+				.LogWarning("Failed to open Last.fm URL: {Message}", ex.Message);
+		}
+	}
+
+	private static string? BuildLastFmArtistUrl(string? artist) =>
+		string.IsNullOrWhiteSpace(artist) ? null
+			: $"https://www.last.fm/music/{Uri.EscapeDataString(artist).Replace("%20", "+")}";
+
+	private static string? BuildLastFmAlbumUrl(string? artist, string? album) =>
+		string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(album) ? null
+			: $"https://www.last.fm/music/{Uri.EscapeDataString(artist).Replace("%20", "+")}/{Uri.EscapeDataString(album).Replace("%20", "+")}";
+
+	private static string? BuildLastFmTrackUrl(string? artist, string? title) =>
+		string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(title) ? null
+			: $"https://www.last.fm/music/{Uri.EscapeDataString(artist).Replace("%20", "+")}/_/{Uri.EscapeDataString(title).Replace("%20", "+")}";
 
 	/// <summary>
 	/// Downloads an image from a URL and decodes it into an Avalonia Bitmap.
@@ -365,13 +406,16 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 					ArtistName = "Live Radio Stream";
 					AlbumName = "Waiting for track information...";
 					break;
-				case "Stopped":
-				case "Stream ended":
-				{
-					IsPlaying = false;
-					AlbumArt = null;
-					ArtistImage = null;
-					if (!string.IsNullOrEmpty(PlaylistPath))
+			case "Stopped":
+			case "Stream ended":
+			{
+				IsPlaying = false;
+				AlbumArt = null;
+				ArtistImage = null;
+				ArtistLastFmUrl = null;
+				AlbumLastFmUrl = null;
+				TrackLastFmUrl = null;
+				if (!string.IsNullOrEmpty(PlaylistPath))
 					{
 						SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
 						ArtistName = "Ready to play";

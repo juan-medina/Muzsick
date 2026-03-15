@@ -187,9 +187,11 @@ cached keyed on `artist+title` and expire after 24 hours.
 
 ### 5.5 Commentary Generation
 
-Commentary is generated from a user-editable template with token substitution. Supported tokens: `{title}`,
-`{artist}`, `{album}`, `{year}`, `{genre}`. Optional clauses (`[token?, text]`) are silently dropped when the
-guarded token is empty, keeping announcements natural when enrichment data is partial.
+Commentary is generated in one of two modes controlled by the `CommentaryMode` setting.
+
+**Template mode** generates commentary from a user-editable template with token substitution. Supported tokens:
+`{title}`, `{artist}`, `{album}`, `{year}`, `{genre}`. Optional clauses (`[token?, text]`) are silently dropped
+when the guarded token is empty, keeping announcements natural when enrichment data is partial.
 
 The default template is:
 
@@ -197,8 +199,14 @@ The default template is:
 Now playing {title} by {artist}[year?, released in {year}]
 ```
 
-The template is editable in the settings window with live syntax highlighting and a speak-preview button that
-synthesises the rendered result through the TTS engine before saving.
+**AI mode** sends a user-editable prompt to a locally running Ollama instance (OpenAI-compatible HTTP API). The
+prompt receives enriched track metadata as context. The model's response is stripped of any markdown formatting
+before being passed to TTS. If the AI request fails or times out, commentary automatically falls back to the
+template. The recommended default model is `gemma3:4b` — it has no thinking mode and responds in 3–5 seconds on
+typical consumer hardware.
+
+The announcement template is always required regardless of mode. In AI mode it acts as the fallback used when the
+AI is unavailable.
 
 ### 5.6 Commentary Timing
 
@@ -206,22 +214,28 @@ Commentary fires at the start of a new song. The application waits approximately
 before beginning metadata fetch and TTS synthesis, to avoid interrupting a song that is mid-fade or mid-intro. If a
 new track arrives before the previous voiceover completes, the previous work is cancelled.
 
+While the settings window is open, live commentary is fully suspended. Track changes still update the UI but no
+commentary is generated or played. This ensures a preview in progress is never interrupted by a live track change.
+
 ---
 
 ## 6. User Interface
 
 The Avalonia UI is intentionally minimal — the audio experience is the product; the UI is a control surface.
 
-| Element             | Description                                                                 |
-|---------------------|-----------------------------------------------------------------------------|
-| Album art           | Loaded from Last.fm. XAML vinyl-record placeholder shown while loading.     |
-| Artist image        | Circular image in the header. XAML silhouette placeholder while loading.    |
-| Track title         | Large, bold. Truncated with ellipsis if too long.                           |
-| Artist name         | Secondary text below the title.                                             |
-| Play / Pause        | Toggles stream playback.                                                    |
-| Volume slider       | Controls OpenAL master output gain (0–100%). Persisted across sessions.     |
-| Settings button     | Opens the settings window: API key, TTS voice, announcement template.       |
-| About button        | Opens the about window with version info and attribution.                   |
+| Element               | Description                                                                                                                                                                  |
+|-----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Artist image          | Circular image in the header. XAML silhouette placeholder while loading. Clickable — opens the artist's Last.fm page. Only active once metadata has been resolved.           |
+| Album art             | Square cover art in the main area. XAML vinyl-record placeholder shown while loading. Clickable — opens the Last.fm album page. Only active once metadata has been resolved. |
+| Track title           | Large, bold. Truncated with ellipsis if too long. Clickable — opens the Last.fm track page. Only active once metadata has been resolved.                                     |
+| Artist name           | Secondary text below the title. Clickable — opens the Last.fm artist page. Only active once metadata has been resolved.                                                      |
+| Album name            | Tertiary text below the artist name. Shows album and year when available. Clickable — opens the Last.fm album page. Only active once metadata has been resolved.             |
+| Play / Pause          | Toggles stream playback.                                                                                                                                                     |
+| Replay announcement   | Replays the last generated voiceover through the audio mixer with full ducking. Disabled until the first announcement of the session has played.                             |
+| Volume slider         | Controls OpenAL master output gain (0–100%). Persisted across sessions.                                                                                                      |
+| Settings button       | Opens the settings window. While open, live track commentary is suspended — no announcements play until the window is closed.                                                |
+| About button          | Opens the about window with version info and attribution.                                                                                                                    |
+| Update/warning banner | Appears below the header when there is a system message — e.g. "⚠ AI commentary unavailable — using template". Hidden when empty.                                            |
 
 ---
 
@@ -236,22 +250,94 @@ change. No registry entries.
   "Volume": 50,
   "LastPlaylistPath": null,
   "TtsVoice": "af_heart",
-  "AnnouncementTemplate": "Now playing {title} by {artist}[year?, released in {year}]"
+  "CommentaryMode": "Template",
+  "AnnouncementTemplate": "Now playing {title} by {artist}[year?, released in {year}]",
+  "AiPrompt": "You are an enthusiastic radio DJ. Give a single sentence on-air intro for the next song. Track info: {context}. Respond with only the intro sentence, nothing else."
 }
 ```
+
+### 7.1 Settings Window Layout
+
+The settings window is organised into sections top to bottom:
+
+**Last.fm API Key** — required for metadata and artwork enrichment.
+
+**Announcer Voice** — dropdown of available Kokoro voices. Applies to both template and AI commentary modes.
+
+**Commentary Mode** — toggle between `Template` and `AI`. Controls which commentary generator runs on track change.
+
+**Announcement Template** — always visible and always required regardless of mode. In AI mode this is labelled
+*"Fallback template — used when AI commentary is unavailable."* Supports token substitution with live syntax
+highlighting in the editor. Includes a Reset button to restore the default template.
+
+**AI Prompt** — visible only when AI mode is selected. Required when AI mode is active. Free-form system prompt
+sent to the local AI model. Track metadata is injected as `{context}` at runtime.
+
+> A future version will add a prompt library with built-in personality presets and save/load functionality. This is
+> not in scope for the current version.
+
+**Preview** — a single preview section shared across both modes, always visible. Behaviour is identical regardless
+of mode: generates commentary using the currently active mode, synthesises it through TTS, and plays it. A timer
+shows elapsed time so the user can assess whether their prompt and model combination is fast enough for live radio
+use. A cancel button is always visible during any active preview. Guidance text below the preview reads:
+*"For live radio, aim for under 5 seconds. Simpler prompts and smaller models respond faster."*
+
+### 7.2 Preview States
+
+The preview control cycles through the following states:
+
+| State        | Label shown         | Timer      | Cancel visible |
+|--------------|---------------------|------------|----------------|
+| Idle         | "Preview"           | —          | No             |
+| Generating   | "Generating… 3.2s"  | Ticking up | Yes            |
+| Synthesising | "Synthesising…"     | Paused     | Yes            |
+| Playing      | "Playing…"          | Paused     | Yes            |
+| Done         | "Generated in 4.1s" | Final time | No             |
+| Cancelled    | "Preview"           | —          | No             |
+| Failed       | Error message (red) | —          | No             |
+
+In Template mode the Generating state is near-instant. In AI mode it reflects actual Ollama response time.
+
+### 7.3 Validation Rules and Error Messages
+
+The Save button is disabled until all validation passes. Errors are shown inline below the relevant field in red.
+
+| Condition                         | Error message                                        |
+|-----------------------------------|------------------------------------------------------|
+| Last.fm API key is empty          | "An API key is required to load track metadata."     |
+| Announcement template is empty    | "The announcement template cannot be empty."         |
+| AI prompt is empty (AI mode only) | "An AI prompt is required when AI mode is selected." |
+
+### 7.4 Preview Error Messages
+
+Preview failures are shown inline below the preview control in red. They clear when the user starts a new preview.
+
+| Condition                         | Message shown                                                         |
+|-----------------------------------|-----------------------------------------------------------------------|
+| Ollama not running or unreachable | "AI unavailable — make sure Ollama is running."                       |
+| AI request timed out              | "AI took too long to respond. Try a simpler prompt or smaller model." |
+| AI returned empty response        | "AI returned an empty response. Check your prompt."                   |
+| TTS synthesis failed              | "Voice synthesis failed. Check the TTS model is installed."           |
+
+### 7.5 Settings Window Behaviour
+
+- While the settings window is open, live track commentary is fully suspended. Track changes still update the main
+  window UI (title, artwork, metadata) but no commentary is generated or played. This ensures a preview in progress
+  is never interrupted by a live track change.
+- Closing the window cancels any active preview immediately.
+- Cancel discards all unsaved changes. On first run, Cancel shuts down the application.
 
 ---
 
 ## 8. Version Roadmap
 
-| Version | Scope                  | Key Deliverables                                                                                                         |
-|---------|------------------------|--------------------------------------------------------------------------------------------------------------------------|
-| 1.0     | Foundation *(current)* | Stream plays, ICY metadata detected, template voiceover mixed with ducking. Kokoro TTS in-process. Minimal Avalonia UI. |
-| TBD     | AI Commentary          | Ollama / OpenAI commentary mode. Configurable personality.                                                               |
-| TBD     | Conversation           | User can ask questions about the current track via text input.                                                           |
-| TBD     | Multi-Station          | Station list, favourites, per-station personality presets.                                                               |
-
-Future version numbers will be decided when the scope of each increment is clear.
+| Version | Scope          | Key Deliverables                                                                                                        |
+|---------|----------------|-------------------------------------------------------------------------------------------------------------------------|
+| 1.0     | Foundation     | Stream plays, ICY metadata detected, template voiceover mixed with ducking. Kokoro TTS in-process. Minimal Avalonia UI. |
+| 1.1     | AI Commentary  | Ollama commentary mode. AI prompt editing in settings. Template/AI mode toggle. Preview with timer.                     |
+| TBD     | Prompt Library | Built-in personality presets. Save/load custom prompts.                                                                 |
+| TBD     | Conversation   | User can ask questions about the current track via text input.                                                          |
+| TBD     | Multi-Station  | Station list, favourites, per-station personality presets.                                                              |
 
 ---
 
@@ -292,6 +378,19 @@ MBID string — it does not need to know anything about how images are resolved.
 
 All AI commentary backends share a single HTTP client targeting the OpenAI chat completions endpoint format.
 Switching from a local Ollama model to a cloud provider requires only a settings change, not a code change.
+
+### 9.7 Commentary Suspended While Settings Window Is Open
+
+Rather than attempting to coordinate between a live track change and an in-progress preview, commentary is simply
+suspended while the settings window is open. This avoids all race conditions and gives the user a stable environment
+for editing and testing their prompt. The radio stream continues playing normally — only the voiceover pipeline is
+paused.
+
+### 9.8 Preview Timer as User Education
+
+The elapsed time shown during preview is not just feedback — it is the primary mechanism by which users learn
+whether their chosen model and prompt are suitable for live radio. A user who sees "Generated in 22s" immediately
+understands the problem without needing documentation.
 
 ---
 

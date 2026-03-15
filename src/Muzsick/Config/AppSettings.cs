@@ -3,11 +3,16 @@
 
 namespace Muzsick.Config;
 
+public enum CommentaryMode
+{
+	Template,
+	Ai,
+}
+
 public class AppSettings
 {
 	/// <summary>
 	/// Last.fm API key. Required for track metadata enrichment.
-	/// Obtain a free key at https://www.last.fm/api/account/create
 	/// </summary>
 	public string LastFmApiKey { get; set; } = "";
 
@@ -28,7 +33,11 @@ public class AppSettings
 
 	/// <summary>
 	/// Template used for track announcements. Supports tokens: {title} {artist} {album} {year} {genre}.
-	/// Wrap optional parts in [...] to silently drop them when any token inside is empty.
 	/// </summary>
 	public string AnnouncementTemplate { get; set; } = AnnouncementTemplateRenderer.DefaultTemplate;
+
+	/// <summary>
+	/// Whether to use template-based or AI-generated commentary.
+	/// </summary>
+	public CommentaryMode CommentaryMode { get; set; } = CommentaryMode.Ai;
 }

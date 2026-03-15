@@ -15,6 +15,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Muzsick.Audio;
+using Muzsick.Commentary;
 using Muzsick.Config;
 using Muzsick.Metadata;
 using Muzsick.Tts;
@@ -56,6 +57,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private CancellationTokenSource _trackCts = new();
 	private CancellationTokenSource _voiceoverCts = new();
 	private byte[]? _lastAnnouncementWav;
+	private readonly ICommentaryGenerator _commentaryGenerator;
 
 	public MainWindowViewModel()
 	{
@@ -80,6 +82,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
 			"Muzsick/0.1 (https://github.com/juan-medina/muzsick)");
 		_updateService = new UpdateService();
+		_commentaryGenerator = App.Settings.CommentaryMode == CommentaryMode.Ai
+			? new OllamaCommentaryGenerator(App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>())
+			: new TemplateCommentaryGenerator();
 
 		var settings = SettingsManager.Load();
 		if (settings == null) return;
@@ -281,7 +286,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 			if (token.IsCancellationRequested) return;
 
-			var announcement = AnnouncementTemplateRenderer.Render(App.Settings.AnnouncementTemplate, enriched);
+			var announcement = await _commentaryGenerator.GenerateAsync(enriched, token);
+
+			// AI mode: if Ollama failed (returned null), fall back to template and warn the user.
+			if (announcement == null)
+			{
+				announcement = AnnouncementTemplateRenderer.Render(App.Settings.AnnouncementTemplate, enriched);
+				Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+					UpdateMessage = "⚠ AI commentary unavailable — using template");
+			}
+			else if (App.Settings.CommentaryMode == CommentaryMode.Ai)
+			{
+				// Ollama responded — clear any previous warning.
+				Avalonia.Threading.Dispatcher.UIThread.Post(() => UpdateMessage = null);
+			}
+
 			var wavBytes = await _ttsBackend.SynthesizeAsync(announcement, App.Settings.TtsVoice, token);
 
 			if (token.IsCancellationRequested) return;

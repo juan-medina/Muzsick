@@ -95,6 +95,18 @@
 			</StackPanel>
 		</DockPanel>
 
+		<!-- Update available banner — visible only when an update has been staged -->
+		<Border DockPanel.Dock="Top"
+		        Background="#CC2A1A00"
+		        Padding="16,6"
+		        IsVisible="{Binding UpdateMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+			<TextBlock Text="{Binding UpdateMessage}"
+			           FontSize="13"
+			           Foreground="#FF6B35"
+			           FontWeight="SemiBold"
+			           HorizontalAlignment="Center" />
+		</Border>
+
 		<!-- Main Content Area -->
 		<StackPanel DockPanel.Dock="Top" Spacing="16" Margin="20,12,20,20" VerticalAlignment="Top">
 

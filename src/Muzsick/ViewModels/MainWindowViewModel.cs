@@ -17,6 +17,7 @@ using Muzsick.Audio;
 using Muzsick.Config;
 using Muzsick.Metadata;
 using Muzsick.Tts;
+using Muzsick.Update;
 using Muzsick.Views;
 
 namespace Muzsick.ViewModels;
@@ -30,6 +31,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private string? _playlistPath;
 	[ObservableProperty] private int _volume = 50;
 	[ObservableProperty] private bool _volumeTooltipVisible;
+	[ObservableProperty] private string? _updateMessage;
 	public IReadOnlyDictionary<string, VoiceInfo> TtsAvailableVoices => _ttsBackend.AvailableVoices;
 	internal ITtsBackend TtsBackend => _ttsBackend;
 	internal AudioMixer AudioMixer => _audioMixer;
@@ -46,6 +48,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private readonly IMetaService _metadataService;
 	private readonly ITtsBackend _ttsBackend;
 	private readonly HttpClient _httpClient;
+	private readonly UpdateService _updateService;
 	private CancellationTokenSource _trackCts = new();
 	private CancellationTokenSource _voiceoverCts = new();
 	private byte[]? _lastAnnouncementWav;
@@ -72,6 +75,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_httpClient = new HttpClient();
 		_httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
 			"Muzsick/0.1 (https://github.com/juan-medina/muzsick)");
+		_updateService = new UpdateService();
 
 		var settings = SettingsManager.Load();
 		if (settings == null) return;
@@ -85,6 +89,17 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	public void SetMainWindow(Window window)
 	{
 		_mainWindow = window;
+
+		// Fire-and-forget: check for updates in the background after the view is ready.
+		_ = CheckForUpdatesAsync();
+	}
+
+	private async Task CheckForUpdatesAsync()
+	{
+		var logger = App.LoggerFactory?.CreateLogger<UpdateService>();
+		var staged = await _updateService.CheckAndApplyUpdatesAsync(logger);
+		if (staged)
+			UpdateMessage = "A new version has been downloaded and will be applied on next restart.";
 	}
 
 	partial void OnVolumeChanged(int value)

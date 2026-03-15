@@ -5,6 +5,7 @@ using Avalonia;
 using System;
 using Microsoft.Extensions.Logging;
 using Muzsick.Config;
+using Velopack;
 
 namespace Muzsick;
 
@@ -16,6 +17,9 @@ sealed class Program
 	[STAThread]
 	public static void Main(string[] args)
 	{
+		// Velopack must run before anything else — it handles install/uninstall hooks.
+		VelopackApp.Build().Run();
+
 #if DEBUG
 		// Set up console logging for debug builds only with timestamps
 		using var loggerFactory = LoggerFactory.Create(builder =>

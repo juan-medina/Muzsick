@@ -176,6 +176,17 @@
 							                 FontSize="12" Foreground="#FF6B35" Padding="0"
 							                 VerticalAlignment="Center" />
 						</DockPanel>
+
+						<DockPanel LastChildFill="False">
+							<TextBlock DockPanel.Dock="Left" Text="Velopack"
+							           FontSize="12" Foreground="#CCCCCC"
+							           Width="160" VerticalAlignment="Center" />
+							<HyperlinkButton DockPanel.Dock="Left"
+							                 Content="velopack.io"
+							                 NavigateUri="https://velopack.io/"
+							                 FontSize="12" Foreground="#FF6B35" Padding="0"
+							                 VerticalAlignment="Center" />
+						</DockPanel>
 					</StackPanel>
 
 					<Separator Background="#444444" Height="1" />

@@ -63,17 +63,36 @@ jobs:
                       -p:EnableVersionBump=false \
                       -o publish/${{ matrix.rid }}
 
-            -   name: Zip artifact (Windows)
+            -   name: Install Velopack CLI (Windows)
+                if: matrix.rid == 'win-x64'
+                run: dotnet tool install -g vpk
+
+            -   name: Pack installer (Windows)
                 if: matrix.rid == 'win-x64'
                 shell: pwsh
-                run: Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath Muzsick-${{ github.ref_name }}-${{ matrix.rid }}.zip
+                run: |
+                    $version = $env:GITHUB_REF_NAME -replace '^v', ''
+                    vpk pack `
+                      --packId Muzsick `
+                      --packVersion $version `
+                      --packDir publish/win-x64 `
+                      --mainExe Muzsick.exe `
+                      --outputDir velopack-out
 
             -   name: Zip artifact (Linux / macOS)
                 if: matrix.rid != 'win-x64'
                 shell: bash
                 run: zip -r Muzsick-${{ github.ref_name }}-${{ matrix.rid }}.zip publish/${{ matrix.rid }}
 
-            -   name: Upload artifact
+            -   name: Upload artifact (Windows)
+                if: matrix.rid == 'win-x64'
+                uses: actions/upload-artifact@v4
+                with:
+                    name: Muzsick-win-x64
+                    path: velopack-out/
+
+            -   name: Upload artifact (Linux / macOS)
+                if: matrix.rid != 'win-x64'
                 uses: actions/upload-artifact@v4
                 with:
                     name: Muzsick-${{ matrix.rid }}
@@ -94,7 +113,7 @@ jobs:
 
             -   name: Upload to release
                 shell: bash
-                run: gh release upload ${{ github.ref_name }} $(find artifacts -name "*.zip")
+                run: gh release upload ${{ github.ref_name }} $(find artifacts -type f)
                 env:
                     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                     GH_REPO: ${{ github.repository }}

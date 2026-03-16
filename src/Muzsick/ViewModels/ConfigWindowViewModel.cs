@@ -165,7 +165,6 @@ public partial class ConfigWindowViewModel(
 
 	// ── Prompt library ───────────────────────────────────────────────────────
 
-
 	public IReadOnlyList<PromptLibraryEntry> PromptLibrary { get; } = Commentary.PromptLibrary.Entries;
 
 	[ObservableProperty]
@@ -538,7 +537,18 @@ public partial class ConfigWindowViewModel(
 		UpdateSample();
 	}
 
-	partial void OnAnnouncementTemplateChanged(string value) => UpdateSample();
+	partial void OnAnnouncementTemplateChanged(string value)
+	{
+		UpdateSample();
+		if (CurrentPreviewState is PreviewState.Done or PreviewState.Failed)
+			CurrentPreviewState = PreviewState.Idle;
+	}
+
+	partial void OnAiPromptChanged(string value)
+	{
+		if (CurrentPreviewState is PreviewState.Done or PreviewState.Failed)
+			CurrentPreviewState = PreviewState.Idle;
+	}
 
 	private void UpdateSample()
 	{

@@ -49,12 +49,12 @@ public class AppSettings
 
 	/// <summary>
 	/// Default AI prompt. Used on first run and by the Reset button.
+	/// Taken from the first entry in the prompt library.
 	/// </summary>
-	public const string DefaultAiPrompt =
-		"You are an enthusiastic radio DJ with encyclopaedic music knowledge. Write exactly two sentences — no more. " +
-		"The first sentence must name both the artist and the song title in a punchy on-air intro. " +
-		"The second sentence starts with \"Did you know\" and shares one surprising fact about the song, artist, or album. " +
-		"Track info: {context}. Output only those two sentences.";
+	public static string DefaultAiPrompt =>
+		Commentary.PromptLibrary.Entries.Count > 0
+			? Commentary.PromptLibrary.Entries[0].Prompt
+			: "";
 
 	/// <summary>
 	/// System prompt sent to the AI model. {context} is replaced with track metadata at runtime.

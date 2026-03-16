@@ -8,203 +8,313 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:avaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
-        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="500"
+        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="720"
         x:Class="Muzsick.Views.ConfigWindow"
         x:DataType="vm:ConfigWindowViewModel"
         Icon="/Assets/muzsick-logo.ico"
         Title="Muzsick — Settings"
         Width="640"
-        Height="500"
+        MinHeight="500"
+        SizeToContent="Height"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
 
-	<Border Background="#2B2B2B" Padding="24">
-		<StackPanel Spacing="16">
+	<ScrollViewer MaxHeight="880" VerticalScrollBarVisibility="Auto">
+		<Border Background="#2B2B2B" Padding="24">
+			<StackPanel Spacing="16">
 
-			<TextBlock Text="Last.fm API Key"
-			           FontSize="16"
-			           FontWeight="Bold"
-			           Foreground="#FFFFFF" />
+				<!-- Last.fm API Key -->
+				<StackPanel Spacing="6">
+					<TextBlock Text="Last.fm API Key"
+					           FontSize="16"
+					           FontWeight="Bold"
+					           Foreground="#FFFFFF" />
+					<TextBlock Text="Enter your Last.fm API key to enable track metadata and artwork."
+					           FontSize="12"
+					           Foreground="#AAAAAA"
+					           TextWrapping="Wrap" />
+					<HyperlinkButton Content="Get a free key at last.fm/api/account/create"
+					                 NavigateUri="https://www.last.fm/api/account/create"
+					                 FontSize="12"
+					                 Foreground="#FF6B35"
+					                 Padding="0" />
+					<TextBox Text="{Binding ApiKey}"
+					         Watermark="Paste your API key here…"
+					         FontSize="14"
+					         Background="#1E1E1E"
+					         Foreground="#FFFFFF"
+					         BorderBrush="#777777"
+					         BorderThickness="1"
+					         CornerRadius="6"
+					         Padding="10,8" />
+					<TextBlock Text="{Binding ApiKeyError}"
+					           IsVisible="{Binding HasApiKeyError}"
+					           Foreground="#FF4444"
+					           FontSize="11"
+					           TextWrapping="Wrap" />
+				</StackPanel>
 
-			<StackPanel Spacing="6">
-				<TextBlock Text="Enter your Last.fm API key to enable track metadata and artwork."
-				           FontSize="12"
-				           Foreground="#AAAAAA"
-				           TextWrapping="Wrap" />
-				<HyperlinkButton Content="Get a free key at last.fm/api/account/create"
-				                 NavigateUri="https://www.last.fm/api/account/create"
-				                 FontSize="12"
-				                 Foreground="#FF6B35"
-				                 Padding="0" />
-			</StackPanel>
+				<!-- Announcer Voice -->
+				<StackPanel Spacing="6">
+					<TextBlock Text="Announcer Voice"
+					           FontSize="16"
+					           FontWeight="Bold"
+					           Foreground="#FFFFFF" />
+					<TextBlock Text="Voice used for track announcements and commentary."
+					           FontSize="12"
+					           Foreground="#AAAAAA"
+					           TextWrapping="Wrap" />
+					<ComboBox ItemsSource="{Binding AvailableVoices}"
+					          SelectedItem="{Binding SelectedVoice}"
+					          FontSize="14"
+					          Background="#1E1E1E"
+					          Foreground="#FFFFFF"
+					          BorderBrush="#777777"
+					          BorderThickness="1"
+					          CornerRadius="6"
+					          HorizontalAlignment="Stretch">
+						<ComboBox.ItemTemplate>
+							<DataTemplate>
+								<Grid ColumnDefinitions="*,Auto">
+									<TextBlock Grid.Column="0"
+									           Text="{Binding DisplayName, StringFormat={}{0}}"
+									           Foreground="#FFFFFF" />
+									<TextBlock Grid.Column="1"
+									           Text="{Binding Category}"
+									           Foreground="#888888"
+									           FontSize="11"
+									           VerticalAlignment="Center"
+									           Margin="12,0,0,0" />
+								</Grid>
+							</DataTemplate>
+						</ComboBox.ItemTemplate>
+					</ComboBox>
+				</StackPanel>
 
-			<TextBox Text="{Binding ApiKey}"
-			         Watermark="Paste your API key here…"
-			         FontSize="14"
-			         Background="#1E1E1E"
-			         Foreground="#FFFFFF"
-			         BorderBrush="#777777"
-			         BorderThickness="1"
-			         CornerRadius="6"
-			         Padding="10,8" />
+				<!-- Commentary Mode -->
+				<StackPanel Spacing="6">
+					<TextBlock Text="Commentary Mode"
+					           FontSize="16"
+					           FontWeight="Bold"
+					           Foreground="#FFFFFF" />
+					<TextBlock Text="Choose how track announcements are generated."
+					           FontSize="12"
+					           Foreground="#AAAAAA"
+					           TextWrapping="Wrap" />
+					<StackPanel Orientation="Horizontal" Spacing="24">
+						<RadioButton Content="Template"
+						             IsChecked="{Binding IsTemplateModeSelected}"
+						             GroupName="CommentaryModeGroup"
+						             Foreground="#FFFFFF"
+						             FontSize="14" />
+						<RadioButton Content="AI (Ollama)"
+						             IsChecked="{Binding IsAiModeSelected}"
+						             GroupName="CommentaryModeGroup"
+						             Foreground="#FFFFFF"
+						             FontSize="14" />
+					</StackPanel>
+				</StackPanel>
 
-			<StackPanel Spacing="6">
-				<TextBlock Text="Announcer Voice"
-				           FontSize="16"
-				           FontWeight="Bold"
-				           Foreground="#FFFFFF" />
-				<TextBlock Text="Voice used for track announcements and commentary."
-				           FontSize="12"
-				           Foreground="#AAAAAA"
-				           TextWrapping="Wrap" />
-				<ComboBox ItemsSource="{Binding AvailableVoices}"
-				          SelectedItem="{Binding SelectedVoice}"
-				          FontSize="14"
-				          Background="#1E1E1E"
-				          Foreground="#FFFFFF"
-				          BorderBrush="#777777"
-				          BorderThickness="1"
-				          CornerRadius="6"
-				          HorizontalAlignment="Stretch">
-					<ComboBox.ItemTemplate>
-						<DataTemplate>
-							<Grid ColumnDefinitions="*,Auto">
-								<TextBlock Grid.Column="0"
-								           Text="{Binding DisplayName, StringFormat={}{0}}"
-								           Foreground="#FFFFFF" />
-								<TextBlock Grid.Column="1"
-								           Text="{Binding Category}"
-								           Foreground="#888888"
-								           FontSize="11"
-								           VerticalAlignment="Center"
-								           Margin="12,0,0,0" />
-							</Grid>
-						</DataTemplate>
-					</ComboBox.ItemTemplate>
-				</ComboBox>
-			</StackPanel>
+				<!-- Announcement Template -->
+				<StackPanel Spacing="6">
+					<TextBlock Text="Announcement Template"
+					           IsVisible="{Binding !IsAiMode}"
+					           FontSize="16"
+					           FontWeight="Bold"
+					           Foreground="#FFFFFF" />
+					<TextBlock Text="Fallback template — used when AI commentary is unavailable."
+					           IsVisible="{Binding IsAiMode}"
+					           FontSize="16"
+					           FontWeight="Bold"
+					           Foreground="#FFFFFF" />
+					<TextBlock FontSize="12"
+					           Foreground="#AAAAAA"
+					           TextWrapping="Wrap">
+						<Run Text="Tokens: " />
+						<Run Text="{}{title}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+						<Run Text="  " FontFamily="Consolas,Monospace" />
+						<Run Text="{}{artist}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+						<Run Text="  " FontFamily="Consolas,Monospace" />
+						<Run Text="{}{album}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+						<Run Text="  " FontFamily="Consolas,Monospace" />
+						<Run Text="{}{year}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+						<Run Text="  " FontFamily="Consolas,Monospace" />
+						<Run Text="{}{genre}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+					</TextBlock>
+					<TextBlock FontSize="12"
+					           Foreground="#AAAAAA"
+					           TextWrapping="Wrap">
+						<Run Text="Optional: " />
+						<Run Text="[token?" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
+						<Run Text="," FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
+						<Run Text="text" FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
+						<Run Text="]" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
+						<Run Text=" shows only when that token has a value  ·  e.g. " />
+						<Run Text="[year?" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
+						<Run Text="," FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
+						<Run Text=" released in " FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
+						<Run Text="{}{year}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+						<Run Text="]" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
+					</TextBlock>
+					<Grid ColumnDefinitions="*,Auto">
+						<Border Grid.Column="0"
+						        Background="#1E1E1E"
+						        BorderBrush="#777777"
+						        BorderThickness="1"
+						        CornerRadius="6"
+						        Height="36"
+						        ClipToBounds="True">
+							<avaloniaEdit:TextEditor
+								x:Name="TemplateEditor"
+								FontSize="14"
+								FontFamily="Consolas,Monospace"
+								Background="Transparent"
+								Padding="10,4,10,4"
+								HorizontalScrollBarVisibility="Hidden"
+								VerticalScrollBarVisibility="Hidden"
+								WordWrap="False"
+								ShowLineNumbers="False" />
+						</Border>
+						<Button Grid.Column="1"
+						        Content="Reset"
+						        Command="{Binding ResetTemplateCommand}"
+						        Margin="8,0,0,0"
+						        Width="60"
+						        Height="36"
+						        Background="#444444"
+						        Foreground="#FFFFFF"
+						        BorderThickness="0"
+						        CornerRadius="6"
+						        Classes="resetButton" />
+					</Grid>
+					<TextBlock Text="{Binding TemplateError}"
+					           IsVisible="{Binding HasTemplateError}"
+					           Foreground="#FF4444"
+					           FontSize="11"
+					           TextWrapping="Wrap" />
+				</StackPanel>
 
-			<StackPanel Spacing="6">
-				<TextBlock Text="Announcement Template"
-				           FontSize="16"
-				           FontWeight="Bold"
-				           Foreground="#FFFFFF" />
-				<TextBlock FontSize="12"
-				           Foreground="#AAAAAA"
-				           TextWrapping="Wrap">
-					<Run Text="Tokens: " />
-					<Run Text="{}{title}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
-					<Run Text="  " FontFamily="Consolas,Monospace" />
-					<Run Text="{}{artist}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
-					<Run Text="  " FontFamily="Consolas,Monospace" />
-					<Run Text="{}{album}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
-					<Run Text="  " FontFamily="Consolas,Monospace" />
-					<Run Text="{}{year}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
-					<Run Text="  " FontFamily="Consolas,Monospace" />
-					<Run Text="{}{genre}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
-				</TextBlock>
-				<TextBlock FontSize="12"
-				           Foreground="#AAAAAA"
-				           TextWrapping="Wrap">
-					<Run Text="Optional: " />
-					<Run Text="[token?" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
-					<Run Text="," FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
-					<Run Text="text" FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
-					<Run Text="]" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
-					<Run Text=" shows only when that token has a value  ·  e.g. " />
-					<Run Text="[year?" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
-					<Run Text="," FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
-					<Run Text=" released in " FontFamily="Consolas,Monospace" Foreground="#FFFFFF" />
-					<Run Text="{}{year}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
-					<Run Text="]" FontFamily="Consolas,Monospace" Foreground="#4EC9B0" />
-				</TextBlock>
-				<Grid ColumnDefinitions="*,Auto">
-					<Border Grid.Column="0"
-					        Background="#1E1E1E"
-					        BorderBrush="#777777"
-					        BorderThickness="1"
-					        CornerRadius="6"
-					        Height="36"
-					        ClipToBounds="True">
-						<avaloniaEdit:TextEditor
-							x:Name="TemplateEditor"
-							FontSize="14"
-							FontFamily="Consolas,Monospace"
-							Background="Transparent"
-							Padding="10,4,10,4"
-							HorizontalScrollBarVisibility="Hidden"
-							VerticalScrollBarVisibility="Hidden"
-							WordWrap="False"
-							ShowLineNumbers="False" />
-					</Border>
-					<Button Grid.Column="1"
-					        Content="Reset"
-					        Command="{Binding ResetTemplateCommand}"
-					        Margin="8,0,0,0"
-					        Width="60"
+				<!-- AI Prompt (visible only in AI mode) -->
+				<StackPanel Spacing="6" IsVisible="{Binding IsAiMode}">
+					<TextBlock Text="AI Prompt"
+					           FontSize="16"
+					           FontWeight="Bold"
+					           Foreground="#FFFFFF" />
+					<TextBlock FontSize="12"
+					           Foreground="#AAAAAA"
+					           TextWrapping="Wrap">
+						<Run Text="Prompt sent to Ollama. Use " />
+						<Run Text="{}{context}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+						<Run Text=" where track info should appear." />
+					</TextBlock>
+				<Border Background="#1E1E1E"
+				        BorderBrush="#777777"
+				        BorderThickness="1"
+				        CornerRadius="6"
+				        Height="80"
+				        ClipToBounds="True">
+					<avaloniaEdit:TextEditor
+						x:Name="AiPromptEditor"
+						FontSize="13"
+						FontFamily="Consolas,Monospace"
+						Background="Transparent"
+						Padding="10,6,10,6"
+						HorizontalScrollBarVisibility="Hidden"
+						VerticalScrollBarVisibility="Auto"
+						WordWrap="True"
+						ShowLineNumbers="False" />
+				</Border>
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBlock Grid.Column="0"
+						           Text="{Binding AiPromptError}"
+						           IsVisible="{Binding HasAiPromptError}"
+						           Foreground="#FF4444"
+						           FontSize="11"
+						           TextWrapping="Wrap"
+						           VerticalAlignment="Center" />
+						<Button Grid.Column="1"
+						        Content="Reset"
+						        Command="{Binding ResetAiPromptCommand}"
+						        Width="60"
+						        Height="36"
+						        Background="#444444"
+						        Foreground="#FFFFFF"
+						        BorderThickness="0"
+						        CornerRadius="6"
+						        Classes="resetButton" />
+					</Grid>
+				</StackPanel>
+
+				<!-- Preview -->
+				<StackPanel Spacing="6">
+					<TextBlock Text="{Binding TemplateSample, StringFormat='Sample: {0}'}"
+					           IsVisible="{Binding !IsAiMode}"
+					           FontSize="12"
+					           Foreground="#888888"
+					           FontStyle="Italic"
+					           TextWrapping="Wrap" />
+					<Grid ColumnDefinitions="*,Auto">
+						<Button Grid.Column="0"
+						        Command="{Binding PreviewCommand}"
+						        Content="{Binding PreviewButtonLabel}"
+						        HorizontalAlignment="Stretch"
+						        HorizontalContentAlignment="Center"
+						        Height="36"
+						        Background="#336655"
+						        Foreground="#FFFFFF"
+						        BorderThickness="0"
+						        CornerRadius="6"
+						        FontSize="13"
+						        Classes="previewButton" />
+						<Button Grid.Column="1"
+						        Command="{Binding CancelPreviewCommand}"
+						        Content="Cancel"
+						        IsVisible="{Binding IsPreviewActive}"
+						        Width="80"
+						        Height="36"
+						        Margin="8,0,0,0"
+						        Background="#774444"
+						        Foreground="#FFFFFF"
+						        BorderThickness="0"
+						        CornerRadius="6"
+						        Classes="cancelPreviewButton" />
+					</Grid>
+					<TextBlock Text="For live radio, aim for under 5 seconds. Simpler prompts and smaller models respond faster."
+					           FontSize="11"
+					           Foreground="#666666"
+					           TextWrapping="Wrap" />
+					<TextBlock Text="{Binding PreviewError}"
+					           IsVisible="{Binding HasPreviewError}"
+					           Foreground="#FF4444"
+					           FontSize="12"
+					           TextWrapping="Wrap" />
+				</StackPanel>
+
+				<!-- Save / Cancel -->
+				<StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+					<Button Content="Cancel"
+					        Command="{Binding CancelCommand}"
+					        Width="100"
 					        Height="36"
 					        Background="#444444"
 					        Foreground="#FFFFFF"
 					        BorderThickness="0"
 					        CornerRadius="6"
-					        Classes="resetButton" />
-				</Grid>
-				<Grid ColumnDefinitions="*,Auto">
-					<TextBlock Grid.Column="0"
-					           Text="{Binding TemplateSample, StringFormat='Sample: {0}'}"
-					           FontSize="12"
-					           Foreground="#888888"
-					           FontStyle="Italic"
-					           TextWrapping="Wrap"
-					           VerticalAlignment="Center" />
-					<Button Grid.Column="1"
-					        Command="{Binding SpeakPreviewCommand}"
-					        Margin="8,0,0,0"
-					        Width="80"
-					        Height="30"
-					        Background="#336655"
+					        Classes="cancelButton" />
+					<Button Content="Save"
+					        Command="{Binding SaveCommand}"
+					        Width="100"
+					        Height="36"
+					        Background="#FF6B35"
 					        Foreground="#FFFFFF"
 					        BorderThickness="0"
 					        CornerRadius="6"
-					        FontSize="12"
-					        Classes="hearButton">
-						<Panel>
-							<TextBlock Text="Hear it"
-							           IsVisible="{Binding !IsTtsPreviewing}"
-							           HorizontalAlignment="Center"
-							           VerticalAlignment="Center" />
-							<TextBlock Text="Speaking…"
-							           IsVisible="{Binding IsTtsPreviewing}"
-							           HorizontalAlignment="Center"
-							           VerticalAlignment="Center" />
-						</Panel>
-					</Button>
-				</Grid>
-			</StackPanel>
+					        Classes="saveButton" />
+				</StackPanel>
 
-			<StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
-				<Button Content="Cancel"
-				        Command="{Binding CancelCommand}"
-				        Width="100"
-				        Height="36"
-				        Background="#444444"
-				        Foreground="#FFFFFF"
-				        BorderThickness="0"
-				        CornerRadius="6"
-				        Classes="cancelButton" />
-				<Button Content="Save"
-				        Command="{Binding SaveCommand}"
-				        Width="100"
-				        Height="36"
-				        Background="#FF6B35"
-				        Foreground="#FFFFFF"
-				        BorderThickness="0"
-				        CornerRadius="6"
-				        Classes="saveButton" />
 			</StackPanel>
-
-		</StackPanel>
-	</Border>
+		</Border>
+	</ScrollViewer>
 
 	<Window.Styles>
 		<Style Selector="Button.saveButton:pointerover /template/ ContentPresenter">
@@ -229,15 +339,24 @@
 		<Style Selector="Button.resetButton:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#333333" />
 		</Style>
-		<Style Selector="Button.hearButton:pointerover /template/ ContentPresenter">
+		<Style Selector="Button.previewButton:pointerover /template/ ContentPresenter">
 			<Setter Property="Background" Value="#448866" />
 		</Style>
-		<Style Selector="Button.hearButton:pressed /template/ ContentPresenter">
+		<Style Selector="Button.previewButton:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#224433" />
 		</Style>
-		<Style Selector="Button.hearButton:disabled /template/ ContentPresenter">
+		<Style Selector="Button.previewButton:disabled /template/ ContentPresenter">
 			<Setter Property="Background" Value="#224433" />
 			<Setter Property="Foreground" Value="#888888" />
+		</Style>
+		<Style Selector="Button.cancelPreviewButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#994444" />
+		</Style>
+		<Style Selector="Button.cancelPreviewButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#552222" />
+		</Style>
+		<Style Selector="RadioButton">
+			<Setter Property="Foreground" Value="#FFFFFF" />
 		</Style>
 	</Window.Styles>
 

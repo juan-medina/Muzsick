@@ -57,7 +57,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private CancellationTokenSource _trackCts = new();
 	private CancellationTokenSource _voiceoverCts = new();
 	private byte[]? _lastAnnouncementWav;
-	private readonly ICommentaryGenerator _commentaryGenerator;
+	private ICommentaryGenerator _commentaryGenerator;
+	private bool _isConfigOpen;
 
 	public MainWindowViewModel()
 	{
@@ -211,9 +212,22 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	{
 		if (_mainWindow == null) return;
 
+		_isConfigOpen = true;
+		_voiceoverCts.Cancel();
+
 		var voices = (_ttsBackend as KokoroTtsBackend)?.AvailableVoices ?? new Dictionary<string, VoiceInfo>();
 		var configWindow = new ConfigWindow(isFirstRun: false, voices, _ttsBackend, _audioMixer);
-		await configWindow.ShowDialog<bool>(_mainWindow);
+		var saved = await configWindow.ShowDialog<bool>(_mainWindow);
+
+		_isConfigOpen = false;
+
+		if (saved)
+		{
+			_commentaryGenerator = App.Settings.CommentaryMode == CommentaryMode.Ai
+				? new OllamaCommentaryGenerator(App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>())
+				: new TemplateCommentaryGenerator();
+			UpdateMessage = null;
+		}
 	}
 
 	[RelayCommand]
@@ -282,11 +296,27 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			TrackLastFmUrl = BuildLastFmTrackUrl(enriched.Artist, enriched.Title);
 
 			// §5.6 — wait before generating commentary to avoid interrupting the song intro.
+			// Also skip commentary entirely while the settings window is open.
+			if (_isConfigOpen) return;
 			await Task.Delay(TimeSpan.FromSeconds(3), token);
 
 			if (token.IsCancellationRequested) return;
 
-			var announcement = await _commentaryGenerator.GenerateAsync(enriched, token);
+			string? announcement;
+			try
+			{
+				announcement = await _commentaryGenerator.GenerateAsync(enriched, token);
+			}
+			catch (TimeoutException)
+			{
+				announcement = null;
+			}
+			catch (HttpRequestException ex)
+			{
+				App.LoggerFactory?.CreateLogger("MainWindowViewModel")
+					.LogWarning("Ollama unreachable during track change: {Message}", ex.Message);
+				announcement = null;
+			}
 
 			// AI mode: if Ollama failed (returned null), fall back to template and warn the user.
 			if (announcement == null)

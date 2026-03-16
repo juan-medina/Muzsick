@@ -35,6 +35,10 @@ public class OllamaCommentaryGenerator(ILogger<OllamaCommentaryGenerator>? logge
 			["prompt"] = prompt,
 			["stream"] = false,
 			["think"] = false,
+			["options"] = new JsonObject
+			{
+				["seed"] = Random.Shared.Next(),
+			},
 		};
 
 		using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -73,26 +77,21 @@ public class OllamaCommentaryGenerator(ILogger<OllamaCommentaryGenerator>? logge
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
 			logger?.LogWarning("Ollama: timed out after {Timeout}s", _timeout.TotalSeconds);
-			return null;
+			throw new TimeoutException($"Ollama request timed out after {_timeout.TotalSeconds}s.");
 		}
 		catch (OperationCanceledException)
 		{
 			logger?.LogDebug("Ollama: request cancelled (track change or shutdown)");
 			throw;
 		}
-		catch (HttpRequestException ex)
-		{
-			logger?.LogWarning("Ollama: HTTP error — {Message}", ex.Message);
-			return null;
-		}
-		catch (Exception ex)
+		catch (Exception ex) when (ex is not HttpRequestException)
 		{
 			logger?.LogWarning("Ollama: unexpected error — {Type}: {Message}", ex.GetType().Name, ex.Message);
 			return null;
 		}
 	}
 
-	private static string BuildPrompt(TrackInfo track)
+	private string BuildPrompt(TrackInfo track)
 	{
 		var parts = new List<string>();
 		if (!string.IsNullOrEmpty(track.Title)) parts.Add($"title: {track.Title}");
@@ -102,10 +101,7 @@ public class OllamaCommentaryGenerator(ILogger<OllamaCommentaryGenerator>? logge
 		if (!string.IsNullOrEmpty(track.Genre)) parts.Add($"genre: {track.Genre}");
 
 		var context = string.Join(", ", parts);
-
-		return $"You are an enthusiastic radio DJ. Give a single sentence on-air intro for the next song. " +
-		       $"Track info: {context}. " +
-		       $"Respond with only the intro sentence, nothing else.";
+		return App.Settings.AiPrompt.Replace("{context}", context);
 	}
 
 

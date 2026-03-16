@@ -40,4 +40,11 @@ public class AppSettings
 	/// Whether to use template-based or AI-generated commentary.
 	/// </summary>
 	public CommentaryMode CommentaryMode { get; set; } = CommentaryMode.Ai;
+
+	/// <summary>
+	/// System prompt sent to the AI model. {context} is replaced with track metadata at runtime.
+	/// </summary>
+	public string AiPrompt { get; set; } =
+		"You are an enthusiastic radio DJ. Give a single sentence on-air intro for the next song. " +
+		"Track info: {context}. Respond with only the intro sentence, nothing else.";
 }

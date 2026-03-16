@@ -15,6 +15,7 @@ namespace Muzsick.Views;
 public partial class ConfigWindow : Window
 {
 	private readonly TextEditor? _templateEditor;
+	private readonly TextEditor? _aiPromptEditor;
 
 	public ConfigWindow(
 		bool isFirstRun,
@@ -26,7 +27,7 @@ public partial class ConfigWindow : Window
 		DataContext = vm;
 		InitializeComponent();
 		vm.SetWindow(this);
-		Closing += (_, _) => vm.CancelPreview();
+		Closing += (_, _) => vm.AbortPreview();
 
 		_templateEditor = this.FindControl<TextEditor>("TemplateEditor");
 		if (_templateEditor != null)
@@ -49,6 +50,31 @@ public partial class ConfigWindow : Window
 					if (e.PropertyName == nameof(vm.AnnouncementTemplate)
 					    && _templateEditor.Text != vm.AnnouncementTemplate)
 						_templateEditor.Text = vm.AnnouncementTemplate;
+				};
+			};
+		}
+
+		_aiPromptEditor = this.FindControl<TextEditor>("AiPromptEditor");
+		if (_aiPromptEditor != null)
+		{
+			_aiPromptEditor.AttachedToVisualTree += (_, _) =>
+			{
+				_aiPromptEditor.TextArea.Foreground = Brushes.White;
+				_aiPromptEditor.TextArea.TextView.LineTransformers.Add(new AiPromptHighlightRenderer());
+
+				_aiPromptEditor.Text = vm.AiPrompt;
+
+				_aiPromptEditor.TextChanged += (_, _) =>
+				{
+					if (vm.AiPrompt != _aiPromptEditor.Text)
+						vm.AiPrompt = _aiPromptEditor.Text;
+				};
+
+				vm.PropertyChanged += (_, e) =>
+				{
+					if (e.PropertyName == nameof(vm.AiPrompt)
+					    && _aiPromptEditor.Text != vm.AiPrompt)
+						_aiPromptEditor.Text = vm.AiPrompt;
 				};
 			};
 		}

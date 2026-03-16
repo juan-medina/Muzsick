@@ -110,6 +110,17 @@ public partial class ConfigWindowViewModel(
 	[NotifyPropertyChangedFor(nameof(PreviewButtonLabel))]
 	private double _previewElapsedSeconds;
 
+	// Nav selection — drives which section is visible in the right panel
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsTrackInfoSection))]
+	[NotifyPropertyChangedFor(nameof(IsCommentarySection))]
+	[NotifyPropertyChangedFor(nameof(IsAiProviderSection))]
+	private int _selectedNavIndex = 0;
+
+	public bool IsTrackInfoSection => SelectedNavIndex == 0;
+	public bool IsCommentarySection => SelectedNavIndex == 1;
+	public bool IsAiProviderSection => SelectedNavIndex == 2;
+
 	private double _previewTotalSeconds;
 
 	// --- Computed properties ---
@@ -195,6 +206,9 @@ public partial class ConfigWindowViewModel(
 
 	[RelayCommand]
 	private void ResetAiPrompt() => AiPrompt = AppSettings.DefaultAiPrompt;
+
+	[RelayCommand]
+	private void GoToAiProvider() => SelectedNavIndex = 2;
 
 	partial void OnOllamaUrlChanged(string value) => OllamaCheckState = OllamaCheckState.Idle;
 
@@ -439,4 +453,7 @@ public partial class ConfigWindowViewModel(
 			_window?.Close(false);
 		}
 	}
+
+	[RelayCommand]
+	private void GoToCommentary() => SelectedNavIndex = 1;
 }

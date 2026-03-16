@@ -58,4 +58,24 @@ public class AppSettings
 	/// System prompt sent to the AI model. {context} is replaced with track metadata at runtime.
 	/// </summary>
 	public string AiPrompt { get; set; } = DefaultAiPrompt;
+
+	/// <summary>
+	/// Default Ollama base URL.
+	/// </summary>
+	public const string DefaultOllamaUrl = "http://localhost:11434";
+
+	/// <summary>
+	/// Base URL of the Ollama instance.
+	/// </summary>
+	public string OllamaUrl { get; set; } = DefaultOllamaUrl;
+
+	/// <summary>
+	/// Default Ollama model identifier.
+	/// </summary>
+	public const string DefaultOllamaModel = "gemma3:4b";
+
+	/// <summary>
+	/// Ollama model used for AI commentary generation.
+	/// </summary>
+	public string OllamaModel { get; set; } = DefaultOllamaModel;
 }

@@ -16,14 +16,14 @@ namespace Muzsick.Commentary;
 
 public class OllamaCommentaryGenerator(ILogger<OllamaCommentaryGenerator>? logger = null) : ICommentaryGenerator
 {
-	private const string _baseUrl = "http://localhost:11434";
-	private const string _model = "gemma3:4b";
 	private static readonly TimeSpan _timeout = TimeSpan.FromSeconds(45);
 
 	private readonly HttpClient _httpClient = new() { Timeout = Timeout.InfiniteTimeSpan };
 
 	public async Task<string?> GenerateAsync(TrackInfo track, CancellationToken cancellationToken)
 	{
+		var baseUrl = App.Settings.OllamaUrl;
+		var model = App.Settings.OllamaModel;
 		var prompt = BuildPrompt(track);
 		logger?.LogDebug("Ollama: sending request for '{Title}' by '{Artist}'", track.Title, track.Artist);
 		logger?.LogDebug("Ollama: cancellationToken already cancelled = {Val}",
@@ -31,7 +31,7 @@ public class OllamaCommentaryGenerator(ILogger<OllamaCommentaryGenerator>? logge
 
 		var request = new JsonObject
 		{
-			["model"] = _model,
+			["model"] = model,
 			["prompt"] = prompt,
 			["stream"] = false,
 			["think"] = false,
@@ -46,9 +46,9 @@ public class OllamaCommentaryGenerator(ILogger<OllamaCommentaryGenerator>? logge
 
 		try
 		{
-			logger?.LogDebug("Ollama: posting to {BaseUrl}/api/generate", _baseUrl);
+			logger?.LogDebug("Ollama: posting to {BaseUrl}/api/generate", baseUrl);
 			var response = await _httpClient.PostAsJsonAsync(
-				$"{_baseUrl}/api/generate", request, cts.Token);
+				$"{baseUrl}/api/generate", request, cts.Token);
 
 			logger?.LogDebug("Ollama: HTTP {StatusCode}", response.StatusCode);
 			response.EnsureSuccessStatusCode();

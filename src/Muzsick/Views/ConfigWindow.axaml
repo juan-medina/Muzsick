@@ -260,6 +260,15 @@
 					                 FontSize="12"
 					                 Foreground="#FF6B35"
 					                 Padding="0" />
+					<TextBlock Text="ℹ Only Ollama (local) is supported in this version. Cloud providers (OpenAI, Gemini, Claude) are coming in a future release."
+					           FontSize="12"
+					           Foreground="#AAAAAA"
+					           TextWrapping="Wrap" />
+					<TextBlock Text="⚠ AI-generated commentary may contain inaccurate or fabricated information. This is more common with smaller local models than with large cloud models."
+					           FontSize="12"
+					           Foreground="#888888"
+					           FontStyle="Italic"
+					           TextWrapping="Wrap" />
 
 					<TextBlock Text="Server URL"
 					           FontSize="12"

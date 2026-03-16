@@ -54,6 +54,7 @@ public class OllamaCommentaryGenerator(ILogger<OllamaCommentaryGenerator>? logge
 			response.EnsureSuccessStatusCode();
 
 			var result = await response.Content.ReadFromJsonAsync<OllamaGenerateResponse>(cts.Token);
+			logger?.LogDebug("Ollama: raw response = {Raw}", result?.Response);
 			var content = result?.Response?.Trim();
 			if (content != null)
 			{

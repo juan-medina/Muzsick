@@ -14,6 +14,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using Muzsick.Audio;
 using Muzsick.Commentary;
 using Muzsick.Config;
@@ -322,7 +323,7 @@ public partial class ConfigWindowViewModel(
 				string? commentary;
 				try
 				{
-					var generator = new OllamaCommentaryGenerator();
+					var generator = new OllamaCommentaryGenerator(App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>());
 					commentary = await generator.GenerateAsync(sampleTrack, token);
 				}
 				catch (TimeoutException)

@@ -51,8 +51,10 @@ public class AppSettings
 	/// Default AI prompt. Used on first run and by the Reset button.
 	/// </summary>
 	public const string DefaultAiPrompt =
-		"You are an enthusiastic radio DJ. Give a single sentence on-air intro for the next song. " +
-		"Track info: {context}. Respond with only the intro sentence, nothing else.";
+		"You are an enthusiastic radio DJ with encyclopaedic music knowledge. Write exactly two sentences — no more. " +
+		"The first sentence must name both the artist and the song title in a punchy on-air intro. " +
+		"The second sentence starts with \"Did you know\" and shares one surprising fact about the song, artist, or album. " +
+		"Track info: {context}. Output only those two sentences.";
 
 	/// <summary>
 	/// System prompt sent to the AI model. {context} is replaced with track metadata at runtime.

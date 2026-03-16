@@ -20,6 +20,7 @@
 
 	<ItemGroup>
 		<AvaloniaResource Include="Assets\**"/>
+		<EmbeddedResource Include="prompt-library.json"/>
 	</ItemGroup>
 
 	<!-- Bump build number on every local build. Disabled on CI via -p:EnableVersionBump=false -->

@@ -42,6 +42,23 @@ public enum OllamaCheckState
 	Failed,
 }
 
+public enum LastFmCheckState
+{
+	Idle,
+	Checking,
+	Ok,
+	Failed,
+}
+
+public enum VoiceTestState
+{
+	Idle,
+	Synthesising,
+	Playing,
+	Done,
+	Failed,
+}
+
 
 public partial class ConfigWindowViewModel(
 	bool isFirstRun,
@@ -50,6 +67,33 @@ public partial class ConfigWindowViewModel(
 	AudioMixer audioMixer)
 	: ViewModelBase
 {
+	// ── Nav ─────────────────────────────────────────────────────────────────
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsTrackInfoSection))]
+	[NotifyPropertyChangedFor(nameof(IsVoiceSection))]
+	[NotifyPropertyChangedFor(nameof(IsCommentarySection))]
+	[NotifyPropertyChangedFor(nameof(IsAiProviderSection))]
+	[NotifyPropertyChangedFor(nameof(IsAiPromptSection))]
+	private int _selectedNavIndex = 0;
+
+	public bool IsTrackInfoSection => SelectedNavIndex == 0;
+	public bool IsVoiceSection => SelectedNavIndex == 1;
+	public bool IsCommentarySection => SelectedNavIndex == 2;
+	public bool IsAiProviderSection => SelectedNavIndex == 3;
+	public bool IsAiPromptSection => SelectedNavIndex == 4;
+
+	[RelayCommand]
+	private void GoToAiProvider() => SelectedNavIndex = 3;
+
+	[RelayCommand]
+	private void GoToAiPrompt() => SelectedNavIndex = 4;
+
+	[RelayCommand]
+	private void GoToCommentary() => SelectedNavIndex = 2;
+
+	// ── Settings fields ──────────────────────────────────────────────────────
+
 	[ObservableProperty]
 	[NotifyPropertyChangedFor(nameof(ApiKeyError))]
 	[NotifyPropertyChangedFor(nameof(HasApiKeyError))]
@@ -85,45 +129,7 @@ public partial class ConfigWindowViewModel(
 	[NotifyPropertyChangedFor(nameof(OllamaModelMissingMessage))]
 	private string _ollamaModel = App.Settings.OllamaModel;
 
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(IsOllamaCheckOk))]
-	[NotifyPropertyChangedFor(nameof(IsOllamaModelMissing))]
-	[NotifyPropertyChangedFor(nameof(IsOllamaCheckFailed))]
-	[NotifyPropertyChangedFor(nameof(IsOllamaChecking))]
-	[NotifyCanExecuteChangedFor(nameof(CheckOllamaCommand))]
-	private OllamaCheckState _ollamaCheckState = OllamaCheckState.Idle;
-
-	[ObservableProperty] private string _templateSample = "";
-
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(PreviewButtonLabel))]
-	[NotifyPropertyChangedFor(nameof(IsPreviewActive))]
-	[NotifyCanExecuteChangedFor(nameof(PreviewCommand))]
-	[NotifyCanExecuteChangedFor(nameof(CancelPreviewCommand))]
-	private PreviewState _currentPreviewState = PreviewState.Idle;
-
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(HasPreviewError))]
-	private string? _previewError;
-
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(PreviewButtonLabel))]
-	private double _previewElapsedSeconds;
-
-	// Nav selection — drives which section is visible in the right panel
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(IsTrackInfoSection))]
-	[NotifyPropertyChangedFor(nameof(IsCommentarySection))]
-	[NotifyPropertyChangedFor(nameof(IsAiProviderSection))]
-	private int _selectedNavIndex = 0;
-
-	public bool IsTrackInfoSection => SelectedNavIndex == 0;
-	public bool IsCommentarySection => SelectedNavIndex == 1;
-	public bool IsAiProviderSection => SelectedNavIndex == 2;
-
-	private double _previewTotalSeconds;
-
-	// --- Computed properties ---
+	// ── Computed settings properties ─────────────────────────────────────────
 
 	public bool IsAiMode => CommentaryMode == CommentaryMode.Ai;
 
@@ -138,9 +144,6 @@ public partial class ConfigWindowViewModel(
 		get => CommentaryMode == CommentaryMode.Ai;
 		set { if (value) CommentaryMode = CommentaryMode.Ai; }
 	}
-
-	public bool IsPreviewActive => CurrentPreviewState is
-		PreviewState.Generating or PreviewState.Synthesising or PreviewState.Playing;
 
 	public string? ApiKeyError => string.IsNullOrWhiteSpace(ApiKey)
 		? "An API key is required to load track metadata."
@@ -157,7 +160,143 @@ public partial class ConfigWindowViewModel(
 	public bool HasApiKeyError => ApiKeyError != null;
 	public bool HasTemplateError => TemplateError != null;
 	public bool HasAiPromptError => AiPromptError != null;
-	public bool HasPreviewError => !string.IsNullOrEmpty(PreviewError);
+
+	[ObservableProperty] private string _templateSample = "";
+
+	// ── Prompt library ───────────────────────────────────────────────────────
+
+
+	public IReadOnlyList<PromptLibraryEntry> PromptLibrary { get; } = Commentary.PromptLibrary.Entries;
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsPromptLibraryOpen))]
+	private bool _promptLibraryVisible = false;
+
+	public bool IsPromptLibraryOpen => PromptLibraryVisible;
+
+	[RelayCommand]
+	private void TogglePromptLibrary() => PromptLibraryVisible = !PromptLibraryVisible;
+
+	[RelayCommand]
+	private void LoadPrompt(PromptLibraryEntry entry)
+	{
+		AiPrompt = entry.Prompt;
+		PromptLibraryVisible = false;
+	}
+
+	// ── Last.fm check ────────────────────────────────────────────────────────
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsLastFmCheckOk))]
+	[NotifyPropertyChangedFor(nameof(IsLastFmCheckFailed))]
+	[NotifyPropertyChangedFor(nameof(IsLastFmChecking))]
+	[NotifyCanExecuteChangedFor(nameof(CheckLastFmCommand))]
+	private LastFmCheckState _lastFmCheckState = LastFmCheckState.Idle;
+
+	public bool IsLastFmCheckOk => LastFmCheckState == LastFmCheckState.Ok;
+	public bool IsLastFmCheckFailed => LastFmCheckState == LastFmCheckState.Failed;
+	public bool IsLastFmChecking => LastFmCheckState == LastFmCheckState.Checking;
+
+	private bool CanCheckLastFm() => LastFmCheckState != LastFmCheckState.Checking
+	                                  && !string.IsNullOrWhiteSpace(ApiKey);
+
+	[RelayCommand(CanExecute = nameof(CanCheckLastFm))]
+	private async Task CheckLastFm()
+	{
+		LastFmCheckState = LastFmCheckState.Checking;
+		try
+		{
+			using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+			using var client = new HttpClient();
+			var url = $"https://ws.audioscrobbler.com/2.0/?method=chart.gettoptracks&api_key={ApiKey.Trim()}&format=json&limit=1";
+			var response = await client.GetAsync(url, cts.Token);
+			var json = await response.Content.ReadAsStringAsync(cts.Token);
+			var node = JsonNode.Parse(json);
+			LastFmCheckState = node?["error"] == null
+				? LastFmCheckState.Ok
+				: LastFmCheckState.Failed;
+		}
+		catch
+		{
+			LastFmCheckState = LastFmCheckState.Failed;
+		}
+	}
+
+	// ── Voice test ───────────────────────────────────────────────────────────
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(VoiceTestButtonLabel))]
+	[NotifyPropertyChangedFor(nameof(IsVoiceTesting))]
+	[NotifyCanExecuteChangedFor(nameof(TestVoiceCommand))]
+	private VoiceTestState _voiceTestState = VoiceTestState.Idle;
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(HasVoiceTestError))]
+	private string? _voiceTestError;
+
+	public bool IsVoiceTesting => VoiceTestState is VoiceTestState.Synthesising or VoiceTestState.Playing;
+	public bool HasVoiceTestError => !string.IsNullOrEmpty(VoiceTestError);
+
+	public string VoiceTestButtonLabel => VoiceTestState switch
+	{
+		VoiceTestState.Synthesising => "Synthesising…",
+		VoiceTestState.Playing => "Playing…",
+		VoiceTestState.Done => "Played",
+		VoiceTestState.Failed => "Failed",
+		_ => "Hear Voice",
+	};
+
+	private CancellationTokenSource _voiceTestCts = new();
+
+	private bool CanTestVoice() => VoiceTestState is not (VoiceTestState.Synthesising or VoiceTestState.Playing);
+
+	[RelayCommand(CanExecute = nameof(CanTestVoice))]
+	private async Task TestVoice()
+	{
+		await _voiceTestCts.CancelAsync();
+		_voiceTestCts.Dispose();
+		_voiceTestCts = new CancellationTokenSource();
+		var token = _voiceTestCts.Token;
+
+		VoiceTestError = null;
+		VoiceTestState = VoiceTestState.Synthesising;
+
+		try
+		{
+			var voice = SelectedVoice?.Id ?? App.Settings.TtsVoice;
+			var wavBytes = await ttsBackend.SynthesizeAsync(
+				"You're listening to Muzsick — enjoy the music.", voice, token);
+
+			if (token.IsCancellationRequested) return;
+
+			if (wavBytes is not { Length: > 0 })
+			{
+				VoiceTestError = "Voice synthesis failed. Check the TTS model is installed.";
+				VoiceTestState = VoiceTestState.Failed;
+				return;
+			}
+
+			VoiceTestState = VoiceTestState.Playing;
+			await audioMixer.PlayVoiceoverAsync(wavBytes, token);
+
+			if (!token.IsCancellationRequested)
+				VoiceTestState = VoiceTestState.Done;
+		}
+		catch (OperationCanceledException)
+		{
+			VoiceTestState = VoiceTestState.Idle;
+		}
+	}
+
+	// ── Ollama check ─────────────────────────────────────────────────────────
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsOllamaCheckOk))]
+	[NotifyPropertyChangedFor(nameof(IsOllamaModelMissing))]
+	[NotifyPropertyChangedFor(nameof(IsOllamaCheckFailed))]
+	[NotifyPropertyChangedFor(nameof(IsOllamaChecking))]
+	[NotifyCanExecuteChangedFor(nameof(CheckOllamaCommand))]
+	private OllamaCheckState _ollamaCheckState = OllamaCheckState.Idle;
 
 	public bool IsOllamaCheckOk => OllamaCheckState == OllamaCheckState.Ok;
 	public bool IsOllamaModelMissing => OllamaCheckState == OllamaCheckState.ModelMissing;
@@ -167,14 +306,221 @@ public partial class ConfigWindowViewModel(
 	public string OllamaModelMissingMessage =>
 		$"✗ Model \"{OllamaModel}\" not found — run: ollama pull {OllamaModel}";
 
+	partial void OnOllamaUrlChanged(string value) => OllamaCheckState = OllamaCheckState.Idle;
+
+	private bool CanCheckOllama() => OllamaCheckState != OllamaCheckState.Checking;
+
+	[RelayCommand(CanExecute = nameof(CanCheckOllama))]
+	private async Task CheckOllama()
+	{
+		OllamaCheckState = OllamaCheckState.Checking;
+		try
+		{
+			using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+			using var client = new HttpClient();
+			var response = await client.GetAsync($"{OllamaUrl.TrimEnd('/')}/api/tags", cts.Token);
+
+			if (!response.IsSuccessStatusCode)
+			{
+				OllamaCheckState = OllamaCheckState.Failed;
+				return;
+			}
+
+			var modelToFind = OllamaModel.Trim();
+			if (!modelToFind.Contains(':'))
+				modelToFind += ":latest";
+
+			var json = await response.Content.ReadAsStringAsync(cts.Token);
+			var node = JsonNode.Parse(json);
+			var available = node?["models"]?.AsArray()
+				.Select(m => m?["name"]?.GetValue<string>() ?? "")
+				.ToList() ?? [];
+
+			OllamaCheckState = available.Any(m =>
+				string.Equals(m, modelToFind, StringComparison.OrdinalIgnoreCase))
+				? OllamaCheckState.Ok
+				: OllamaCheckState.ModelMissing;
+		}
+		catch
+		{
+			OllamaCheckState = OllamaCheckState.Failed;
+		}
+	}
+
+	// ── Bottom bar Preview ───────────────────────────────────────────────────
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(PreviewButtonLabel))]
+	[NotifyPropertyChangedFor(nameof(IsPreviewActive))]
+	[NotifyCanExecuteChangedFor(nameof(PreviewCommand))]
+	[NotifyCanExecuteChangedFor(nameof(CancelPreviewCommand))]
+	private PreviewState _currentPreviewState = PreviewState.Idle;
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(HasPreviewError))]
+	private string? _previewError;
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(PreviewButtonLabel))]
+	private double _previewElapsedSeconds;
+
+	private double _previewTotalSeconds;
+
+	public bool IsPreviewActive => CurrentPreviewState is
+		PreviewState.Generating or PreviewState.Synthesising or PreviewState.Playing;
+
+	public bool HasPreviewError => !string.IsNullOrEmpty(PreviewError);
+
 	public string PreviewButtonLabel => CurrentPreviewState switch
 	{
 		PreviewState.Generating => $"Generating… {PreviewElapsedSeconds:F1}s",
 		PreviewState.Synthesising => "Synthesising…",
 		PreviewState.Playing => "Playing…",
-		PreviewState.Done => $"Generated in {_previewTotalSeconds:F1}s",
+		PreviewState.Done => $"Done ({_previewTotalSeconds:F1}s)",
 		_ => "Preview",
 	};
+
+	private bool CanPreview() =>
+		CurrentPreviewState is PreviewState.Idle or PreviewState.Done or PreviewState.Failed;
+
+	[RelayCommand(CanExecute = nameof(CanPreview))]
+	private async Task Preview()
+	{
+		await _previewCts.CancelAsync();
+		_previewCts.Dispose();
+		_previewCts = new CancellationTokenSource();
+		var token = _previewCts.Token;
+
+		PreviewError = null;
+		PreviewElapsedSeconds = 0;
+
+		try
+		{
+			if (!IsAiMode)
+			{
+				var sample = TemplateSample;
+				if (string.IsNullOrWhiteSpace(sample)) return;
+
+				CurrentPreviewState = PreviewState.Synthesising;
+				var voice = SelectedVoice?.Id ?? App.Settings.TtsVoice;
+				var wavBytes = await ttsBackend.SynthesizeAsync(sample, voice, token);
+
+				if (token.IsCancellationRequested) return;
+
+				if (wavBytes is not { Length: > 0 })
+				{
+					PreviewError = "Voice synthesis failed.";
+					CurrentPreviewState = PreviewState.Failed;
+					return;
+				}
+
+				CurrentPreviewState = PreviewState.Playing;
+				await audioMixer.PlayVoiceoverAsync(wavBytes, token);
+
+				if (!token.IsCancellationRequested)
+					CurrentPreviewState = PreviewState.Done;
+			}
+			else
+			{
+				CurrentPreviewState = PreviewState.Generating;
+				StartElapsedTimer();
+
+				var sampleTrack = new TrackInfo
+				{
+					Title = "Bohemian Rhapsody",
+					Artist = "Queen",
+					Album = "A Night at the Opera",
+					Year = "1975",
+					Genre = "Rock",
+				};
+
+				var savedPrompt = App.Settings.AiPrompt;
+				var savedUrl = App.Settings.OllamaUrl;
+				var savedModel = App.Settings.OllamaModel;
+				App.Settings.AiPrompt = AiPrompt;
+				App.Settings.OllamaUrl = OllamaUrl;
+				App.Settings.OllamaModel = OllamaModel;
+
+				string? commentary;
+				try
+				{
+					var generator = new OllamaCommentaryGenerator(
+						App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>());
+					commentary = await generator.GenerateAsync(sampleTrack, token);
+				}
+				catch (TimeoutException)
+				{
+					StopElapsedTimer();
+					PreviewError = "AI took too long — try a simpler prompt or smaller model.";
+					CurrentPreviewState = PreviewState.Failed;
+					return;
+				}
+				catch (HttpRequestException)
+				{
+					StopElapsedTimer();
+					PreviewError = "Cannot reach Ollama — check AI Provider settings.";
+					CurrentPreviewState = PreviewState.Failed;
+					return;
+				}
+				finally
+				{
+					App.Settings.AiPrompt = savedPrompt;
+					App.Settings.OllamaUrl = savedUrl;
+					App.Settings.OllamaModel = savedModel;
+				}
+
+				if (token.IsCancellationRequested) return;
+
+				StopElapsedTimer();
+
+				if (string.IsNullOrEmpty(commentary))
+				{
+					PreviewError = "AI returned an empty response. Check your prompt.";
+					CurrentPreviewState = PreviewState.Failed;
+					return;
+				}
+
+				CurrentPreviewState = PreviewState.Synthesising;
+				var voice = SelectedVoice?.Id ?? App.Settings.TtsVoice;
+				var wavBytes = await ttsBackend.SynthesizeAsync(commentary, voice, token);
+
+				if (token.IsCancellationRequested) return;
+
+				if (wavBytes is not { Length: > 0 })
+				{
+					PreviewError = "Voice synthesis failed.";
+					CurrentPreviewState = PreviewState.Failed;
+					return;
+				}
+
+				CurrentPreviewState = PreviewState.Playing;
+				await audioMixer.PlayVoiceoverAsync(wavBytes, token);
+
+				if (!token.IsCancellationRequested)
+					CurrentPreviewState = PreviewState.Done;
+			}
+		}
+		catch (OperationCanceledException)
+		{
+			StopElapsedTimer();
+			CurrentPreviewState = PreviewState.Idle;
+			PreviewError = null;
+		}
+	}
+
+	private bool CanCancelPreview() =>
+		CurrentPreviewState is PreviewState.Generating or PreviewState.Synthesising or PreviewState.Playing;
+
+	[RelayCommand(CanExecute = nameof(CanCancelPreview))]
+	private void CancelPreview()
+	{
+		_previewCts.Cancel();
+		StopElapsedTimer();
+		CurrentPreviewState = PreviewState.Idle;
+		PreviewError = null;
+	}
+
+	// ── Helpers ──────────────────────────────────────────────────────────────
 
 	public IReadOnlyList<VoiceInfo> AvailableVoices { get; } = availableVoices.Values.ToList().AsReadOnly();
 
@@ -207,53 +553,6 @@ public partial class ConfigWindowViewModel(
 	[RelayCommand]
 	private void ResetAiPrompt() => AiPrompt = AppSettings.DefaultAiPrompt;
 
-	[RelayCommand]
-	private void GoToAiProvider() => SelectedNavIndex = 2;
-
-	partial void OnOllamaUrlChanged(string value) => OllamaCheckState = OllamaCheckState.Idle;
-
-	private bool CanCheckOllama() => OllamaCheckState != OllamaCheckState.Checking;
-
-	[RelayCommand(CanExecute = nameof(CanCheckOllama))]
-	private async Task CheckOllama()
-	{
-		OllamaCheckState = OllamaCheckState.Checking;
-		try
-		{
-			using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-			using var client = new HttpClient();
-			var response = await client.GetAsync($"{OllamaUrl.TrimEnd('/')}/api/tags", cts.Token);
-
-			if (!response.IsSuccessStatusCode)
-			{
-				OllamaCheckState = OllamaCheckState.Failed;
-				return;
-			}
-
-			// Normalise: "gemma3" → "gemma3:latest"
-			var modelToFind = OllamaModel.Trim();
-			if (!modelToFind.Contains(':'))
-				modelToFind += ":latest";
-
-			var json = await response.Content.ReadAsStringAsync(cts.Token);
-			var node = JsonNode.Parse(json);
-			var available = node?["models"]?.AsArray()
-				.Select(m => m?["name"]?.GetValue<string>() ?? "")
-				.ToList() ?? [];
-
-			OllamaCheckState = available.Any(m =>
-				string.Equals(m, modelToFind, StringComparison.OrdinalIgnoreCase))
-				? OllamaCheckState.Ok
-				: OllamaCheckState.ModelMissing;
-		}
-		catch
-		{
-			OllamaCheckState = OllamaCheckState.Failed;
-		}
-	}
-
-	// --- Preview state machine ---
-
 	private void StartElapsedTimer()
 	{
 		_previewStopwatch.Restart();
@@ -270,158 +569,16 @@ public partial class ConfigWindowViewModel(
 		_previewStopwatch.Stop();
 	}
 
-	private bool CanPreview() =>
-		CurrentPreviewState is PreviewState.Idle or PreviewState.Done or PreviewState.Failed;
-
-	[RelayCommand(CanExecute = nameof(CanPreview))]
-	private async Task Preview()
-	{
-		await _previewCts.CancelAsync();
-		_previewCts.Dispose();
-		_previewCts = new CancellationTokenSource();
-		var token = _previewCts.Token;
-
-		PreviewError = null;
-		PreviewElapsedSeconds = 0;
-
-		try
-		{
-			if (!IsAiMode)
-			{
-				// Template path
-				var sample = TemplateSample;
-				if (string.IsNullOrWhiteSpace(sample)) return;
-
-				CurrentPreviewState = PreviewState.Synthesising;
-				var voice = SelectedVoice?.Id ?? App.Settings.TtsVoice;
-				var wavBytes = await ttsBackend.SynthesizeAsync(sample, voice, token);
-
-				if (token.IsCancellationRequested) return;
-
-				if (wavBytes is not { Length: > 0 })
-				{
-					PreviewError = "Voice synthesis failed. Check the TTS model is installed.";
-					CurrentPreviewState = PreviewState.Failed;
-					return;
-				}
-
-				CurrentPreviewState = PreviewState.Playing;
-				await audioMixer.PlayVoiceoverAsync(wavBytes, token);
-
-				if (!token.IsCancellationRequested)
-					CurrentPreviewState = PreviewState.Done;
-			}
-			else
-			{
-				// AI path
-				CurrentPreviewState = PreviewState.Generating;
-				StartElapsedTimer();
-
-				var sampleTrack = new TrackInfo
-				{
-					Title = "Bohemian Rhapsody",
-					Artist = "Queen",
-					Album = "A Night at the Opera",
-					Year = "1975",
-					Genre = "Rock",
-				};
-
-				// Temporarily apply the edited (unsaved) settings so the generator picks them up.
-				var savedPrompt = App.Settings.AiPrompt;
-				var savedUrl = App.Settings.OllamaUrl;
-				var savedModel = App.Settings.OllamaModel;
-				App.Settings.AiPrompt = AiPrompt;
-				App.Settings.OllamaUrl = OllamaUrl;
-				App.Settings.OllamaModel = OllamaModel;
-
-				string? commentary;
-				try
-				{
-					var generator = new OllamaCommentaryGenerator(App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>());
-					commentary = await generator.GenerateAsync(sampleTrack, token);
-				}
-				catch (TimeoutException)
-				{
-					StopElapsedTimer();
-					PreviewError = "AI took too long to respond. Try a simpler prompt or smaller model.";
-					CurrentPreviewState = PreviewState.Failed;
-					return;
-				}
-				catch (HttpRequestException)
-				{
-					StopElapsedTimer();
-					PreviewError = "AI unavailable — make sure Ollama is running.";
-					CurrentPreviewState = PreviewState.Failed;
-					return;
-				}
-				finally
-				{
-					App.Settings.AiPrompt = savedPrompt;
-					App.Settings.OllamaUrl = savedUrl;
-					App.Settings.OllamaModel = savedModel;
-				}
-
-				if (token.IsCancellationRequested) return;
-
-				StopElapsedTimer();
-
-				if (string.IsNullOrEmpty(commentary))
-				{
-					PreviewError = "AI returned an empty response. Check your prompt.";
-					CurrentPreviewState = PreviewState.Failed;
-					return;
-				}
-
-				CurrentPreviewState = PreviewState.Synthesising;
-				var voice = SelectedVoice?.Id ?? App.Settings.TtsVoice;
-				var wavBytes = await ttsBackend.SynthesizeAsync(commentary, voice, token);
-
-				if (token.IsCancellationRequested) return;
-
-				if (wavBytes is not { Length: > 0 })
-				{
-					PreviewError = "Voice synthesis failed. Check the TTS model is installed.";
-					CurrentPreviewState = PreviewState.Failed;
-					return;
-				}
-
-				CurrentPreviewState = PreviewState.Playing;
-				await audioMixer.PlayVoiceoverAsync(wavBytes, token);
-
-				if (!token.IsCancellationRequested)
-					CurrentPreviewState = PreviewState.Done;
-			}
-		}
-		catch (OperationCanceledException)
-		{
-			// User cancelled via the Cancel button or window closing.
-			StopElapsedTimer();
-			CurrentPreviewState = PreviewState.Idle;
-			PreviewError = null;
-		}
-	}
-
-	private bool CanCancelPreview() =>
-		CurrentPreviewState is PreviewState.Generating or PreviewState.Synthesising or PreviewState.Playing;
-
-	[RelayCommand(CanExecute = nameof(CanCancelPreview))]
-	private void CancelPreview()
-	{
-		_previewCts.Cancel();
-		StopElapsedTimer();
-		CurrentPreviewState = PreviewState.Idle;
-		PreviewError = null;
-	}
-
 	/// <summary>Synchronous abort used by the window Closing event handler.</summary>
 	public void AbortPreview()
 	{
 		_previewCts.Cancel();
+		_voiceTestCts.Cancel();
 		_previewTimer?.Stop();
 		_previewTimer = null;
 	}
 
-	// --- Validation & Save ---
+	// ── Validation & Save ────────────────────────────────────────────────────
 
 	private bool CanSave() => ApiKeyError == null && TemplateError == null && AiPromptError == null;
 
@@ -453,7 +610,4 @@ public partial class ConfigWindowViewModel(
 			_window?.Close(false);
 		}
 	}
-
-	[RelayCommand]
-	private void GoToCommentary() => SelectedNavIndex = 1;
 }

@@ -5,16 +5,17 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Muzsick.ViewModels"
+        xmlns:commentary="using:Muzsick.Commentary"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:avaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
-        mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="560"
+        mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="580"
         x:Class="Muzsick.Views.ConfigWindow"
         x:DataType="vm:ConfigWindowViewModel"
         Icon="/Assets/muzsick-logo.ico"
         Title="Muzsick — Settings"
-        Width="760"
-        Height="560"
+        Width="780"
+        Height="580"
         CanResize="False"
         WindowStartupLocation="CenterOwner">
 
@@ -55,8 +56,10 @@
 					</ListBox.Styles>
 
 					<ListBoxItem Content="Track Info" />
+					<ListBoxItem Content="Voice" />
 					<ListBoxItem Content="Commentary" />
 					<ListBoxItem Content="AI Provider" />
+					<ListBoxItem Content="AI Prompt" />
 				</ListBox>
 			</Border>
 
@@ -74,46 +77,113 @@
 
 							<StackPanel Spacing="3">
 								<TextBlock Text="Track Info"
-								           FontSize="17"
-								           FontWeight="Bold"
-								           Foreground="#FFFFFF" />
+								           FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" />
 								<TextBlock Text="Artwork, artist details, and song information shown while you listen."
-								           FontSize="12"
-								           Foreground="#AAAAAA"
-								           TextWrapping="Wrap" />
+								           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
 							</StackPanel>
 
 							<Rectangle Height="1" Fill="#383838" />
 
 							<StackPanel Spacing="6">
 								<TextBlock Text="Last.fm API Key"
-								           FontSize="13"
-								           FontWeight="SemiBold"
-								           Foreground="#DDDDDD" />
+								           FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
 								<TextBlock Text="A free Last.fm key lets Muzsick fetch album art, artist images, and song details."
-								           FontSize="12"
-								           Foreground="#AAAAAA"
-								           TextWrapping="Wrap" />
+								           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
 								<HyperlinkButton Content="Get a free key at last.fm/api/account/create"
 								                 NavigateUri="https://www.last.fm/api/account/create"
-								                 FontSize="12"
-								                 Foreground="#FF6B35"
-								                 Padding="0" />
+								                 FontSize="12" Foreground="#FF6B35" Padding="0" />
 								<TextBox Text="{Binding ApiKey}"
 								         Watermark="Paste your API key here…"
-								         FontSize="13"
-								         Background="#1E1E1E"
-								         Foreground="#FFFFFF"
-								         BorderBrush="#555555"
-								         BorderThickness="1"
-								         CornerRadius="6"
-								         Padding="10,8" />
+								         FontSize="13" Background="#1E1E1E" Foreground="#FFFFFF"
+								         BorderBrush="#555555" BorderThickness="1"
+								         CornerRadius="6" Padding="10,8" />
 								<TextBlock Text="{Binding ApiKeyError}"
 								           IsVisible="{Binding HasApiKeyError}"
-								           Foreground="#FF4444"
-								           FontSize="11"
-								           TextWrapping="Wrap" />
+								           Foreground="#FF4444" FontSize="11" TextWrapping="Wrap" />
 							</StackPanel>
+
+							<Grid ColumnDefinitions="Auto,*">
+								<Button Grid.Column="0"
+								        Command="{Binding CheckLastFmCommand}"
+								        Width="120" Height="32"
+								        Background="#444444" Foreground="#FFFFFF"
+								        BorderThickness="0" CornerRadius="6" Classes="checkButton">
+									<Panel>
+										<TextBlock Text="Test connection"
+										           IsVisible="{Binding !IsLastFmChecking}"
+										           HorizontalAlignment="Center" VerticalAlignment="Center"
+										           FontSize="12" />
+										<TextBlock Text="Checking…"
+										           IsVisible="{Binding IsLastFmChecking}"
+										           HorizontalAlignment="Center" VerticalAlignment="Center"
+										           FontSize="12" />
+									</Panel>
+								</Button>
+								<StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+									<TextBlock Text="✓ Last.fm is reachable and the key is valid"
+									           IsVisible="{Binding IsLastFmCheckOk}"
+									           Foreground="#66BB6A" FontSize="12" />
+									<TextBlock Text="✗ Could not connect — check your key and internet connection"
+									           IsVisible="{Binding IsLastFmCheckFailed}"
+									           Foreground="#FF4444" FontSize="12" TextWrapping="Wrap" />
+								</StackPanel>
+							</Grid>
+
+						</StackPanel>
+
+						<!-- ══════════════════════════════════════ -->
+						<!-- VOICE                                  -->
+						<!-- ══════════════════════════════════════ -->
+						<StackPanel Spacing="16" IsVisible="{Binding IsVoiceSection}">
+
+							<StackPanel Spacing="3">
+								<TextBlock Text="Voice"
+								           FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" />
+								<TextBlock Text="The voice that speaks each track introduction."
+								           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
+							</StackPanel>
+
+							<Rectangle Height="1" Fill="#383838" />
+
+							<StackPanel Spacing="6">
+								<TextBlock Text="Announcer Voice"
+								           FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
+								<ComboBox ItemsSource="{Binding AvailableVoices}"
+								          SelectedItem="{Binding SelectedVoice}"
+								          FontSize="13" Background="#1E1E1E" Foreground="#FFFFFF"
+								          BorderBrush="#555555" BorderThickness="1"
+								          CornerRadius="6" HorizontalAlignment="Stretch">
+									<ComboBox.ItemTemplate>
+										<DataTemplate>
+											<Grid ColumnDefinitions="*,Auto">
+												<TextBlock Grid.Column="0" Text="{Binding DisplayName}" Foreground="#FFFFFF" />
+												<TextBlock Grid.Column="1" Text="{Binding Category}"
+												           Foreground="#888888" FontSize="11"
+												           VerticalAlignment="Center" Margin="12,0,0,0" />
+											</Grid>
+										</DataTemplate>
+									</ComboBox.ItemTemplate>
+								</ComboBox>
+							</StackPanel>
+
+							<Grid ColumnDefinitions="Auto,*">
+								<Button Grid.Column="0"
+								        Command="{Binding TestVoiceCommand}"
+								        IsEnabled="{Binding !IsVoiceTesting}"
+								        Width="100" Height="32"
+								        Background="#444444" Foreground="#FFFFFF"
+								        BorderThickness="0" CornerRadius="6" Classes="checkButton">
+									<TextBlock Text="{Binding VoiceTestButtonLabel}"
+									           HorizontalAlignment="Center" VerticalAlignment="Center"
+									           FontSize="12" />
+								</Button>
+								<TextBlock Grid.Column="1"
+								           Text="{Binding VoiceTestError}"
+								           IsVisible="{Binding HasVoiceTestError}"
+								           Foreground="#FF4444" FontSize="12"
+								           Margin="12,0,0,0" VerticalAlignment="Center"
+								           TextWrapping="Wrap" />
+							</Grid>
 
 						</StackPanel>
 
@@ -124,103 +194,45 @@
 
 							<StackPanel Spacing="3">
 								<TextBlock Text="Commentary"
-								           FontSize="17"
-								           FontWeight="Bold"
-								           Foreground="#FFFFFF" />
-								<TextBlock Text="Muzsick speaks a short introduction when each new track starts. Configure the voice, style, and content here."
-								           FontSize="12"
-								           Foreground="#AAAAAA"
-								           TextWrapping="Wrap" />
-							</StackPanel>
-
-							<Rectangle Height="1" Fill="#383838" />
-
-							<!-- Voice -->
-							<StackPanel Spacing="6">
-								<TextBlock Text="Voice"
-								           FontSize="13"
-								           FontWeight="SemiBold"
-								           Foreground="#DDDDDD" />
-								<ComboBox ItemsSource="{Binding AvailableVoices}"
-								          SelectedItem="{Binding SelectedVoice}"
-								          FontSize="13"
-								          Background="#1E1E1E"
-								          Foreground="#FFFFFF"
-								          BorderBrush="#555555"
-								          BorderThickness="1"
-								          CornerRadius="6"
-								          HorizontalAlignment="Stretch">
-									<ComboBox.ItemTemplate>
-										<DataTemplate>
-											<Grid ColumnDefinitions="*,Auto">
-												<TextBlock Grid.Column="0"
-												           Text="{Binding DisplayName}"
-												           Foreground="#FFFFFF" />
-												<TextBlock Grid.Column="1"
-												           Text="{Binding Category}"
-												           Foreground="#888888"
-												           FontSize="11"
-												           VerticalAlignment="Center"
-												           Margin="12,0,0,0" />
-											</Grid>
-										</DataTemplate>
-									</ComboBox.ItemTemplate>
-								</ComboBox>
+								           FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" />
+								<TextBlock Text="Muzsick speaks a short introduction when each new track starts. Choose how that introduction is written."
+								           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
 							</StackPanel>
 
 							<Rectangle Height="1" Fill="#383838" />
 
 							<!-- Mode -->
 							<StackPanel Spacing="8">
-								<TextBlock Text="Mode"
-								           FontSize="13"
-								           FontWeight="SemiBold"
-								           Foreground="#DDDDDD" />
+								<TextBlock Text="Mode" FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
 
-								<Border Background="#1E1E1E"
-								        BorderBrush="#444444"
-								        BorderThickness="1"
-								        CornerRadius="8"
-								        Padding="14,10">
+								<Border Background="#1E1E1E" BorderBrush="#444444" BorderThickness="1"
+								        CornerRadius="8" Padding="14,10">
 									<Grid ColumnDefinitions="Auto,*">
 										<RadioButton Grid.Column="0"
 										             IsChecked="{Binding IsTemplateModeSelected}"
 										             GroupName="CommentaryModeGroup"
-										             VerticalAlignment="Top"
-										             Margin="0,2,0,0" />
+										             VerticalAlignment="Top" Margin="0,2,0,0" />
 										<StackPanel Grid.Column="1" Spacing="2" Margin="10,0,0,0">
 											<TextBlock Text="Template"
-											           FontSize="13"
-											           FontWeight="SemiBold"
-											           Foreground="#FFFFFF" />
+											           FontSize="13" FontWeight="SemiBold" Foreground="#FFFFFF" />
 											<TextBlock Text="A fixed phrase built from track metadata. Fast, predictable, always works."
-											           FontSize="12"
-											           Foreground="#AAAAAA"
-											           TextWrapping="Wrap" />
+											           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
 										</StackPanel>
 									</Grid>
 								</Border>
 
-								<Border Background="#1E1E1E"
-								        BorderBrush="#444444"
-								        BorderThickness="1"
-								        CornerRadius="8"
-								        Padding="14,10">
+								<Border Background="#1E1E1E" BorderBrush="#444444" BorderThickness="1"
+								        CornerRadius="8" Padding="14,10">
 									<Grid ColumnDefinitions="Auto,*">
 										<RadioButton Grid.Column="0"
 										             IsChecked="{Binding IsAiModeSelected}"
 										             GroupName="CommentaryModeGroup"
-										             VerticalAlignment="Top"
-										             Margin="0,2,0,0" />
+										             VerticalAlignment="Top" Margin="0,2,0,0" />
 										<StackPanel Grid.Column="1" Spacing="2" Margin="10,0,0,0">
 											<TextBlock Text="AI (Ollama)"
-											           FontSize="13"
-											           FontWeight="SemiBold"
-											           Foreground="#FFFFFF" />
+											           FontSize="13" FontWeight="SemiBold" Foreground="#FFFFFF" />
 											<TextBlock Text="Generated by a local AI model — varied and creative. Requires Ollama to be running. Falls back to the template if unavailable."
-											           FontSize="12"
-											           Foreground="#AAAAAA"
-											           TextWrapping="Wrap" />
+											           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
 										</StackPanel>
 									</Grid>
 								</Border>
@@ -233,19 +245,13 @@
 								<StackPanel Spacing="2">
 									<TextBlock Text="Template"
 									           IsVisible="{Binding !IsAiMode}"
-									           FontSize="13"
-									           FontWeight="SemiBold"
-									           Foreground="#DDDDDD" />
+									           FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
 									<TextBlock Text="Fallback Template"
 									           IsVisible="{Binding IsAiMode}"
-									           FontSize="13"
-									           FontWeight="SemiBold"
-									           Foreground="#DDDDDD" />
+									           FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
 									<TextBlock Text="Used automatically when AI commentary is unavailable."
 									           IsVisible="{Binding IsAiMode}"
-									           FontSize="12"
-									           Foreground="#AAAAAA"
-									           TextWrapping="Wrap" />
+									           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
 								</StackPanel>
 								<TextBlock FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap">
 									<Run Text="Tokens: " />
@@ -274,157 +280,28 @@
 								</TextBlock>
 								<Grid ColumnDefinitions="*,Auto">
 									<Border Grid.Column="0"
-									        Background="#1E1E1E"
-									        BorderBrush="#555555"
-									        BorderThickness="1"
-									        CornerRadius="6"
-									        Height="36"
-									        ClipToBounds="True">
+									        Background="#1E1E1E" BorderBrush="#555555" BorderThickness="1"
+									        CornerRadius="6" Height="36" ClipToBounds="True">
 										<avaloniaEdit:TextEditor
 											x:Name="TemplateEditor"
-											FontSize="13"
-											FontFamily="Consolas,Monospace"
-											Background="Transparent"
-											Padding="10,4,10,4"
+											FontSize="13" FontFamily="Consolas,Monospace"
+											Background="Transparent" Padding="10,4,10,4"
 											HorizontalScrollBarVisibility="Hidden"
 											VerticalScrollBarVisibility="Hidden"
-											WordWrap="False"
-											ShowLineNumbers="False" />
+											WordWrap="False" ShowLineNumbers="False" />
 									</Border>
 									<Button Grid.Column="1"
-									        Content="Reset"
-									        Command="{Binding ResetTemplateCommand}"
-									        Margin="8,0,0,0"
-									        Width="60"
-									        Height="36"
-									        Background="#444444"
-									        Foreground="#FFFFFF"
-									        BorderThickness="0"
-									        CornerRadius="6"
-									        Classes="resetButton" />
+									        Content="Reset" Command="{Binding ResetTemplateCommand}"
+									        Margin="8,0,0,0" Width="60" Height="36"
+									        Background="#444444" Foreground="#FFFFFF"
+									        BorderThickness="0" CornerRadius="6" Classes="resetButton" />
 								</Grid>
 								<TextBlock Text="{Binding TemplateError}"
 								           IsVisible="{Binding HasTemplateError}"
-								           Foreground="#FF4444"
-								           FontSize="11"
-								           TextWrapping="Wrap" />
+								           Foreground="#FF4444" FontSize="11" TextWrapping="Wrap" />
 								<TextBlock Text="{Binding TemplateSample, StringFormat='Sample: {0}'}"
 								           IsVisible="{Binding !IsAiMode}"
-								           FontSize="12"
-								           Foreground="#888888"
-								           FontStyle="Italic"
-								           TextWrapping="Wrap" />
-							</StackPanel>
-
-							<!-- AI Prompt — only shown in AI mode -->
-							<StackPanel Spacing="6" IsVisible="{Binding IsAiMode}">
-								<Rectangle Height="1" Fill="#383838" />
-								<StackPanel Spacing="2">
-									<TextBlock Text="AI Prompt"
-									           FontSize="13"
-									           FontWeight="SemiBold"
-									           Foreground="#DDDDDD" />
-									<TextBlock FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap">
-										<Run Text="Instructions sent to the AI model. Use " />
-										<Run Text="{}{context}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
-										<Run Text=" where track info should appear." />
-									</TextBlock>
-								</StackPanel>
-								<Border Background="#1E1E1E"
-								        BorderBrush="#555555"
-								        BorderThickness="1"
-								        CornerRadius="6"
-								        Height="120"
-								        ClipToBounds="True">
-									<avaloniaEdit:TextEditor
-										x:Name="AiPromptEditor"
-										FontSize="13"
-										FontFamily="Consolas,Monospace"
-										Background="Transparent"
-										Padding="10,8,10,8"
-										HorizontalScrollBarVisibility="Hidden"
-										VerticalScrollBarVisibility="Auto"
-										WordWrap="True"
-										ShowLineNumbers="False" />
-								</Border>
-								<Grid ColumnDefinitions="*,Auto">
-									<TextBlock Grid.Column="0"
-									           Text="{Binding AiPromptError}"
-									           IsVisible="{Binding HasAiPromptError}"
-									           Foreground="#FF4444"
-									           FontSize="11"
-									           TextWrapping="Wrap"
-									           VerticalAlignment="Center" />
-									<Button Grid.Column="1"
-									        Content="Reset"
-									        Command="{Binding ResetAiPromptCommand}"
-									        Width="60"
-									        Height="36"
-									        Background="#444444"
-									        Foreground="#FFFFFF"
-									        BorderThickness="0"
-									        CornerRadius="6"
-									        Classes="resetButton" />
-								</Grid>
-								<!-- Link to AI Provider section -->
-								<Button Content="Configure AI Provider →"
-								        Command="{Binding GoToAiProviderCommand}"
-								        Background="Transparent"
-								        Foreground="#FF6B35"
-								        BorderThickness="0"
-								        Padding="0"
-								        HorizontalAlignment="Left"
-								        FontSize="12"
-								        Cursor="Hand"
-								        Classes="linkButton" />
-							</StackPanel>
-
-							<Rectangle Height="1" Fill="#383838" />
-
-							<!-- Preview -->
-							<StackPanel Spacing="6">
-								<TextBlock Text="Preview"
-								           FontSize="13"
-								           FontWeight="SemiBold"
-								           Foreground="#DDDDDD" />
-								<TextBlock Text="Hear exactly what the commentary will sound like with your current settings."
-								           FontSize="12"
-								           Foreground="#AAAAAA"
-								           TextWrapping="Wrap" />
-								<Grid ColumnDefinitions="*,Auto">
-									<Button Grid.Column="0"
-									        Command="{Binding PreviewCommand}"
-									        Content="{Binding PreviewButtonLabel}"
-									        HorizontalAlignment="Stretch"
-									        HorizontalContentAlignment="Center"
-									        Height="36"
-									        Background="#336655"
-									        Foreground="#FFFFFF"
-									        BorderThickness="0"
-									        CornerRadius="6"
-									        FontSize="13"
-									        Classes="previewButton" />
-									<Button Grid.Column="1"
-									        Command="{Binding CancelPreviewCommand}"
-									        Content="Cancel"
-									        IsVisible="{Binding IsPreviewActive}"
-									        Width="80"
-									        Height="36"
-									        Margin="8,0,0,0"
-									        Background="#774444"
-									        Foreground="#FFFFFF"
-									        BorderThickness="0"
-									        CornerRadius="6"
-									        Classes="cancelPreviewButton" />
-								</Grid>
-								<TextBlock Text="For live radio, aim for under 5 seconds. Simpler prompts and smaller models respond faster."
-								           FontSize="11"
-								           Foreground="#666666"
-								           TextWrapping="Wrap" />
-								<TextBlock Text="{Binding PreviewError}"
-								           IsVisible="{Binding HasPreviewError}"
-								           Foreground="#FF4444"
-								           FontSize="12"
+								           FontSize="12" Foreground="#888888" FontStyle="Italic"
 								           TextWrapping="Wrap" />
 							</StackPanel>
 
@@ -437,115 +314,166 @@
 
 							<StackPanel Spacing="3">
 								<TextBlock Text="AI Provider"
-								           FontSize="17"
-								           FontWeight="Bold"
-								           Foreground="#FFFFFF" />
+								           FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" />
 								<TextBlock Text="Connect Muzsick to a local AI model. These settings apply when AI mode is selected in Commentary."
-								           FontSize="12"
-								           Foreground="#AAAAAA"
-								           TextWrapping="Wrap" />
+								           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
 							</StackPanel>
 
 							<Rectangle Height="1" Fill="#383838" />
 
 							<StackPanel Spacing="6">
 								<TextBlock Text="Ollama"
-								           FontSize="13"
-								           FontWeight="SemiBold"
-								           Foreground="#DDDDDD" />
+								           FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
 								<TextBlock Text="Ollama runs AI models locally on your machine, keeping everything private and offline."
-								           FontSize="12"
-								           Foreground="#AAAAAA"
-								           TextWrapping="Wrap" />
+								           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
 								<HyperlinkButton Content="Download Ollama at ollama.com"
 								                 NavigateUri="https://ollama.com"
-								                 FontSize="12"
-								                 Foreground="#FF6B35"
-								                 Padding="0" />
+								                 FontSize="12" Foreground="#FF6B35" Padding="0" />
 								<TextBlock Text="ℹ Only Ollama (local) is supported in this version. Cloud providers (OpenAI, Gemini, Claude) are coming in a future release."
-								           FontSize="12"
-								           Foreground="#AAAAAA"
-								           TextWrapping="Wrap" />
+								           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
 								<TextBlock Text="⚠ AI-generated commentary may contain inaccurate or fabricated information. This is more common with smaller local models than with large cloud models."
-								           FontSize="12"
-								           Foreground="#888888"
-								           FontStyle="Italic"
-								           TextWrapping="Wrap" />
+								           FontSize="12" Foreground="#888888" FontStyle="Italic" TextWrapping="Wrap" />
 
-								<TextBlock Text="Server URL"
-								           FontSize="12"
-								           Foreground="#CCCCCC"
-								           Margin="0,8,0,0" />
+								<TextBlock Text="Server URL" FontSize="12" Foreground="#CCCCCC" Margin="0,8,0,0" />
 								<TextBox Text="{Binding OllamaUrl}"
-								         FontSize="13"
-								         Background="#1E1E1E"
-								         Foreground="#FFFFFF"
-								         BorderBrush="#555555"
-								         BorderThickness="1"
-								         CornerRadius="6"
-								         Padding="10,8" />
+								         FontSize="13" Background="#1E1E1E" Foreground="#FFFFFF"
+								         BorderBrush="#555555" BorderThickness="1"
+								         CornerRadius="6" Padding="10,8" />
 
-								<TextBlock Text="Model"
-								           FontSize="12"
-								           Foreground="#CCCCCC"
-								           Margin="0,8,0,0" />
+								<TextBlock Text="Model" FontSize="12" Foreground="#CCCCCC" Margin="0,8,0,0" />
 								<Grid ColumnDefinitions="*,Auto">
 									<TextBox Grid.Column="0"
 									         Text="{Binding OllamaModel}"
-									         FontSize="13"
-									         Background="#1E1E1E"
-									         Foreground="#FFFFFF"
-									         BorderBrush="#555555"
-									         BorderThickness="1"
-									         CornerRadius="6"
-									         Padding="10,8" />
+									         FontSize="13" Background="#1E1E1E" Foreground="#FFFFFF"
+									         BorderBrush="#555555" BorderThickness="1"
+									         CornerRadius="6" Padding="10,8" />
 									<Button Grid.Column="1"
 									        Command="{Binding CheckOllamaCommand}"
-									        Margin="8,0,0,0"
-									        Width="70"
-									        Height="36"
-									        Background="#444444"
-									        Foreground="#FFFFFF"
-									        BorderThickness="0"
-									        CornerRadius="6"
-									        Classes="checkButton">
+									        Margin="8,0,0,0" Width="70" Height="36"
+									        Background="#444444" Foreground="#FFFFFF"
+									        BorderThickness="0" CornerRadius="6" Classes="checkButton">
 										<Panel>
 											<TextBlock Text="Check"
 											           IsVisible="{Binding !IsOllamaChecking}"
-											           HorizontalAlignment="Center"
-											           VerticalAlignment="Center" />
+											           HorizontalAlignment="Center" VerticalAlignment="Center" />
 											<TextBlock Text="Checking…"
 											           IsVisible="{Binding IsOllamaChecking}"
-											           HorizontalAlignment="Center"
-											           VerticalAlignment="Center" />
+											           HorizontalAlignment="Center" VerticalAlignment="Center" />
 										</Panel>
 									</Button>
 								</Grid>
 								<TextBlock Text="✓ Ollama is running and model is available"
 								           IsVisible="{Binding IsOllamaCheckOk}"
-								           Foreground="#66BB6A"
-								           FontSize="12" />
+								           Foreground="#66BB6A" FontSize="12" />
 								<TextBlock Text="{Binding OllamaModelMissingMessage}"
 								           IsVisible="{Binding IsOllamaModelMissing}"
-								           Foreground="#FF9944"
-								           FontSize="12"
-								           TextWrapping="Wrap" />
+								           Foreground="#FF9944" FontSize="12" TextWrapping="Wrap" />
 								<TextBlock Text="✗ Cannot reach Ollama — check the URL and make sure Ollama is running"
 								           IsVisible="{Binding IsOllamaCheckFailed}"
-								           Foreground="#FF4444"
-								           FontSize="12"
-								           TextWrapping="Wrap" />
-								<Button Content="← Back to Commentary"
-								        Command="{Binding GoToCommentaryCommand}"
-								        Background="Transparent"
-								        Foreground="#FF6B35"
-								        BorderThickness="0"
-								        Padding="0"
-								        HorizontalAlignment="Left"
-								        FontSize="12"
-								        Cursor="Hand"
-								        Classes="linkButton" />
+								           Foreground="#FF4444" FontSize="12" TextWrapping="Wrap" />
 							</StackPanel>
+
+							<Button Content="Continue to AI Prompt →"
+							        Command="{Binding GoToAiPromptCommand}"
+							        Background="Transparent" Foreground="#FF6B35"
+							        BorderThickness="0" Padding="0"
+							        HorizontalAlignment="Left" FontSize="12"
+							        Cursor="Hand" Classes="linkButton" />
+
+						</StackPanel>
+
+						<!-- ══════════════════════════════════════ -->
+						<!-- AI PROMPT                              -->
+						<!-- ══════════════════════════════════════ -->
+						<StackPanel Spacing="8" IsVisible="{Binding IsAiPromptSection}">
+
+							<StackPanel Spacing="3">
+								<TextBlock Text="AI Prompt"
+								           FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" />
+								<TextBlock FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap">
+									<Run Text="Instructions sent to the AI model. Use " />
+									<Run Text="{}{context}" FontFamily="Consolas,Monospace" Foreground="#FF6B35" />
+									<Run Text=" where track info should appear. Lines starting with " />
+									<Run Text="#" FontFamily="Consolas,Monospace" Foreground="#6A9955" />
+									<Run Text=" are comments — visible here but not sent to the AI." />
+								</TextBlock>
+							</StackPanel>
+
+							<Rectangle Height="1" Fill="#383838" />
+
+							<!-- Prompt editor -->
+							<Border Background="#1E1E1E" BorderBrush="#555555" BorderThickness="1"
+							        CornerRadius="6" Height="280" ClipToBounds="True">
+								<avaloniaEdit:TextEditor
+									x:Name="AiPromptEditor"
+									FontSize="13" FontFamily="Consolas,Monospace"
+									Background="Transparent" Padding="10,8,10,8"
+									HorizontalScrollBarVisibility="Hidden"
+									VerticalScrollBarVisibility="Auto"
+									WordWrap="True" ShowLineNumbers="False" />
+							</Border>
+
+							<!-- Prompt actions row -->
+							<Grid ColumnDefinitions="Auto,Auto,*">
+								<Button Grid.Column="0"
+								        Content="Load from library"
+								        Command="{Binding TogglePromptLibraryCommand}"
+								        Height="32" Padding="12,0"
+								        Background="#333355" Foreground="#AAAAFF"
+								        BorderThickness="0" CornerRadius="6"
+								        FontSize="12" Classes="libraryButton" />
+								<Button Grid.Column="1"
+								        Content="Reset"
+								        Command="{Binding ResetAiPromptCommand}"
+								        Margin="8,0,0,0" Width="60" Height="32"
+								        Background="#444444" Foreground="#FFFFFF"
+								        BorderThickness="0" CornerRadius="6" Classes="resetButton" />
+								<TextBlock Grid.Column="2"
+								           Text="{Binding AiPromptError}"
+								           IsVisible="{Binding HasAiPromptError}"
+								           Foreground="#FF4444" FontSize="11"
+								           Margin="8,0,0,0" VerticalAlignment="Center"
+								           TextWrapping="Wrap" />
+							</Grid>
+
+							<!-- Prompt library dropdown -->
+							<Border IsVisible="{Binding IsPromptLibraryOpen}"
+							        Background="#1E1E2E" BorderBrush="#444466" BorderThickness="1"
+							        CornerRadius="8" Padding="8">
+								<StackPanel Spacing="4">
+									<TextBlock Text="Choose a prompt to load"
+									           FontSize="12" Foreground="#AAAAAA" Margin="6,4,0,4" />
+									<ItemsControl ItemsSource="{Binding PromptLibrary}">
+										<ItemsControl.ItemTemplate>
+											<DataTemplate x:DataType="commentary:PromptLibraryEntry">
+												<Button Command="{Binding $parent[Window].((vm:ConfigWindowViewModel)DataContext).LoadPromptCommand}"
+												        CommandParameter="{Binding}"
+												        HorizontalAlignment="Stretch"
+												        HorizontalContentAlignment="Left"
+												        Background="Transparent" BorderThickness="0"
+												        Padding="8,8" CornerRadius="6"
+												        Classes="libraryEntryButton">
+													<StackPanel Spacing="2">
+														<TextBlock Text="{Binding Name}"
+														           FontSize="13" FontWeight="SemiBold"
+														           Foreground="#FFFFFF" />
+														<TextBlock Text="{Binding Description}"
+														           FontSize="11" Foreground="#888888"
+														           TextWrapping="Wrap" />
+													</StackPanel>
+												</Button>
+											</DataTemplate>
+										</ItemsControl.ItemTemplate>
+									</ItemsControl>
+								</StackPanel>
+							</Border>
+
+							<Button Content="← AI Provider"
+							        Command="{Binding GoToAiProviderCommand}"
+							        Background="Transparent" Foreground="#FF6B35"
+							        BorderThickness="0" Padding="0"
+							        HorizontalAlignment="Left" FontSize="12"
+							        Cursor="Hand" Classes="linkButton" />
 
 						</StackPanel>
 
@@ -555,34 +483,50 @@
 
 		</Grid>
 
-		<!-- Bottom bar -->
+		<!-- Bottom bar: Preview (left) + Cancel / Save (right) -->
 		<Border Grid.Row="1"
-		        Background="#222222"
-		        BorderBrush="#333333"
-		        BorderThickness="0,1,0,0"
-		        Padding="24,12">
-			<StackPanel Orientation="Horizontal"
-			            Spacing="12"
-			            HorizontalAlignment="Right">
-				<Button Content="Cancel"
-				        Command="{Binding CancelCommand}"
-				        Width="100"
-				        Height="36"
-				        Background="#444444"
-				        Foreground="#FFFFFF"
-				        BorderThickness="0"
-				        CornerRadius="6"
-				        Classes="cancelButton" />
-				<Button Content="Save"
-				        Command="{Binding SaveCommand}"
-				        Width="100"
-				        Height="36"
-				        Background="#FF6B35"
-				        Foreground="#FFFFFF"
-				        BorderThickness="0"
-				        CornerRadius="6"
-				        Classes="saveButton" />
-			</StackPanel>
+		        Background="#222222" BorderBrush="#333333"
+		        BorderThickness="0,1,0,0" Padding="20,10">
+			<Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+
+				<Button Grid.Column="0"
+				        Command="{Binding PreviewCommand}"
+				        Content="{Binding PreviewButtonLabel}"
+				        Width="140" Height="34"
+				        Background="#336655" Foreground="#FFFFFF"
+				        BorderThickness="0" CornerRadius="6"
+				        FontSize="13" Classes="previewButton" />
+
+				<Button Grid.Column="1"
+				        Command="{Binding CancelPreviewCommand}"
+				        Content="Stop"
+				        IsVisible="{Binding IsPreviewActive}"
+				        Width="50" Height="34"
+				        Margin="8,0,0,0"
+				        Background="#774444" Foreground="#FFFFFF"
+				        BorderThickness="0" CornerRadius="6"
+				        Classes="cancelPreviewButton" />
+
+				<TextBlock Grid.Column="2"
+				           Text="{Binding PreviewError}"
+				           IsVisible="{Binding HasPreviewError}"
+				           Foreground="#FF4444" FontSize="12"
+				           Margin="12,0,0,0" VerticalAlignment="Center"
+				           TextWrapping="NoWrap" />
+
+				<Button Grid.Column="3"
+				        Content="Cancel" Command="{Binding CancelCommand}"
+				        Width="90" Height="34" Margin="0,0,8,0"
+				        Background="#444444" Foreground="#FFFFFF"
+				        BorderThickness="0" CornerRadius="6" Classes="cancelButton" />
+
+				<Button Grid.Column="4"
+				        Content="Save" Command="{Binding SaveCommand}"
+				        Width="90" Height="34"
+				        Background="#FF6B35" Foreground="#FFFFFF"
+				        BorderThickness="0" CornerRadius="6" Classes="saveButton" />
+
+			</Grid>
 		</Border>
 
 	</Grid>
@@ -638,6 +582,12 @@
 		</Style>
 		<Style Selector="Button.linkButton:pointerover /template/ ContentPresenter">
 			<Setter Property="TextElement.Foreground" Value="#FF8855" />
+		</Style>
+		<Style Selector="Button.libraryButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#444466" />
+		</Style>
+		<Style Selector="Button.libraryEntryButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#2A2A3A" />
 		</Style>
 		<Style Selector="RadioButton">
 			<Setter Property="Foreground" Value="#FFFFFF" />

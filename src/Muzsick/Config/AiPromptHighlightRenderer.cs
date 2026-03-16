@@ -11,11 +11,13 @@ namespace Muzsick.Config;
 
 /// <summary>
 /// Colours AI prompt syntax in the AI prompt editor.
+/// Lines starting with # — grey/green (comments, stripped before sending to the AI)
 /// {context} — orange (the only valid token; replaced with track metadata at runtime)
 /// {anything else} — red (not a recognised token; will not be substituted)
 /// </summary>
 public partial class AiPromptHighlightRenderer : DocumentColorizingTransformer
 {
+	private static readonly IBrush _commentBrush = new SolidColorBrush(Color.Parse("#6A9955"));
 	private static readonly IBrush _tokenBrush = new SolidColorBrush(Color.Parse("#FF6B35"));
 	private static readonly IBrush _invalidBrush = new SolidColorBrush(Color.Parse("#F44747"));
 
@@ -23,6 +25,14 @@ public partial class AiPromptHighlightRenderer : DocumentColorizingTransformer
 	{
 		var text = CurrentContext.Document.GetText(line);
 		var offset = line.Offset;
+
+		// Comment lines — colour the entire line and skip token scanning
+		if (text.TrimStart().StartsWith('#'))
+		{
+			ChangeLinePart(offset, offset + line.Length,
+				element => element.TextRunProperties.SetForegroundBrush(_commentBrush));
+			return;
+		}
 
 		foreach (Match m in TokenPattern().Matches(text))
 		{
@@ -41,4 +51,3 @@ public partial class AiPromptHighlightRenderer : DocumentColorizingTransformer
 	[GeneratedRegex(@"\{(\w+)\}", RegexOptions.IgnoreCase)]
 	private static partial Regex TokenPattern();
 }
-

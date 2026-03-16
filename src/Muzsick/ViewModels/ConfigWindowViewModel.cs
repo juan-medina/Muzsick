@@ -39,9 +39,6 @@ public partial class ConfigWindowViewModel(
 	AudioMixer audioMixer)
 	: ViewModelBase
 {
-	private const string _defaultAiPrompt =
-		"You are an enthusiastic radio DJ. Give a single sentence on-air intro for the next song. " +
-		"Track info: {context}. Respond with only the intro sentence, nothing else.";
 	[ObservableProperty]
 	[NotifyPropertyChangedFor(nameof(ApiKeyError))]
 	[NotifyPropertyChangedFor(nameof(HasApiKeyError))]
@@ -161,10 +158,10 @@ public partial class ConfigWindowViewModel(
 	}
 
 	[RelayCommand]
-	private void ResetTemplate() => AnnouncementTemplate = AnnouncementTemplateRenderer.DefaultTemplate;
+	private void ResetTemplate() => AnnouncementTemplate = AppSettings.DefaultAnnouncementTemplate;
 
 	[RelayCommand]
-	private void ResetAiPrompt() => AiPrompt = _defaultAiPrompt;
+	private void ResetAiPrompt() => AiPrompt = AppSettings.DefaultAiPrompt;
 
 	// --- Preview state machine ---
 

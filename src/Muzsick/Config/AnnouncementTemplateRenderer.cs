@@ -24,8 +24,6 @@ namespace Muzsick.Config;
 /// </summary>
 public static partial class AnnouncementTemplateRenderer
 {
-	public const string DefaultTemplate = "Now playing {title} by {artist}[year?, released in {year}]";
-
 	private static readonly IReadOnlyDictionary<string, string> _previewValues =
 		new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
 		{

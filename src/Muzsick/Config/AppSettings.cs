@@ -32,19 +32,30 @@ public class AppSettings
 	public string TtsVoice { get; set; } = "af_heart";
 
 	/// <summary>
-	/// Template used for track announcements. Supports tokens: {title} {artist} {album} {year} {genre}.
-	/// </summary>
-	public string AnnouncementTemplate { get; set; } = AnnouncementTemplateRenderer.DefaultTemplate;
-
-	/// <summary>
 	/// Whether to use template-based or AI-generated commentary.
 	/// </summary>
 	public CommentaryMode CommentaryMode { get; set; } = CommentaryMode.Ai;
 
 	/// <summary>
-	/// System prompt sent to the AI model. {context} is replaced with track metadata at runtime.
+	/// Default announcement template. Used on first run and by the Reset button.
 	/// </summary>
-	public string AiPrompt { get; set; } =
+	public const string DefaultAnnouncementTemplate =
+		"Now playing {title} by {artist}[year?, released in {year}]";
+
+	/// <summary>
+	/// Template used for track announcements. Supports tokens: {title} {artist} {album} {year} {genre}.
+	/// </summary>
+	public string AnnouncementTemplate { get; set; } = DefaultAnnouncementTemplate;
+
+	/// <summary>
+	/// Default AI prompt. Used on first run and by the Reset button.
+	/// </summary>
+	public const string DefaultAiPrompt =
 		"You are an enthusiastic radio DJ. Give a single sentence on-air intro for the next song. " +
 		"Track info: {context}. Respond with only the intro sentence, nothing else.";
+
+	/// <summary>
+	/// System prompt sent to the AI model. {context} is replaced with track metadata at runtime.
+	/// </summary>
+	public string AiPrompt { get; set; } = DefaultAiPrompt;
 }

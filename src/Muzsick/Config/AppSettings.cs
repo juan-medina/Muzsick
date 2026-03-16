@@ -34,7 +34,7 @@ public class AppSettings
 	/// <summary>
 	/// Whether to use template-based or AI-generated commentary.
 	/// </summary>
-	public CommentaryMode CommentaryMode { get; set; } = CommentaryMode.Ai;
+	public CommentaryMode CommentaryMode { get; set; } = CommentaryMode.Template;
 
 	/// <summary>
 	/// Default announcement template. Used on first run and by the Reset button.

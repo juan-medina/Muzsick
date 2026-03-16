@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -28,6 +29,15 @@ public enum PreviewState
 	Synthesising,
 	Playing,
 	Done,
+	Failed,
+}
+
+public enum OllamaCheckState
+{
+	Idle,
+	Checking,
+	Ok,
+	ModelMissing,
 	Failed,
 }
 
@@ -67,6 +77,20 @@ public partial class ConfigWindowViewModel(
 	[NotifyPropertyChangedFor(nameof(HasAiPromptError))]
 	[NotifyCanExecuteChangedFor(nameof(SaveCommand))]
 	private string _aiPrompt = App.Settings.AiPrompt;
+
+	[ObservableProperty] private string _ollamaUrl = App.Settings.OllamaUrl;
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(OllamaModelMissingMessage))]
+	private string _ollamaModel = App.Settings.OllamaModel;
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsOllamaCheckOk))]
+	[NotifyPropertyChangedFor(nameof(IsOllamaModelMissing))]
+	[NotifyPropertyChangedFor(nameof(IsOllamaCheckFailed))]
+	[NotifyPropertyChangedFor(nameof(IsOllamaChecking))]
+	[NotifyCanExecuteChangedFor(nameof(CheckOllamaCommand))]
+	private OllamaCheckState _ollamaCheckState = OllamaCheckState.Idle;
 
 	[ObservableProperty] private string _templateSample = "";
 
@@ -123,6 +147,14 @@ public partial class ConfigWindowViewModel(
 	public bool HasAiPromptError => AiPromptError != null;
 	public bool HasPreviewError => !string.IsNullOrEmpty(PreviewError);
 
+	public bool IsOllamaCheckOk => OllamaCheckState == OllamaCheckState.Ok;
+	public bool IsOllamaModelMissing => OllamaCheckState == OllamaCheckState.ModelMissing;
+	public bool IsOllamaCheckFailed => OllamaCheckState == OllamaCheckState.Failed;
+	public bool IsOllamaChecking => OllamaCheckState == OllamaCheckState.Checking;
+
+	public string OllamaModelMissingMessage =>
+		$"✗ Model \"{OllamaModel}\" not found — run: ollama pull {OllamaModel}";
+
 	public string PreviewButtonLabel => CurrentPreviewState switch
 	{
 		PreviewState.Generating => $"Generating… {PreviewElapsedSeconds:F1}s",
@@ -162,6 +194,48 @@ public partial class ConfigWindowViewModel(
 
 	[RelayCommand]
 	private void ResetAiPrompt() => AiPrompt = AppSettings.DefaultAiPrompt;
+
+	partial void OnOllamaUrlChanged(string value) => OllamaCheckState = OllamaCheckState.Idle;
+
+	private bool CanCheckOllama() => OllamaCheckState != OllamaCheckState.Checking;
+
+	[RelayCommand(CanExecute = nameof(CanCheckOllama))]
+	private async Task CheckOllama()
+	{
+		OllamaCheckState = OllamaCheckState.Checking;
+		try
+		{
+			using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+			using var client = new HttpClient();
+			var response = await client.GetAsync($"{OllamaUrl.TrimEnd('/')}/api/tags", cts.Token);
+
+			if (!response.IsSuccessStatusCode)
+			{
+				OllamaCheckState = OllamaCheckState.Failed;
+				return;
+			}
+
+			// Normalise: "gemma3" → "gemma3:latest"
+			var modelToFind = OllamaModel.Trim();
+			if (!modelToFind.Contains(':'))
+				modelToFind += ":latest";
+
+			var json = await response.Content.ReadAsStringAsync(cts.Token);
+			var node = JsonNode.Parse(json);
+			var available = node?["models"]?.AsArray()
+				.Select(m => m?["name"]?.GetValue<string>() ?? "")
+				.ToList() ?? [];
+
+			OllamaCheckState = available.Any(m =>
+				string.Equals(m, modelToFind, StringComparison.OrdinalIgnoreCase))
+				? OllamaCheckState.Ok
+				: OllamaCheckState.ModelMissing;
+		}
+		catch
+		{
+			OllamaCheckState = OllamaCheckState.Failed;
+		}
+	}
 
 	// --- Preview state machine ---
 
@@ -237,9 +311,13 @@ public partial class ConfigWindowViewModel(
 					Genre = "Rock",
 				};
 
-				// Temporarily apply the edited (unsaved) prompt so the generator picks it up.
+				// Temporarily apply the edited (unsaved) settings so the generator picks them up.
 				var savedPrompt = App.Settings.AiPrompt;
+				var savedUrl = App.Settings.OllamaUrl;
+				var savedModel = App.Settings.OllamaModel;
 				App.Settings.AiPrompt = AiPrompt;
+				App.Settings.OllamaUrl = OllamaUrl;
+				App.Settings.OllamaModel = OllamaModel;
 
 				string? commentary;
 				try
@@ -264,6 +342,8 @@ public partial class ConfigWindowViewModel(
 				finally
 				{
 					App.Settings.AiPrompt = savedPrompt;
+					App.Settings.OllamaUrl = savedUrl;
+					App.Settings.OllamaModel = savedModel;
 				}
 
 				if (token.IsCancellationRequested) return;
@@ -339,6 +419,8 @@ public partial class ConfigWindowViewModel(
 		App.Settings.AnnouncementTemplate = AnnouncementTemplate.Trim();
 		App.Settings.CommentaryMode = CommentaryMode;
 		App.Settings.AiPrompt = AiPrompt.Trim();
+		App.Settings.OllamaUrl = OllamaUrl.Trim();
+		App.Settings.OllamaModel = OllamaModel.Trim();
 		SettingsManager.Save(App.Settings);
 		_window?.Close(true);
 	}

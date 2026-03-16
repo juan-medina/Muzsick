@@ -245,6 +245,86 @@
 					</Grid>
 				</StackPanel>
 
+				<!-- Ollama (visible only in AI mode) -->
+				<StackPanel Spacing="6" IsVisible="{Binding IsAiMode}">
+					<TextBlock Text="Ollama"
+					           FontSize="16"
+					           FontWeight="Bold"
+					           Foreground="#FFFFFF" />
+					<TextBlock Text="Ollama runs AI models locally on your machine. Install it and pull a model to use AI commentary."
+					           FontSize="12"
+					           Foreground="#AAAAAA"
+					           TextWrapping="Wrap" />
+					<HyperlinkButton Content="Download Ollama at ollama.com"
+					                 NavigateUri="https://ollama.com"
+					                 FontSize="12"
+					                 Foreground="#FF6B35"
+					                 Padding="0" />
+
+					<TextBlock Text="Server URL"
+					           FontSize="12"
+					           Foreground="#CCCCCC" />
+					<TextBox Text="{Binding OllamaUrl}"
+					         FontSize="14"
+					         Background="#1E1E1E"
+					         Foreground="#FFFFFF"
+					         BorderBrush="#777777"
+					         BorderThickness="1"
+					         CornerRadius="6"
+					         Padding="10,8" />
+
+					<TextBlock Text="Model"
+					           FontSize="12"
+					           Foreground="#CCCCCC" />
+					<Grid ColumnDefinitions="*,Auto">
+						<TextBox Grid.Column="0"
+						         Text="{Binding OllamaModel}"
+						         FontSize="14"
+						         Background="#1E1E1E"
+						         Foreground="#FFFFFF"
+						         BorderBrush="#777777"
+						         BorderThickness="1"
+						         CornerRadius="6"
+						         Padding="10,8" />
+						<Button Grid.Column="1"
+						        Command="{Binding CheckOllamaCommand}"
+						        Margin="8,0,0,0"
+						        Width="70"
+						        Height="36"
+						        Background="#444444"
+						        Foreground="#FFFFFF"
+						        BorderThickness="0"
+						        CornerRadius="6"
+						        Classes="checkButton">
+							<Panel>
+								<TextBlock Text="Check"
+								           IsVisible="{Binding !IsOllamaChecking}"
+								           HorizontalAlignment="Center"
+								           VerticalAlignment="Center" />
+								<TextBlock Text="Checking…"
+								           IsVisible="{Binding IsOllamaChecking}"
+								           HorizontalAlignment="Center"
+								           VerticalAlignment="Center" />
+							</Panel>
+						</Button>
+					</Grid>
+
+					<TextBlock Text="✓ Ollama is running and model is available"
+					           IsVisible="{Binding IsOllamaCheckOk}"
+					           Foreground="#66BB6A"
+					           FontSize="12" />
+					<TextBlock Text="{Binding OllamaModelMissingMessage}"
+					           IsVisible="{Binding IsOllamaModelMissing}"
+					           Foreground="#FF9944"
+					           FontSize="12"
+					           TextWrapping="Wrap" />
+					<TextBlock Text="✗ Cannot reach Ollama — check the URL and make sure Ollama is running"
+					           IsVisible="{Binding IsOllamaCheckFailed}"
+					           Foreground="#FF4444"
+					           FontSize="12"
+					           TextWrapping="Wrap" />
+				</StackPanel>
+
 				<!-- Preview -->
 				<StackPanel Spacing="6">
 					<TextBlock Text="{Binding TemplateSample, StringFormat='Sample: {0}'}"
@@ -338,6 +418,16 @@
 		</Style>
 		<Style Selector="Button.resetButton:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#333333" />
+		</Style>
+		<Style Selector="Button.checkButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#555555" />
+		</Style>
+		<Style Selector="Button.checkButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#333333" />
+		</Style>
+		<Style Selector="Button.checkButton:disabled /template/ ContentPresenter">
+			<Setter Property="Background" Value="#333333" />
+			<Setter Property="Foreground" Value="#888888" />
 		</Style>
 		<Style Selector="Button.previewButton:pointerover /template/ ContentPresenter">
 			<Setter Property="Background" Value="#448866" />

@@ -177,6 +177,35 @@ public partial class ConfigWindowViewModel(
 	private void TogglePromptLibrary() => PromptLibraryVisible = !PromptLibraryVisible;
 
 	[RelayCommand]
+	private async Task SavePrompt()
+	{
+		if (_window == null) return;
+		var file = await _window.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+		{
+			Title = "Save prompt",
+			DefaultExtension = "txt",
+			FileTypeChoices = [new Avalonia.Platform.Storage.FilePickerFileType("Text files") { Patterns = ["*.txt"] }],
+		});
+		if (file != null)
+			await System.IO.File.WriteAllTextAsync(file.Path.LocalPath, AiPrompt);
+	}
+
+	[RelayCommand]
+	private async Task LoadPromptFromFile()
+	{
+		if (_window == null) return;
+		var files = await _window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+		{
+			Title = "Load prompt",
+			AllowMultiple = false,
+			FileTypeFilter = [new Avalonia.Platform.Storage.FilePickerFileType("Text files") { Patterns = ["*.txt"] }],
+		});
+		var file = files.FirstOrDefault();
+		if (file != null)
+			AiPrompt = await System.IO.File.ReadAllTextAsync(file.Path.LocalPath);
+	}
+
+	[RelayCommand]
 	private void LoadPrompt(PromptLibraryEntry entry)
 	{
 		AiPrompt = entry.Prompt;

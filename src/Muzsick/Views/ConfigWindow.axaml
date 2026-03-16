@@ -417,29 +417,45 @@
 									WordWrap="True" ShowLineNumbers="False" />
 							</Border>
 
-							<!-- Prompt actions row -->
-							<Grid ColumnDefinitions="Auto,Auto,*">
+							<!-- Prompt actions rows -->
+							<Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*">
 								<Button Grid.Column="0"
 								        Content="Load from library"
 								        Command="{Binding TogglePromptLibraryCommand}"
 								        Height="32" Padding="12,0"
+								        VerticalContentAlignment="Center"
 								        Background="#333355" Foreground="#AAAAFF"
 								        BorderThickness="0" CornerRadius="6"
 								        FontSize="12" Classes="libraryButton" />
 								<Button Grid.Column="1"
+								        Content="Load file"
+								        Command="{Binding LoadPromptFromFileCommand}"
+								        Margin="8,0,0,0" Height="32" Padding="12,0"
+								        VerticalContentAlignment="Center"
+								        Background="#444444" Foreground="#FFFFFF"
+								        BorderThickness="0" CornerRadius="6"
+								        FontSize="12" Classes="resetButton" />
+								<Button Grid.Column="2"
+								        Content="Save file"
+								        Command="{Binding SavePromptCommand}"
+								        Margin="8,0,0,0" Height="32" Padding="12,0"
+								        VerticalContentAlignment="Center"
+								        Background="#444444" Foreground="#FFFFFF"
+								        BorderThickness="0" CornerRadius="6"
+								        FontSize="12" Classes="resetButton" />
+								<Button Grid.Column="3"
 								        Content="Reset"
 								        Command="{Binding ResetAiPromptCommand}"
 								        Margin="8,0,0,0" Width="60" Height="32"
 								        Background="#444444" Foreground="#FFFFFF"
 								        BorderThickness="0" CornerRadius="6" Classes="resetButton" />
-								<TextBlock Grid.Column="2"
+								<TextBlock Grid.Column="4"
 								           Text="{Binding AiPromptError}"
 								           IsVisible="{Binding HasAiPromptError}"
 								           Foreground="#FF4444" FontSize="11"
 								           Margin="8,0,0,0" VerticalAlignment="Center"
 								           TextWrapping="Wrap" />
 							</Grid>
-
 							<!-- Prompt library dropdown -->
 							<Border IsVisible="{Binding IsPromptLibraryOpen}"
 							        Background="#1E1E2E" BorderBrush="#444466" BorderThickness="1"

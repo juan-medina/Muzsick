@@ -32,6 +32,11 @@ jobs:
                 with:
                     dotnet-version: '9.0.x'
 
+            -   name: Write ApiKeys.json
+                shell: bash
+                run: |
+                    echo '{"LastFm":"${{ secrets.LASTFM_API_KEY }}"}' > src/Muzsick/ApiKeys.json
+
             -   name: Install LibVLC (Linux)
                 if: matrix.rid == 'linux-x64'
                 shell: bash

@@ -55,7 +55,6 @@
 						</Style>
 					</ListBox.Styles>
 
-					<ListBoxItem Content="Track Info" />
 					<ListBoxItem Content="Voice" />
 					<ListBoxItem Content="Commentary" />
 					<ListBoxItem Content="AI Provider" />
@@ -69,67 +68,6 @@
 			              HorizontalScrollBarVisibility="Disabled">
 				<Border Padding="28,24,28,24">
 					<StackPanel Spacing="0">
-
-						<!-- ══════════════════════════════════════ -->
-						<!-- TRACK INFO                             -->
-						<!-- ══════════════════════════════════════ -->
-						<StackPanel Spacing="16" IsVisible="{Binding IsTrackInfoSection}">
-
-							<StackPanel Spacing="3">
-								<TextBlock Text="Track Info"
-								           FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" />
-								<TextBlock Text="Artwork, artist details, and song information shown while you listen."
-								           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
-							</StackPanel>
-
-							<Rectangle Height="1" Fill="#383838" />
-
-							<StackPanel Spacing="6">
-								<TextBlock Text="Last.fm API Key"
-								           FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
-								<TextBlock Text="A free Last.fm key lets Muzsick fetch album art, artist images, and song details."
-								           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
-								<HyperlinkButton Content="Get a free key at last.fm/api/account/create"
-								                 NavigateUri="https://www.last.fm/api/account/create"
-								                 FontSize="12" Foreground="#FF6B35" Padding="0" />
-								<TextBox Text="{Binding ApiKey}"
-								         Watermark="Paste your API key here…"
-								         FontSize="13" Background="#1E1E1E" Foreground="#FFFFFF"
-								         BorderBrush="#555555" BorderThickness="1"
-								         CornerRadius="6" Padding="10,8" />
-								<TextBlock Text="{Binding ApiKeyError}"
-								           IsVisible="{Binding HasApiKeyError}"
-								           Foreground="#FF4444" FontSize="11" TextWrapping="Wrap" />
-							</StackPanel>
-
-							<Grid ColumnDefinitions="Auto,*">
-								<Button Grid.Column="0"
-								        Command="{Binding CheckLastFmCommand}"
-								        Width="120" Height="32"
-								        Background="#444444" Foreground="#FFFFFF"
-								        BorderThickness="0" CornerRadius="6" Classes="checkButton">
-									<Panel>
-										<TextBlock Text="Test connection"
-										           IsVisible="{Binding !IsLastFmChecking}"
-										           HorizontalAlignment="Center" VerticalAlignment="Center"
-										           FontSize="12" />
-										<TextBlock Text="Checking…"
-										           IsVisible="{Binding IsLastFmChecking}"
-										           HorizontalAlignment="Center" VerticalAlignment="Center"
-										           FontSize="12" />
-									</Panel>
-								</Button>
-								<StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
-									<TextBlock Text="✓ Last.fm is reachable and the key is valid"
-									           IsVisible="{Binding IsLastFmCheckOk}"
-									           Foreground="#66BB6A" FontSize="12" />
-									<TextBlock Text="✗ Could not connect — check your key and internet connection"
-									           IsVisible="{Binding IsLastFmCheckFailed}"
-									           Foreground="#FF4444" FontSize="12" TextWrapping="Wrap" />
-								</StackPanel>
-							</Grid>
-
-						</StackPanel>
 
 						<!-- ══════════════════════════════════════ -->
 						<!-- VOICE                                  -->
@@ -456,6 +394,7 @@
 								           Margin="8,0,0,0" VerticalAlignment="Center"
 								           TextWrapping="Wrap" />
 							</Grid>
+
 							<!-- Prompt library dropdown -->
 							<Border IsVisible="{Binding IsPromptLibraryOpen}"
 							        Background="#1E1E2E" BorderBrush="#444466" BorderThickness="1"

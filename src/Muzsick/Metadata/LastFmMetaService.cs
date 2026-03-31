@@ -3,7 +3,9 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.IO;
 using System.Net.Http;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -15,6 +17,7 @@ namespace Muzsick.Metadata;
 public partial class LastFmMetaService : IMetaService, IDisposable
 {
 	private const string _baseUrl = "https://ws.audioscrobbler.com/2.0/";
+	private static readonly string _apiKey = LoadApiKey();
 	private const int _maxRetries = 3;
 	private static readonly TimeSpan _retryBaseDelay = TimeSpan.FromMilliseconds(500);
 	private static readonly TimeSpan _minRequestInterval = TimeSpan.FromMilliseconds(200);
@@ -27,6 +30,23 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 	private readonly ConcurrentDictionary<string, CacheEntry> _cache = new();
 	private readonly SemaphoreSlim _rateLimiter = new(1, 1);
 	private DateTime _lastRequestTime = DateTime.MinValue;
+
+	private static string LoadApiKey()
+	{
+		try
+		{
+			using var stream = Assembly.GetExecutingAssembly()
+				.GetManifestResourceStream("Muzsick.ApiKeys.json");
+			if (stream == null) return "";
+			using var reader = new StreamReader(stream);
+			using var doc = JsonDocument.Parse(reader.ReadToEnd());
+			return doc.RootElement.GetProperty("LastFm").GetString() ?? "";
+		}
+		catch
+		{
+			return "";
+		}
+	}
 
 	public LastFmMetaService(ILogger? logger = null)
 	{
@@ -181,7 +201,7 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 	private async Task<CacheEntry?> FetchEntryInternalAsync(string artist, string title, bool autocorrect)
 	{
 		var url =
-			$"{_baseUrl}?method=track.getInfo&api_key={App.Settings.LastFmApiKey}" +
+			$"{_baseUrl}?method=track.getInfo&api_key={_apiKey}" +
 			$"&artist={Uri.EscapeDataString(artist)}&track={Uri.EscapeDataString(title)}" +
 			$"&format=json&autocorrect={(autocorrect ? "1" : "0")}";
 
@@ -342,7 +362,7 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 	private async Task<string?> FetchArtistMbidAsync(string artistName)
 	{
 		var url =
-			$"{_baseUrl}?method=artist.getInfo&api_key={App.Settings.LastFmApiKey}" +
+			$"{_baseUrl}?method=artist.getInfo&api_key={_apiKey}" +
 			$"&artist={Uri.EscapeDataString(artistName)}&format=json&autocorrect=1";
 
 		try
@@ -390,7 +410,7 @@ public partial class LastFmMetaService : IMetaService, IDisposable
 	private async Task<string?> SearchCorrectedTitleAsync(string artist, string title)
 	{
 		var url =
-			$"{_baseUrl}?method=track.search&api_key={App.Settings.LastFmApiKey}" +
+			$"{_baseUrl}?method=track.search&api_key={_apiKey}" +
 			$"&track={Uri.EscapeDataString(title)}&artist={Uri.EscapeDataString(artist)}" +
 			$"&format=json&limit=3";
 

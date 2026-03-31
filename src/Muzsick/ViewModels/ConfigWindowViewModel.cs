@@ -42,14 +42,6 @@ public enum OllamaCheckState
 	Failed,
 }
 
-public enum LastFmCheckState
-{
-	Idle,
-	Checking,
-	Ok,
-	Failed,
-}
-
 public enum VoiceTestState
 {
 	Idle,
@@ -58,7 +50,6 @@ public enum VoiceTestState
 	Done,
 	Failed,
 }
-
 
 public partial class ConfigWindowViewModel(
 	bool isFirstRun,
@@ -70,35 +61,27 @@ public partial class ConfigWindowViewModel(
 	// ── Nav ─────────────────────────────────────────────────────────────────
 
 	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(IsTrackInfoSection))]
 	[NotifyPropertyChangedFor(nameof(IsVoiceSection))]
 	[NotifyPropertyChangedFor(nameof(IsCommentarySection))]
 	[NotifyPropertyChangedFor(nameof(IsAiProviderSection))]
 	[NotifyPropertyChangedFor(nameof(IsAiPromptSection))]
 	private int _selectedNavIndex = 0;
 
-	public bool IsTrackInfoSection => SelectedNavIndex == 0;
-	public bool IsVoiceSection => SelectedNavIndex == 1;
-	public bool IsCommentarySection => SelectedNavIndex == 2;
-	public bool IsAiProviderSection => SelectedNavIndex == 3;
-	public bool IsAiPromptSection => SelectedNavIndex == 4;
+	public bool IsVoiceSection => SelectedNavIndex == 0;
+	public bool IsCommentarySection => SelectedNavIndex == 1;
+	public bool IsAiProviderSection => SelectedNavIndex == 2;
+	public bool IsAiPromptSection => SelectedNavIndex == 3;
 
 	[RelayCommand]
-	private void GoToAiProvider() => SelectedNavIndex = 3;
+	private void GoToAiProvider() => SelectedNavIndex = 2;
 
 	[RelayCommand]
-	private void GoToAiPrompt() => SelectedNavIndex = 4;
+	private void GoToAiPrompt() => SelectedNavIndex = 3;
 
 	[RelayCommand]
-	private void GoToCommentary() => SelectedNavIndex = 2;
+	private void GoToCommentary() => SelectedNavIndex = 1;
 
 	// ── Settings fields ──────────────────────────────────────────────────────
-
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(ApiKeyError))]
-	[NotifyPropertyChangedFor(nameof(HasApiKeyError))]
-	[NotifyCanExecuteChangedFor(nameof(SaveCommand))]
-	private string _apiKey = App.Settings.LastFmApiKey;
 
 	[ObservableProperty] private VoiceInfo? _selectedVoice;
 
@@ -125,8 +108,7 @@ public partial class ConfigWindowViewModel(
 
 	[ObservableProperty] private string _ollamaUrl = App.Settings.OllamaUrl;
 
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(OllamaModelMissingMessage))]
+	[ObservableProperty] [NotifyPropertyChangedFor(nameof(OllamaModelMissingMessage))]
 	private string _ollamaModel = App.Settings.OllamaModel;
 
 	// ── Computed settings properties ─────────────────────────────────────────
@@ -136,18 +118,20 @@ public partial class ConfigWindowViewModel(
 	public bool IsTemplateModeSelected
 	{
 		get => CommentaryMode == CommentaryMode.Template;
-		set { if (value) CommentaryMode = CommentaryMode.Template; }
+		set
+		{
+			if (value) CommentaryMode = CommentaryMode.Template;
+		}
 	}
 
 	public bool IsAiModeSelected
 	{
 		get => CommentaryMode == CommentaryMode.Ai;
-		set { if (value) CommentaryMode = CommentaryMode.Ai; }
+		set
+		{
+			if (value) CommentaryMode = CommentaryMode.Ai;
+		}
 	}
-
-	public string? ApiKeyError => string.IsNullOrWhiteSpace(ApiKey)
-		? "An API key is required to load track metadata."
-		: null;
 
 	public string? TemplateError => string.IsNullOrWhiteSpace(AnnouncementTemplate)
 		? "The announcement template cannot be empty."
@@ -157,7 +141,6 @@ public partial class ConfigWindowViewModel(
 		? "An AI prompt is required when AI mode is selected."
 		: null;
 
-	public bool HasApiKeyError => ApiKeyError != null;
 	public bool HasTemplateError => TemplateError != null;
 	public bool HasAiPromptError => AiPromptError != null;
 
@@ -167,8 +150,7 @@ public partial class ConfigWindowViewModel(
 
 	public IReadOnlyList<PromptLibraryEntry> PromptLibrary { get; } = Commentary.PromptLibrary.Entries;
 
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(IsPromptLibraryOpen))]
+	[ObservableProperty] [NotifyPropertyChangedFor(nameof(IsPromptLibraryOpen))]
 	private bool _promptLibraryVisible = false;
 
 	public bool IsPromptLibraryOpen => PromptLibraryVisible;
@@ -184,7 +166,8 @@ public partial class ConfigWindowViewModel(
 		{
 			Title = "Save prompt",
 			DefaultExtension = "txt",
-			FileTypeChoices = [new Avalonia.Platform.Storage.FilePickerFileType("Text files") { Patterns = ["*.txt"] }],
+			FileTypeChoices =
+				[new Avalonia.Platform.Storage.FilePickerFileType("Text files") { Patterns = ["*.txt"] }],
 		});
 		if (file != null)
 			await System.IO.File.WriteAllTextAsync(file.Path.LocalPath, AiPrompt);
@@ -194,12 +177,14 @@ public partial class ConfigWindowViewModel(
 	private async Task LoadPromptFromFile()
 	{
 		if (_window == null) return;
-		var files = await _window.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
-		{
-			Title = "Load prompt",
-			AllowMultiple = false,
-			FileTypeFilter = [new Avalonia.Platform.Storage.FilePickerFileType("Text files") { Patterns = ["*.txt"] }],
-		});
+		var files = await _window.StorageProvider.OpenFilePickerAsync(
+			new Avalonia.Platform.Storage.FilePickerOpenOptions
+			{
+				Title = "Load prompt",
+				AllowMultiple = false,
+				FileTypeFilter =
+					[new Avalonia.Platform.Storage.FilePickerFileType("Text files") { Patterns = ["*.txt"] }],
+			});
 		var file = files.FirstOrDefault();
 		if (file != null)
 			AiPrompt = await System.IO.File.ReadAllTextAsync(file.Path.LocalPath);
@@ -212,44 +197,6 @@ public partial class ConfigWindowViewModel(
 		PromptLibraryVisible = false;
 	}
 
-	// ── Last.fm check ────────────────────────────────────────────────────────
-
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(IsLastFmCheckOk))]
-	[NotifyPropertyChangedFor(nameof(IsLastFmCheckFailed))]
-	[NotifyPropertyChangedFor(nameof(IsLastFmChecking))]
-	[NotifyCanExecuteChangedFor(nameof(CheckLastFmCommand))]
-	private LastFmCheckState _lastFmCheckState = LastFmCheckState.Idle;
-
-	public bool IsLastFmCheckOk => LastFmCheckState == LastFmCheckState.Ok;
-	public bool IsLastFmCheckFailed => LastFmCheckState == LastFmCheckState.Failed;
-	public bool IsLastFmChecking => LastFmCheckState == LastFmCheckState.Checking;
-
-	private bool CanCheckLastFm() => LastFmCheckState != LastFmCheckState.Checking
-	                                  && !string.IsNullOrWhiteSpace(ApiKey);
-
-	[RelayCommand(CanExecute = nameof(CanCheckLastFm))]
-	private async Task CheckLastFm()
-	{
-		LastFmCheckState = LastFmCheckState.Checking;
-		try
-		{
-			using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-			using var client = new HttpClient();
-			var url = $"https://ws.audioscrobbler.com/2.0/?method=chart.gettoptracks&api_key={ApiKey.Trim()}&format=json&limit=1";
-			var response = await client.GetAsync(url, cts.Token);
-			var json = await response.Content.ReadAsStringAsync(cts.Token);
-			var node = JsonNode.Parse(json);
-			LastFmCheckState = node?["error"] == null
-				? LastFmCheckState.Ok
-				: LastFmCheckState.Failed;
-		}
-		catch
-		{
-			LastFmCheckState = LastFmCheckState.Failed;
-		}
-	}
-
 	// ── Voice test ───────────────────────────────────────────────────────────
 
 	[ObservableProperty]
@@ -258,8 +205,7 @@ public partial class ConfigWindowViewModel(
 	[NotifyCanExecuteChangedFor(nameof(TestVoiceCommand))]
 	private VoiceTestState _voiceTestState = VoiceTestState.Idle;
 
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(HasVoiceTestError))]
+	[ObservableProperty] [NotifyPropertyChangedFor(nameof(HasVoiceTestError))]
 	private string? _voiceTestError;
 
 	public bool IsVoiceTesting => VoiceTestState is VoiceTestState.Synthesising or VoiceTestState.Playing;
@@ -384,12 +330,10 @@ public partial class ConfigWindowViewModel(
 	[NotifyCanExecuteChangedFor(nameof(CancelPreviewCommand))]
 	private PreviewState _currentPreviewState = PreviewState.Idle;
 
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(HasPreviewError))]
+	[ObservableProperty] [NotifyPropertyChangedFor(nameof(HasPreviewError))]
 	private string? _previewError;
 
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(PreviewButtonLabel))]
+	[ObservableProperty] [NotifyPropertyChangedFor(nameof(PreviewButtonLabel))]
 	private double _previewElapsedSeconds;
 
 	private double _previewTotalSeconds;
@@ -619,12 +563,11 @@ public partial class ConfigWindowViewModel(
 
 	// ── Validation & Save ────────────────────────────────────────────────────
 
-	private bool CanSave() => ApiKeyError == null && TemplateError == null && AiPromptError == null;
+	private bool CanSave() => TemplateError == null && AiPromptError == null;
 
 	[RelayCommand(CanExecute = nameof(CanSave))]
 	private void Save()
 	{
-		App.Settings.LastFmApiKey = ApiKey.Trim();
 		if (SelectedVoice != null)
 			App.Settings.TtsVoice = SelectedVoice.Id;
 		App.Settings.AnnouncementTemplate = AnnouncementTemplate.Trim();

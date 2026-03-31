@@ -1,4 +1,4 @@
-﻿﻿# ============================================================
+﻿# ============================================================
 #  Muzsick — .gitignore
 # ============================================================
 
@@ -46,6 +46,9 @@ crash-*.txt
 # Keep settings.json.example in source, ignore real one if it has keys
 secrets.json
 local.settings.json
+
+# ----- Application credentials — never committed ----------
+src/Muzsick/ApiKeys.json
 
 # ----- ML models — downloaded at build time, never committed ----------
 # The Kokoro TTS model is fetched automatically by MSBuild on first build.

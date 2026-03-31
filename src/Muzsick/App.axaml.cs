@@ -34,19 +34,7 @@ public class App : Application
 			var mainWindow = new MainWindow { DataContext = new MainWindowViewModel() };
 			desktop.MainWindow = mainWindow;
 
-			if (string.IsNullOrWhiteSpace(Settings.LastFmApiKey))
-			{
-				mainWindow.Show();
-				if (mainWindow.DataContext is MainWindowViewModel vm)
-				{
-					var configWindow = new ConfigWindow(
-						isFirstRun: true,
-						vm.TtsAvailableVoices,
-						vm.TtsBackend,
-						vm.AudioMixer);
-					configWindow.ShowDialog(mainWindow);
-				}
-			}
+			mainWindow.Show();
 		}
 
 		base.OnFrameworkInitializationCompleted();

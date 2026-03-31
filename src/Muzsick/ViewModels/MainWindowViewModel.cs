@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Media.Imaging;
-using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -30,7 +29,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private string _artistName = "Unknown artist";
 	[ObservableProperty] private string _albumName = "Unknown album";
 	[ObservableProperty] private bool _isPlaying;
-	[ObservableProperty] private string? _playlistPath;
+	[ObservableProperty] private string? _streamUrl;
+	[ObservableProperty] private string? _streamName;
 	[ObservableProperty] private int _volume = 50;
 	[ObservableProperty] private bool _volumeTooltipVisible;
 	[ObservableProperty] private string? _updateMessage;
@@ -92,8 +92,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_volume = Math.Clamp(settings.Volume, 0, 100);
 		_audioMixer.SetVolume(_volume);
 
-		if (!string.IsNullOrEmpty(settings.LastPlaylistPath) && File.Exists(settings.LastPlaylistPath))
-			ApplyPlaylistPath(settings.LastPlaylistPath);
+		if (!string.IsNullOrEmpty(settings.StreamUrl))
+			ApplyStream(settings.StreamUrl, settings.StreamName);
 	}
 
 	public void SetMainWindow(Window window)
@@ -146,49 +146,47 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		}
 		else
 		{
-			if (!string.IsNullOrEmpty(PlaylistPath) && File.Exists(PlaylistPath))
+			if (!string.IsNullOrEmpty(StreamUrl))
 			{
-				await _streamPlayer.PlayPlaylist(PlaylistPath);
+				await _streamPlayer.PlayPlaylist(StreamUrl);
 				IsPlaying = true;
 			}
 			else
 			{
-				SongTitle = "No playlist selected";
-				ArtistName = "Please browse for a playlist file";
+				SongTitle = "No stream selected";
+				ArtistName = "Use the folder button to open a stream";
 				AlbumName = "";
 			}
 		}
 	}
 
 	[RelayCommand]
-	private async Task BrowsePlaylist()
+	private async Task OpenStream()
 	{
 		if (_mainWindow == null) return;
 
-		var fileTypeFilter = new FilePickerFileType("Playlist Files")
-		{
-			Patterns = ["*.pls", "*.m3u", "*.m3u8"],
-			MimeTypes = ["audio/x-scpls", "audio/x-mpegurl", "application/vnd.apple.mpegurl"]
-		};
+		var dialog = new OpenStreamWindow(_httpClient, StreamUrl);
+		var result = await dialog.ShowDialog<(string StreamUrl, string StreamName)?>(_mainWindow);
 
-		var options = new FilePickerOpenOptions
-		{
-			Title = "Select Radio Playlist", AllowMultiple = false, FileTypeFilter = [fileTypeFilter]
-		};
+		if (result == null) return;
 
-		var result = await _mainWindow.StorageProvider.OpenFilePickerAsync(options);
+		var (url, name) = result.Value;
 
-		if (result.Count > 0)
-		{
-			ApplyPlaylistPath(result[0].Path.LocalPath);
+		// No-op if the same stream is already playing
+		if (url == StreamUrl && IsPlaying) return;
 
-			var settings = SettingsManager.Load() ?? new AppSettings();
-			settings.LastPlaylistPath = PlaylistPath;
-			SettingsManager.Save(settings);
-		}
+		ApplyStream(url, name);
+
+		var settings = SettingsManager.Load() ?? new AppSettings();
+		settings.StreamUrl = url;
+		settings.StreamName = name;
+		SettingsManager.Save(settings);
+
+		await _streamPlayer!.PlayPlaylist(StreamUrl!);
+		IsPlaying = true;
 	}
 
-	private void ApplyPlaylistPath(string path)
+	private void ApplyStream(string url, string? name)
 	{
 		if (IsPlaying)
 		{
@@ -196,10 +194,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			IsPlaying = false;
 		}
 
-		PlaylistPath = path;
-		SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
+		StreamUrl = url;
+		StreamName = name;
+
+		SongTitle = name ?? new Uri(url).Host;
 		ArtistName = "Ready to play";
-		AlbumName = PlaylistPath;
+		AlbumName = "";
 		AlbumArt = null;
 		ArtistImage = null;
 		ArtistLastFmUrl = null;
@@ -215,7 +215,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_isConfigOpen = true;
 		_voiceoverCts.Cancel();
 
-		var voices = (_ttsBackend as KokoroTtsBackend)?.AvailableVoices ?? new Dictionary<string, VoiceInfo>();
+		var voices = (_ttsBackend as KokoroTtsBackend)?.AvailableVoices ??
+		             new Dictionary<string, VoiceInfo>();
 		var configWindow = new ConfigWindow(isFirstRun: false, voices, _ttsBackend, _audioMixer);
 		var saved = await configWindow.ShowDialog<bool>(_mainWindow);
 
@@ -237,6 +238,34 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		await new AboutWindow().ShowDialog(_mainWindow);
 	}
 
+	[RelayCommand]
+	private void OpenLastFm(string? url)
+	{
+		if (string.IsNullOrEmpty(url)) return;
+		try
+		{
+			Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+		}
+		catch (Exception ex)
+		{
+			App.LoggerFactory?.CreateLogger("MainWindowViewModel")
+				.LogWarning("Failed to open Last.fm URL: {Message}", ex.Message);
+		}
+	}
+
+	[RelayCommand(CanExecute = nameof(CanReplayAnnouncement))]
+	private async Task ReplayAnnouncement()
+	{
+		if (_lastAnnouncementWav == null) return;
+		var voiceoverCts = new CancellationTokenSource();
+		var previous = Interlocked.Exchange(ref _voiceoverCts, voiceoverCts);
+		await previous.CancelAsync();
+		previous.Dispose();
+		await _audioMixer.PlayVoiceoverAsync(_lastAnnouncementWav, voiceoverCts.Token);
+	}
+
+	private bool CanReplayAnnouncement() => _lastAnnouncementWav is { Length: > 0 };
+
 	private async void OnTrackChanged(TrackInfo track)
 	{
 		try
@@ -247,15 +276,14 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			await previous.CancelAsync();
 			previous.Dispose();
 
-
 			var token = cts.Token;
 
 			SongTitle = !string.IsNullOrEmpty(track.Title) ? track.Title : SongTitle;
 			ArtistName = !string.IsNullOrEmpty(track.Artist) ? track.Artist : "Unknown artist";
 			AlbumName = !string.IsNullOrEmpty(track.Album)
 				? track.Album
-				: !string.IsNullOrEmpty(PlaylistPath)
-					? Path.GetFileNameWithoutExtension(PlaylistPath)
+				: !string.IsNullOrEmpty(StreamName)
+					? StreamName
 					: "Unknown album";
 
 			AlbumArt = null;
@@ -302,102 +330,83 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 			if (token.IsCancellationRequested) return;
 
-			string? announcement;
+			string? commentary;
 			try
 			{
-				announcement = await _commentaryGenerator.GenerateAsync(enriched, token);
+				commentary = await _commentaryGenerator.GenerateAsync(enriched, token);
 			}
-			catch (TimeoutException)
+			catch (OperationCanceledException)
 			{
-				announcement = null;
+				return;
 			}
-			catch (HttpRequestException ex)
+			catch (Exception ex)
 			{
 				App.LoggerFactory?.CreateLogger("MainWindowViewModel")
-					.LogWarning("Ollama unreachable during track change: {Message}", ex.Message);
-				announcement = null;
+					.LogWarning("Commentary generation failed: {Message}", ex.Message);
+
+				// Fall back to template if AI fails
+				if (_commentaryGenerator is not TemplateCommentaryGenerator)
+				{
+					UpdateMessage = "⚠ AI commentary unavailable — using template";
+					commentary = await new TemplateCommentaryGenerator().GenerateAsync(enriched, token);
+				}
+				else
+				{
+					return;
+				}
 			}
 
-			// AI mode: if Ollama failed (returned null), fall back to template and warn the user.
-			if (announcement == null)
-			{
-				announcement = AnnouncementTemplateRenderer.Render(App.Settings.AnnouncementTemplate, enriched);
-				Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-					UpdateMessage = "⚠ AI commentary unavailable — using template");
-			}
-			else if (App.Settings.CommentaryMode == CommentaryMode.Ai)
-			{
-				// Ollama responded — clear any previous warning.
-				Avalonia.Threading.Dispatcher.UIThread.Post(() => UpdateMessage = null);
-			}
+			if (string.IsNullOrWhiteSpace(commentary) || token.IsCancellationRequested) return;
 
-			var wavBytes = await _ttsBackend.SynthesizeAsync(announcement, App.Settings.TtsVoice, token);
+			byte[]? wav;
+			try
+			{
+				var voice = App.Settings.TtsVoice;
+				wav = await _ttsBackend.SynthesizeAsync(commentary, voice, token);
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+			catch (Exception ex)
+			{
+				App.LoggerFactory?.CreateLogger("MainWindowViewModel")
+					.LogWarning("TTS synthesis failed: {Message}", ex.Message);
+				return;
+			}
 
 			if (token.IsCancellationRequested) return;
 
-			if (wavBytes is { Length: > 0 })
-			{
-				_lastAnnouncementWav = wavBytes;
-				Avalonia.Threading.Dispatcher.UIThread.Post(
-					ReplayAnnouncementCommand.NotifyCanExecuteChanged);
-				await PlayAnnouncementAsync(wavBytes);
-			}
-		}
-		catch (OperationCanceledException)
-		{
-			// New track arrived — silently discard.
+			_lastAnnouncementWav = wav;
+			Avalonia.Threading.Dispatcher.UIThread.Post(ReplayAnnouncementCommand.NotifyCanExecuteChanged);
+
+			var voiceoverCts = new CancellationTokenSource();
+			var previousVoiceover = Interlocked.Exchange(ref _voiceoverCts, voiceoverCts);
+			await previousVoiceover.CancelAsync();
+			previousVoiceover.Dispose();
+
+			await _audioMixer.PlayVoiceoverAsync(wav, voiceoverCts.Token);
 		}
 		catch (Exception ex)
 		{
 			App.LoggerFactory?.CreateLogger("MainWindowViewModel")
-				.LogError(ex, "Error processing track");
-		}
-	}
-
-	// Atomically cancels any playing announcement and starts a new one.
-	// This is the single choke-point — call it from everywhere (track change, replay, config preview).
-	private async Task PlayAnnouncementAsync(byte[] wavBytes)
-	{
-		var cts = new CancellationTokenSource();
-		var prev = Interlocked.Exchange(ref _voiceoverCts, cts);
-		prev.Cancel();
-		prev.Dispose();
-		await _audioMixer.PlayVoiceoverAsync(wavBytes, cts.Token);
-	}
-
-	[RelayCommand(CanExecute = nameof(CanReplayAnnouncement))]
-	private async Task ReplayAnnouncement()
-	{
-		await PlayAnnouncementAsync(_lastAnnouncementWav!);
-	}
-
-	private bool CanReplayAnnouncement() => _lastAnnouncementWav is { Length: > 0 };
-
-	[RelayCommand]
-	private void OpenLastFm(string? url)
-	{
-		if (string.IsNullOrEmpty(url)) return;
-		try
-		{
-			Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
-		}
-		catch (Exception ex)
-		{
-			App.LoggerFactory?.CreateLogger("MainWindowViewModel")
-				.LogWarning("Failed to open Last.fm URL: {Message}", ex.Message);
+				.LogError(ex, "Unhandled error in OnTrackChanged");
 		}
 	}
 
 	private static string? BuildLastFmArtistUrl(string? artist) =>
-		string.IsNullOrWhiteSpace(artist) ? null
+		string.IsNullOrWhiteSpace(artist)
+			? null
 			: $"https://www.last.fm/music/{Uri.EscapeDataString(artist).Replace("%20", "+")}";
 
 	private static string? BuildLastFmAlbumUrl(string? artist, string? album) =>
-		string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(album) ? null
+		string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(album)
+			? null
 			: $"https://www.last.fm/music/{Uri.EscapeDataString(artist).Replace("%20", "+")}/{Uri.EscapeDataString(album).Replace("%20", "+")}";
 
 	private static string? BuildLastFmTrackUrl(string? artist, string? title) =>
-		string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(title) ? null
+		string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(title)
+			? null
 			: $"https://www.last.fm/music/{Uri.EscapeDataString(artist).Replace("%20", "+")}/_/{Uri.EscapeDataString(title).Replace("%20", "+")}";
 
 	/// <summary>
@@ -448,27 +457,27 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		else
 			switch (status)
 			{
-				case "Connected to stream" when string.IsNullOrEmpty(PlaylistPath):
+				case "Connected to stream" when string.IsNullOrEmpty(StreamUrl):
 					return;
 				case "Connected to stream":
-					SongTitle = Path.GetFileNameWithoutExtension(PlaylistPath);
+					SongTitle = StreamName ?? new Uri(StreamUrl!).Host;
 					ArtistName = "Live Radio Stream";
 					AlbumName = "Waiting for track information...";
 					break;
-			case "Stopped":
-			case "Stream ended":
-			{
-				IsPlaying = false;
-				AlbumArt = null;
-				ArtistImage = null;
-				ArtistLastFmUrl = null;
-				AlbumLastFmUrl = null;
-				TrackLastFmUrl = null;
-				if (!string.IsNullOrEmpty(PlaylistPath))
+				case "Stopped":
+				case "Stream ended":
+				{
+					IsPlaying = false;
+					AlbumArt = null;
+					ArtistImage = null;
+					ArtistLastFmUrl = null;
+					AlbumLastFmUrl = null;
+					TrackLastFmUrl = null;
+					if (!string.IsNullOrEmpty(StreamUrl))
 					{
-						SongTitle = $"Playlist: {Path.GetFileNameWithoutExtension(PlaylistPath)}";
+						SongTitle = StreamName ?? new Uri(StreamUrl).Host;
 						ArtistName = "Ready to play";
-						AlbumName = PlaylistPath;
+						AlbumName = "";
 					}
 					else
 					{

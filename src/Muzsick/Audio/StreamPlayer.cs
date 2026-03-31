@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using LibVLCSharp.Shared;
@@ -186,57 +185,42 @@ public class StreamPlayer(AudioMixer audioMixer, ILogger? logger = null) : IDisp
 		}
 	}
 
-
-	public async Task PlayPlaylist(string playlistPath)
+	public Task PlayPlaylist(string streamUrl)
 	{
 		if (!_isInitialized)
 		{
 			logger?.LogError("Audio engine not initialized");
 			StatusChanged?.Invoke("Audio engine not ready");
-			return;
+			return Task.CompletedTask;
 		}
 
 		if (_mediaPlayer == null || _libVLC == null)
 		{
 			logger?.LogError("Audio components not available");
 			StatusChanged?.Invoke("Audio components not available");
-			return;
+			return Task.CompletedTask;
 		}
 
 		Stop();
 
 		try
 		{
-			var fileName = Path.GetFileNameWithoutExtension(playlistPath);
-			logger?.LogInformation("Loading playlist: {FileName}", fileName);
-			StatusChanged?.Invoke($"Loading {fileName}...");
+			var displayName = Uri.TryCreate(streamUrl, UriKind.Absolute, out var uri)
+				? uri.Host
+				: streamUrl;
 
-			// Parse the playlist so VLC resolves the stream URLs inside it
-			var playlistMedia = new Media(_libVLC, playlistPath);
-			await playlistMedia.Parse(MediaParseOptions.ParseLocal | MediaParseOptions.ParseNetwork);
-			logger?.LogInformation("Playlist parsed, sub-items: {Count}", playlistMedia.SubItems.Count);
+			logger?.LogInformation("Loading stream: {DisplayName}", displayName);
+			StatusChanged?.Invoke($"Loading {displayName}...");
 
-			// Get the first stream URL from the playlist
-			var streamMedia = playlistMedia.SubItems.Count > 0 ? playlistMedia.SubItems[0] : null;
-			playlistMedia.Dispose();
-
-			if (streamMedia == null)
-			{
-				logger?.LogError("No streams found in playlist");
-				StatusChanged?.Invoke("No streams found in playlist");
-				return;
-			}
-
-			// Apply ICY and buffering options to the actual stream
+			var streamMedia = new Media(_libVLC, new Uri(streamUrl));
 			streamMedia.AddOption(":meta-policy=1");
 			streamMedia.AddOption(":network-caching=2000");
 			streamMedia.AddOption(":icy-metadata=1");
 
-			// Assign and play — OnMediaChanged will hook the metadata events
 			_mediaPlayer.Media = streamMedia;
 			_currentMedia = streamMedia;
 
-			StatusChanged?.Invoke($"Starting {fileName}...");
+			StatusChanged?.Invoke($"Starting {displayName}...");
 			var started = _mediaPlayer.Play();
 			logger?.LogInformation("MediaPlayer.Play() returned: {Result}", started);
 
@@ -251,6 +235,8 @@ public class StreamPlayer(AudioMixer audioMixer, ILogger? logger = null) : IDisp
 			logger?.LogError(ex, "Exception in PlayPlaylist");
 			StatusChanged?.Invoke("Playback error occurred");
 		}
+
+		return Task.CompletedTask;
 	}
 
 	private void StartMetadataPolling()
@@ -273,7 +259,6 @@ public class StreamPlayer(AudioMixer audioMixer, ILogger? logger = null) : IDisp
 		logger?.LogDebug("Polling metadata...");
 		ExtractAndNotifyTrackInfo(_currentMedia);
 	}
-
 
 	public void Stop()
 	{

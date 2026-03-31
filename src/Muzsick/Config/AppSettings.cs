@@ -22,9 +22,16 @@ public class AppSettings
 	public int Volume { get; set; } = 50;
 
 	/// <summary>
-	/// Absolute path of the last playlist file opened. Restored on next launch.
+	/// Resolved bare stream URL from the last opened stream. Restored on next launch.
+	/// Always a playable URL — never a local file path or playlist URL.
 	/// </summary>
-	public string? LastPlaylistPath { get; set; }
+	public string? StreamUrl { get; set; }
+
+	/// <summary>
+	/// Human-readable station name inferred from playlist metadata or the stream URL hostname.
+	/// Displayed before ICY metadata arrives.
+	/// </summary>
+	public string? StreamName { get; set; }
 
 	/// <summary>
 	/// Kokoro TTS voice identifier. Defaults to "af_heart".

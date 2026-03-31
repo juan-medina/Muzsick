@@ -1,0 +1,121 @@
+﻿<!--
+    SPDX-FileCopyrightText: 2026 Juan Medina
+    SPDX-License-Identifier: MIT
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Muzsick.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="480" d:DesignHeight="180"
+        x:Class="Muzsick.Views.OpenStreamWindow"
+        x:DataType="vm:OpenStreamWindowViewModel"
+        Icon="/Assets/muzsick-logo.ico"
+        Title="Muzsick — Open stream"
+        Width="480"
+        SizeToContent="Height"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+
+	<Window.Styles>
+		<Style Selector="Button.primary /template/ ContentPresenter">
+			<Setter Property="Background" Value="#FF6B35" />
+		</Style>
+		<Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#DD5520" />
+		</Style>
+		<Style Selector="Button.primary:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#BB4410" />
+		</Style>
+		<Style Selector="Button.secondary /template/ ContentPresenter">
+			<Setter Property="Background" Value="#444444" />
+		</Style>
+		<Style Selector="Button.secondary:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#555555" />
+		</Style>
+		<Style Selector="Button.secondary:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#333333" />
+		</Style>
+	</Window.Styles>
+
+	<Border Background="#2B2B2B" Padding="20">
+		<StackPanel Spacing="12">
+
+			<!-- URL input row -->
+			<Grid ColumnDefinitions="*,8,Auto">
+				<TextBox
+					Grid.Column="0"
+					Text="{Binding UrlInput}"
+					Watermark="Stream URL or playlist URL"
+					Background="#1E1E1E"
+					Foreground="#FFFFFF"
+					CaretBrush="#FF6B35"
+					BorderBrush="#555555"
+					BorderThickness="1"
+					CornerRadius="6"
+					Padding="10,8"
+					FontSize="13"
+					VerticalContentAlignment="Center" />
+
+				<Button
+					Grid.Column="2"
+					Content="Browse…"
+					Command="{Binding BrowseCommand}"
+					Height="36"
+					Padding="12,0"
+					Background="#444444"
+					Foreground="#FFFFFF"
+					BorderThickness="0"
+					CornerRadius="6"
+					VerticalContentAlignment="Center"
+					Classes="secondary" />
+			</Grid>
+
+			<!-- Status / error row — only visible when needed -->
+			<TextBlock
+				Text="{Binding ErrorMessage}"
+				Foreground="#FF6B6B"
+				FontSize="12"
+				TextWrapping="Wrap"
+				IsVisible="{Binding HasError}" />
+
+			<TextBlock
+				Text="Resolving stream…"
+				Foreground="#888888"
+				FontSize="12"
+				IsVisible="{Binding IsResolving}" />
+
+			<!-- Action buttons -->
+			<StackPanel
+				Orientation="Horizontal"
+				HorizontalAlignment="Right"
+				Spacing="8"
+				Margin="0,4,0,0">
+
+				<Button
+					Content="Cancel"
+					Command="{Binding CancelCommand}"
+					Width="80"
+					Background="#444444"
+					Foreground="#FFFFFF"
+					BorderThickness="0"
+					CornerRadius="6"
+					HorizontalContentAlignment="Center"
+					Classes="secondary" />
+
+				<Button
+					Content="Open"
+					Command="{Binding OpenCommand}"
+					Width="80"
+					Background="#FF6B35"
+					Foreground="#FFFFFF"
+					BorderThickness="0"
+					CornerRadius="6"
+					HorizontalContentAlignment="Center"
+					Classes="primary" />
+			</StackPanel>
+
+		</StackPanel>
+	</Border>
+
+</Window>

@@ -255,11 +255,11 @@
 					Width="44"
 					Height="44"
 					CornerRadius="22"
-					Command="{Binding BrowsePlaylistCommand}"
+					Command="{Binding OpenStreamCommand}"
 					Background="#444444"
 					Foreground="#FFFFFF"
 					HorizontalAlignment="Center"
-					ToolTip.Tip="Open playlist"
+					ToolTip.Tip="Open stream"
 					Classes="browseButton">
 					<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
 						<Canvas Width="16" Height="16">

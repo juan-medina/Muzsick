@@ -4,7 +4,7 @@
   <PropertyGroup>
     <VersionMajor>0</VersionMajor>
     <VersionMinor>4</VersionMinor>
-    <VersionBuild>664</VersionBuild>
+    <VersionBuild>675</VersionBuild>
     <Version>$(VersionMajor).$(VersionMinor).$(VersionBuild)</Version>
   </PropertyGroup>
 </Project>

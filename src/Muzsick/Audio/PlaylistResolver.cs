@@ -3,10 +3,10 @@
 
 using System;
 using System.IO;
-using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using PlaylistsNET.Content;
 
 namespace Muzsick.Audio;
 
@@ -32,12 +32,12 @@ public static class PlaylistResolver
 
 		input = input.Trim();
 
-		// Local file path
+		// Local file
 		if (File.Exists(input))
 		{
-			var content = await File.ReadAllTextAsync(input, cancellationToken);
 			var ext = Path.GetExtension(input).ToLowerInvariant();
-			return ParsePlaylistContent(content, ext, fallbackName: Path.GetFileNameWithoutExtension(input));
+			await using var stream = File.OpenRead(input);
+			return ParsePlaylist(stream, ext, fallbackName: Path.GetFileNameWithoutExtension(input));
 		}
 
 		if (!Uri.TryCreate(input, UriKind.Absolute, out var uri))
@@ -47,7 +47,8 @@ public static class PlaylistResolver
 			return null;
 
 		// Remote playlist URL
-		if (_playlistExtensions.Any(ext => input.EndsWith(ext, StringComparison.OrdinalIgnoreCase)))
+		var inputExt = Path.GetExtension(uri.AbsolutePath).ToLowerInvariant();
+		if (Array.Exists(_playlistExtensions, e => e == inputExt))
 		{
 			try
 			{
@@ -55,9 +56,8 @@ public static class PlaylistResolver
 				if (!response.IsSuccessStatusCode)
 					return null;
 
-				var content = await response.Content.ReadAsStringAsync(cancellationToken);
-				var ext = Path.GetExtension(uri.AbsolutePath).ToLowerInvariant();
-				return ParsePlaylistContent(content, ext, fallbackName: uri.Host);
+				await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+				return ParsePlaylist(stream, inputExt, fallbackName: uri.Host);
 			}
 			catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
 			{
@@ -65,74 +65,38 @@ public static class PlaylistResolver
 			}
 		}
 
-		// Direct stream URL — name comes from hostname
-		var name = uri.Host;
-		return (input, name);
+		// Direct stream URL
+		return (input, uri.Host);
 	}
 
-	private static (string StreamUrl, string StreamName)? ParsePlaylistContent(
-		string content,
+	private static (string StreamUrl, string StreamName)? ParsePlaylist(
+		Stream stream,
 		string extension,
 		string fallbackName)
 	{
-		return extension is ".pls"
-			? ParsePls(content, fallbackName)
-			: ParseM3U(content, fallbackName);
-	}
-
-	private static (string StreamUrl, string StreamName)? ParsePls(string content, string fallbackName)
-	{
-		string? streamUrl = null;
-		string? streamName = null;
-
-		foreach (var line in content.Split('\n'))
+		try
 		{
-			var trimmed = line.Trim();
+			var parser = PlaylistParserFactory.GetPlaylistParser(extension);
+			if (parser == null) return null;
 
-			if (trimmed.StartsWith("File1=", StringComparison.OrdinalIgnoreCase))
-				streamUrl = trimmed.Substring("File1=".Length).Trim();
-			else if (trimmed.StartsWith("Title1=", StringComparison.OrdinalIgnoreCase))
-				streamName = trimmed.Substring("Title1=".Length).Trim();
-		}
+			var playlist = parser.GetFromStream(stream);
+			var paths = playlist.GetTracksPaths();
+			if (paths.Count == 0) return null;
 
-		if (string.IsNullOrEmpty(streamUrl))
-			return null;
-
-		return (streamUrl, string.IsNullOrEmpty(streamName) ? fallbackName : streamName);
-	}
-
-	private static (string StreamUrl, string StreamName)? ParseM3U(string content, string fallbackName)
-	{
-		string? streamUrl = null;
-		string? streamName = null;
-
-		foreach (var line in content.Split('\n'))
-		{
-			var trimmed = line.Trim();
-
-			if (string.IsNullOrEmpty(trimmed))
-				continue;
-
-			// #EXTINF:-1,Station Name
-			if (trimmed.StartsWith("#EXTINF:", StringComparison.OrdinalIgnoreCase))
+			var title = playlist switch
 			{
-				var comma = trimmed.IndexOf(',');
-				if (comma >= 0 && comma < trimmed.Length - 1)
-					streamName = trimmed.Substring(comma + 1).Trim();
-				continue;
-			}
+				PlaylistsNET.Models.PlsPlaylist pls when pls.PlaylistEntries.Count > 0
+					=> pls.PlaylistEntries[0].Title,
+				PlaylistsNET.Models.M3uPlaylist m3u when m3u.PlaylistEntries.Count > 0
+					=> m3u.PlaylistEntries[0].Title,
+				_ => null,
+			};
 
-			if (trimmed.StartsWith('#'))
-				continue;
-
-			// First non-comment line is the stream URL
-			streamUrl = trimmed;
-			break;
+			return (paths[0], !string.IsNullOrWhiteSpace(title) ? title : fallbackName);
 		}
-
-		if (string.IsNullOrEmpty(streamUrl))
+		catch
+		{
 			return null;
-
-		return (streamUrl, string.IsNullOrEmpty(streamName) ? fallbackName : streamName);
+		}
 	}
 }

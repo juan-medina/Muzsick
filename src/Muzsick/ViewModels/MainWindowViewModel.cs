@@ -18,6 +18,7 @@ using Muzsick.Commentary;
 using Muzsick.Config;
 using Muzsick.Discord;
 using Muzsick.Metadata;
+using Muzsick.Models;
 using Muzsick.Tts;
 using Muzsick.Update;
 using Muzsick.Views;
@@ -61,6 +62,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private ICommentaryGenerator _commentaryGenerator;
 	private bool _isConfigOpen;
 	private readonly DiscordPresenceService _discordPresence;
+	private readonly HistoryWindowViewModel _historyVm;
+	private HistoryWindow? _historyWindow;
+
+	private const int _maxHistoryEntries = 20;
 
 	public MainWindowViewModel()
 	{
@@ -91,6 +96,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 		_discordPresence = new DiscordPresenceService(
 			App.LoggerFactory?.CreateLogger<DiscordPresenceService>());
+
+		_historyVm = new HistoryWindowViewModel(_audioMixer);
 
 		var settings = SettingsManager.Load();
 		if (settings == null) return;
@@ -244,6 +251,23 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	}
 
 	[RelayCommand]
+	private void OpenHistory()
+	{
+		if (_mainWindow == null) return;
+
+		// Bring existing window to front rather than opening a second one.
+		if (_historyWindow != null)
+		{
+			_historyWindow.Activate();
+			return;
+		}
+
+		_historyWindow = new HistoryWindow(_historyVm);
+		_historyWindow.Closed += (_, _) => _historyWindow = null;
+		_historyWindow.Show(_mainWindow);
+	}
+
+	[RelayCommand]
 	private void OpenLastFm(string? url)
 	{
 		if (string.IsNullOrEmpty(url)) return;
@@ -257,19 +281,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 				.LogWarning("Failed to open Last.fm URL: {Message}", ex.Message);
 		}
 	}
-
-	[RelayCommand(CanExecute = nameof(CanReplayAnnouncement))]
-	private async Task ReplayAnnouncement()
-	{
-		if (_lastAnnouncementWav == null) return;
-		var voiceoverCts = new CancellationTokenSource();
-		var previous = Interlocked.Exchange(ref _voiceoverCts, voiceoverCts);
-		await previous.CancelAsync();
-		previous.Dispose();
-		await _audioMixer.PlayVoiceoverAsync(_lastAnnouncementWav, voiceoverCts.Token);
-	}
-
-	private bool CanReplayAnnouncement() => _lastAnnouncementWav is { Length: > 0 };
 
 	private async void OnTrackChanged(TrackInfo track)
 	{
@@ -385,7 +396,27 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			if (token.IsCancellationRequested) return;
 
 			_lastAnnouncementWav = wav;
-			Avalonia.Threading.Dispatcher.UIThread.Post(ReplayAnnouncementCommand.NotifyCanExecuteChanged);
+
+			// Add to session history (cap at _maxHistoryEntries, newest first).
+			var entry = new HistoryEntry
+			{
+				Title = enriched.Title,
+				Artist = enriched.Artist,
+				Album = !string.IsNullOrEmpty(enriched.Album) ? enriched.Album : null,
+				Year = enriched.Year,
+				TrackLastFmUrl = TrackLastFmUrl,
+				ArtistLastFmUrl = ArtistLastFmUrl,
+				AlbumLastFmUrl = AlbumLastFmUrl,
+				AlbumArt = AlbumArt,
+				AnnouncementWav = wav,
+			};
+
+			Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+			{
+				_historyVm.Entries.Insert(0, entry);
+				if (_historyVm.Entries.Count > _maxHistoryEntries)
+					_historyVm.Entries.RemoveAt(_historyVm.Entries.Count - 1);
+			});
 
 			var voiceoverCts = new CancellationTokenSource();
 			var previousVoiceover = Interlocked.Exchange(ref _voiceoverCts, voiceoverCts);

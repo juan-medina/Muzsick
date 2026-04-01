@@ -16,4 +16,8 @@ public partial class OpenStreamWindow : Window
 		InitializeComponent();
 		vm.SetWindow(this);
 	}
+
+	public OpenStreamWindow() : this(new HttpClient(), null)
+	{
+	}
 }

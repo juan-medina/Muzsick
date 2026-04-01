@@ -250,7 +250,8 @@
 
 			<!-- Control Buttons -->
 			<StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" Margin="0,8,0,8">
-				<!-- Open Playlist — secondary action, left of play -->
+
+				<!-- Open stream — left of play -->
 				<Button
 					Width="44"
 					Height="44"
@@ -290,25 +291,26 @@
 					</StackPanel>
 				</Button>
 
-				<!-- Replay Announcement — disabled until the first announcement has played -->
+				<!-- History — right of play, opens session history window -->
 				<Button
 					Width="44"
 					Height="44"
 					CornerRadius="22"
-					Command="{Binding ReplayAnnouncementCommand}"
+					Command="{Binding OpenHistoryCommand}"
 					Background="#444444"
 					Foreground="#FFFFFF"
 					HorizontalAlignment="Center"
-					ToolTip.Tip="Replay last announcement"
-					Classes="replayButton">
+					ToolTip.Tip="Played this session"
+					Classes="historyButton">
 					<Canvas Width="16" Height="16">
-						<Path Fill="#FFFFFF"
-						      Data="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 0-.908-.417A4 4 0 1 1 8 4v1z" />
-						<Path Fill="#FFFFFF"
-						      Data="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
+						<Rectangle Canvas.Left="2" Canvas.Top="2.5" Width="12" Height="2" Fill="#FFFFFF" RadiusX="1" RadiusY="1" />
+						<Rectangle Canvas.Left="2" Canvas.Top="7" Width="12" Height="2" Fill="#FFFFFF" RadiusX="1" RadiusY="1" />
+						<Rectangle Canvas.Left="2" Canvas.Top="11.5" Width="12" Height="2" Fill="#FFFFFF" RadiusX="1" RadiusY="1" />
 					</Canvas>
 				</Button>
+
 			</StackPanel>
+
 		</StackPanel>
 	</DockPanel>
 
@@ -357,14 +359,11 @@
 		<Style Selector="Button.browseButton:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#333333" />
 		</Style>
-		<Style Selector="Button.replayButton:pointerover /template/ ContentPresenter">
+		<Style Selector="Button.historyButton:pointerover /template/ ContentPresenter">
 			<Setter Property="Background" Value="#555555" />
 		</Style>
-		<Style Selector="Button.replayButton:pressed /template/ ContentPresenter">
+		<Style Selector="Button.historyButton:pressed /template/ ContentPresenter">
 			<Setter Property="Background" Value="#333333" />
-		</Style>
-		<Style Selector="Button.replayButton:disabled">
-			<Setter Property="Opacity" Value="0.35" />
 		</Style>
 		<Style Selector="Button.aboutButton:pointerover /template/ ContentPresenter">
 			<Setter Property="Background" Value="#333333" />
@@ -373,5 +372,4 @@
 			<Setter Property="Background" Value="#222222" />
 		</Style>
 	</Window.Styles>
-
 </Window>

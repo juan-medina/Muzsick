@@ -1,0 +1,182 @@
+﻿<!--
+    SPDX-FileCopyrightText: 2026 Juan Medina
+    SPDX-License-Identifier: MIT
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Muzsick.ViewModels"
+        xmlns:models="using:Muzsick.Models"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="600"
+        x:Class="Muzsick.Views.HistoryWindow"
+        x:DataType="vm:HistoryWindowViewModel"
+        Icon="/Assets/muzsick-logo.ico"
+        Title="Muzsick — Played this session"
+        Width="500"
+        Height="600"
+        CanResize="False"
+        WindowStartupLocation="CenterOwner">
+
+	<Window.Styles>
+		<Style Selector="Button.replayDjButton">
+			<Setter Property="Background" Value="#444444" />
+			<Setter Property="Foreground" Value="#FFFFFF" />
+			<Setter Property="BorderThickness" Value="0" />
+			<Setter Property="CornerRadius" Value="6" />
+			<Setter Property="Padding" Value="10,5" />
+			<Setter Property="FontSize" Value="12" />
+			<Setter Property="Cursor" Value="Hand" />
+		</Style>
+		<Style Selector="Button.replayDjButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#555555" />
+		</Style>
+		<Style Selector="Button.replayDjButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#333333" />
+		</Style>
+		<Style Selector="Button.replayDjButton:disabled">
+			<Setter Property="Opacity" Value="0.35" />
+		</Style>
+		<Style Selector="Button.linkChip">
+			<Setter Property="Background" Value="#333333" />
+			<Setter Property="Foreground" Value="#AAAAAA" />
+			<Setter Property="BorderThickness" Value="0" />
+			<Setter Property="CornerRadius" Value="4" />
+			<Setter Property="Padding" Value="8,4" />
+			<Setter Property="FontSize" Value="11" />
+			<Setter Property="Cursor" Value="Hand" />
+		</Style>
+		<Style Selector="Button.linkChip:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#444444" />
+			<Setter Property="TextElement.Foreground" Value="#FFFFFF" />
+		</Style>
+		<Style Selector="Button.linkChip:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#222222" />
+		</Style>
+		<Style Selector="Button.closeButton:pointerover /template/ ContentPresenter">
+			<Setter Property="Background" Value="#555555" />
+		</Style>
+		<Style Selector="Button.closeButton:pressed /template/ ContentPresenter">
+			<Setter Property="Background" Value="#333333" />
+		</Style>
+	</Window.Styles>
+
+	<Grid RowDefinitions="*,Auto" Background="#2B2B2B">
+
+		<!-- Empty state -->
+		<TextBlock Grid.Row="0"
+		           Text="No tracks played yet this session."
+		           FontSize="14"
+		           Foreground="#666666"
+		           HorizontalAlignment="Center"
+		           VerticalAlignment="Center"
+		           IsVisible="{Binding Entries.Count, Converter={x:Static ObjectConverters.IsNull}}" />
+
+		<ScrollViewer Grid.Row="0"
+		              VerticalScrollBarVisibility="Auto"
+		              Padding="0,8,0,0"
+		              IsVisible="{Binding Entries.Count, Converter={x:Static ObjectConverters.IsNotNull}}">
+			<ItemsControl ItemsSource="{Binding Entries}">
+				<ItemsControl.ItemTemplate>
+					<DataTemplate x:DataType="models:HistoryEntry">
+						<Border Margin="12,4"
+						        Background="#1E1E1E"
+						        CornerRadius="8"
+						        Padding="12">
+							<Grid ColumnDefinitions="52,*">
+
+								<!-- Album art thumbnail -->
+								<Border Grid.Column="0"
+								        Width="44"
+								        Height="44"
+								        CornerRadius="6"
+								        Background="#444444"
+								        ClipToBounds="True"
+								        VerticalAlignment="Top">
+									<Panel>
+										<!-- Placeholder -->
+										<Canvas Width="44" Height="44"
+										        IsVisible="{Binding AlbumArt, Converter={x:Static ObjectConverters.IsNull}}">
+											<Ellipse Canvas.Left="4" Canvas.Top="4" Width="36" Height="36" Fill="#1a1a1a" />
+											<Ellipse Canvas.Left="15" Canvas.Top="15" Width="14" Height="14" Fill="#FF6B35" />
+											<Ellipse Canvas.Left="18" Canvas.Top="18" Width="8" Height="8" Fill="#2d2d2d" />
+											<Ellipse Canvas.Left="20" Canvas.Top="20" Width="4" Height="4" Fill="#FF6B35" />
+										</Canvas>
+										<!-- Real art -->
+										<Image Source="{Binding AlbumArt}"
+										       Width="44"
+										       Height="44"
+										       Stretch="UniformToFill"
+										       IsVisible="{Binding AlbumArt, Converter={x:Static ObjectConverters.IsNotNull}}" />
+									</Panel>
+								</Border>
+
+								<!-- Track info + actions -->
+								<StackPanel Grid.Column="1" Margin="10,0,0,0" Spacing="4">
+
+									<TextBlock Text="{Binding Title}"
+									           FontSize="14"
+									           FontWeight="SemiBold"
+									           Foreground="#FFFFFF"
+									           TextTrimming="CharacterEllipsis" />
+
+									<TextBlock Text="{Binding Artist}"
+									           FontSize="12"
+									           Foreground="#CCCCCC"
+									           TextTrimming="CharacterEllipsis" />
+
+									<TextBlock Text="{Binding AlbumLine}"
+									           FontSize="11"
+									           Foreground="#888888"
+									           TextTrimming="CharacterEllipsis"
+									           IsVisible="{Binding AlbumLine, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+									<!-- Links + Replay DJ -->
+									<WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="4" Margin="0,4,0,0">
+										<Button Content="Track ↗"
+										        Command="{Binding $parent[ItemsControl].((vm:HistoryWindowViewModel)DataContext).OpenLastFmCommand}"
+										        CommandParameter="{Binding TrackLastFmUrl}"
+										        IsVisible="{Binding TrackLastFmUrl, Converter={x:Static ObjectConverters.IsNotNull}}"
+										        Classes="linkChip" />
+										<Button Content="Artist ↗"
+										        Command="{Binding $parent[ItemsControl].((vm:HistoryWindowViewModel)DataContext).OpenLastFmCommand}"
+										        CommandParameter="{Binding ArtistLastFmUrl}"
+										        IsVisible="{Binding ArtistLastFmUrl, Converter={x:Static ObjectConverters.IsNotNull}}"
+										        Classes="linkChip" />
+										<Button Content="Album ↗"
+										        Command="{Binding $parent[ItemsControl].((vm:HistoryWindowViewModel)DataContext).OpenLastFmCommand}"
+										        CommandParameter="{Binding AlbumLastFmUrl}"
+										        IsVisible="{Binding AlbumLastFmUrl, Converter={x:Static ObjectConverters.IsNotNull}}"
+										        Classes="linkChip" />
+										<Button Content="Replay DJ"
+										        Command="{Binding $parent[ItemsControl].((vm:HistoryWindowViewModel)DataContext).ReplayDjCommand}"
+										        CommandParameter="{Binding}"
+										        IsEnabled="{Binding AnnouncementWav, Converter={x:Static ObjectConverters.IsNotNull}}"
+										        Classes="replayDjButton" />
+									</WrapPanel>
+								</StackPanel>
+							</Grid>
+						</Border>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+		</ScrollViewer>
+
+		<!-- Close button -->
+		<Border Grid.Row="1"
+		        BorderBrush="#333333"
+		        BorderThickness="0,1,0,0"
+		        Padding="16,10">
+			<Button Content="Close"
+			        Command="{Binding CloseCommand}"
+			        Width="80"
+			        Background="#444444"
+			        Foreground="#FFFFFF"
+			        BorderThickness="0"
+			        CornerRadius="6"
+			        HorizontalAlignment="Right"
+			        HorizontalContentAlignment="Center"
+			        Classes="closeButton" />
+		</Border>
+	</Grid>
+</Window>

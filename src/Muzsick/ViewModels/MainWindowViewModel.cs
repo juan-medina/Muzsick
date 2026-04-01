@@ -18,7 +18,6 @@ using Muzsick.Commentary;
 using Muzsick.Config;
 using Muzsick.Discord;
 using Muzsick.Metadata;
-using Muzsick.Models;
 using Muzsick.Tts;
 using Muzsick.Update;
 using Muzsick.Views;
@@ -58,7 +57,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private readonly UpdateService _updateService;
 	private CancellationTokenSource _trackCts = new();
 	private CancellationTokenSource _voiceoverCts = new();
-	private byte[]? _lastAnnouncementWav;
 	private ICommentaryGenerator _commentaryGenerator;
 	private bool _isConfigOpen;
 	private readonly DiscordPresenceService _discordPresence;
@@ -394,8 +392,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			}
 
 			if (token.IsCancellationRequested) return;
-
-			_lastAnnouncementWav = wav;
 
 			// Add to session history (cap at _maxHistoryEntries, newest first).
 			var entry = new HistoryEntry

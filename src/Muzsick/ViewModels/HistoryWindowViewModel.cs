@@ -10,7 +10,6 @@ using Avalonia.Controls;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using Muzsick.Audio;
-using Muzsick.Models;
 
 namespace Muzsick.ViewModels;
 

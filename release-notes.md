@@ -2,7 +2,8 @@
 
 ### New Features
 
-- **Open Stream** — Change the open file to open a sream when the user can either set a stream url or open a m3u or pls file instead.
+- **Discord Interagtion** — Added support for Discord Rich Presence,updating the last track information and playback
+  status.
 
 ### Bug Fixes
 

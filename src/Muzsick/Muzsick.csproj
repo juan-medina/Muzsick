@@ -79,6 +79,7 @@
 	</Target>
 
 	<ItemGroup>
+		<PackageReference Include="DiscordRichPresence" Version="1.6.1.70"/>
 		<PackageReference Include="MetaBrainz.MusicBrainz" Version="7.0.0"/>
 		<PackageReference Include="Avalonia" Version="11.3.12"/>
 		<PackageReference Include="Avalonia.Desktop" Version="11.3.12"/>

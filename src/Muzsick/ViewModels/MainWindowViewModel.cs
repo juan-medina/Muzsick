@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging;
 using Muzsick.Audio;
 using Muzsick.Commentary;
 using Muzsick.Config;
+using Muzsick.Discord;
 using Muzsick.Metadata;
 using Muzsick.Tts;
 using Muzsick.Update;
@@ -59,6 +60,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private byte[]? _lastAnnouncementWav;
 	private ICommentaryGenerator _commentaryGenerator;
 	private bool _isConfigOpen;
+	private readonly DiscordPresenceService _discordPresence;
 
 	public MainWindowViewModel()
 	{
@@ -86,6 +88,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_commentaryGenerator = App.Settings.CommentaryMode == CommentaryMode.Ai
 			? new OllamaCommentaryGenerator(App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>())
 			: new TemplateCommentaryGenerator();
+
+		_discordPresence = new DiscordPresenceService(
+			App.LoggerFactory?.CreateLogger<DiscordPresenceService>());
 
 		var settings = SettingsManager.Load();
 		if (settings == null) return;
@@ -323,6 +328,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			AlbumLastFmUrl = BuildLastFmAlbumUrl(enriched.Artist, enriched.Album);
 			TrackLastFmUrl = BuildLastFmTrackUrl(enriched.Artist, enriched.Title);
 
+			_discordPresence.UpdateTrack(enriched);
+
 			// §5.6 — wait before generating commentary to avoid interrupting the song intro.
 			// Also skip commentary entirely while the settings window is open.
 			if (_isConfigOpen) return;
@@ -515,5 +522,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_httpClient.Dispose();
 		_streamPlayer?.Dispose();
 		_audioMixer.Dispose();
+		_discordPresence.Dispose();
 	}
 }

@@ -1,3 +1,4 @@
 ﻿{
-  "LastFm": "put your last.fm API key here",
+	"LastFm": "put your last.fm API key here",
+	"DiscordAppId": "put your Discord application ID here",
 }

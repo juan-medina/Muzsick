@@ -35,7 +35,7 @@ jobs:
             -   name: Write ApiKeys.json
                 shell: bash
                 run: |
-                    echo '{"LastFm":"${{ secrets.LASTFM_API_KEY }}"}' > src/Muzsick/ApiKeys.json
+                    echo '{"LastFm":"${{ secrets.LASTFM_API_KEY }}","DiscordAppId":"${{ secrets.DISCORD_APP_ID }}"}' > src/Muzsick/ApiKeys.json
 
             -   name: Install LibVLC (Linux)
                 if: matrix.rid == 'linux-x64'

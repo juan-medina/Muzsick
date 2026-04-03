@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Net.Http;
@@ -127,6 +128,37 @@ public partial class ConfigWindowViewModel(
 	[ObservableProperty] private string _claudeApiKey = App.Settings.ClaudeApiKey;
 
 	[ObservableProperty] private string _claudeModel = App.Settings.ClaudeModel;
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(HasClaudeModelsRefreshError))]
+	private string? _claudeModelsRefreshError;
+
+	[ObservableProperty]
+	[NotifyCanExecuteChangedFor(nameof(RefreshClaudeModelsCommand))]
+	private bool _isRefreshingClaudeModels;
+
+	private static readonly string[] _knownClaudeModels =
+	[
+		"claude-haiku-4-5",
+		"claude-sonnet-4-5",
+		"claude-opus-4-5",
+		"claude-haiku-3-5",
+		"claude-sonnet-3-5",
+		"claude-opus-3",
+	];
+
+	public ObservableCollection<string> ClaudeModels { get; } = BuildInitialClaudeModels();
+
+	public bool HasClaudeModelsRefreshError => !string.IsNullOrEmpty(ClaudeModelsRefreshError);
+
+	private static ObservableCollection<string> BuildInitialClaudeModels()
+	{
+		var list = new ObservableCollection<string>(_knownClaudeModels);
+		var current = App.Settings.ClaudeModel;
+		if (!string.IsNullOrEmpty(current) && !list.Contains(current))
+			list.Insert(0, current);
+		return list;
+	}
 
 	// ── Computed settings properties ─────────────────────────────────────────
 
@@ -401,6 +433,66 @@ public partial class ConfigWindowViewModel(
 		catch
 		{
 			ClaudeCheckState = ClaudeCheckState.Failed;
+		}
+	}
+
+	private bool CanRefreshClaudeModels() => !IsRefreshingClaudeModels;
+
+	[RelayCommand(CanExecute = nameof(CanRefreshClaudeModels))]
+	private async Task RefreshClaudeModels()
+	{
+		IsRefreshingClaudeModels = true;
+		ClaudeModelsRefreshError = null;
+		try
+		{
+			using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+			using var client = new HttpClient();
+
+			using var request = new HttpRequestMessage(HttpMethod.Get,
+				"https://api.anthropic.com/v1/models");
+			request.Headers.Add("x-api-key", ClaudeApiKey.Trim());
+			request.Headers.Add("anthropic-version", "2023-06-01");
+
+			var response = await client.SendAsync(request, cts.Token);
+			if (!response.IsSuccessStatusCode)
+			{
+				ClaudeModelsRefreshError =
+					$"✗ Failed to fetch models ({(int)response.StatusCode}) — check your API key";
+				return;
+			}
+
+			var json = await response.Content.ReadAsStringAsync(cts.Token);
+			var node = JsonNode.Parse(json);
+			var ids = node?["data"]?.AsArray()
+				.Select(m => m?["id"]?.GetValue<string>() ?? "")
+				.Where(id => id.StartsWith("claude-", StringComparison.OrdinalIgnoreCase))
+				.OrderBy(id => id)
+				.ToList() ?? [];
+
+			if (ids.Count == 0)
+			{
+				ClaudeModelsRefreshError = "✗ No Claude models returned — check your API key";
+				return;
+			}
+
+			var current = ClaudeModel;
+			ClaudeModels.Clear();
+			foreach (var id in ids)
+				ClaudeModels.Add(id);
+
+			if (!ClaudeModels.Contains(current))
+				ClaudeModels.Insert(0, current);
+
+			if (!ClaudeModels.Contains(ClaudeModel))
+				ClaudeModel = ClaudeModels[0];
+		}
+		catch
+		{
+			ClaudeModelsRefreshError = "✗ Could not reach Anthropic API — check your connection";
+		}
+		finally
+		{
+			IsRefreshingClaudeModels = false;
 		}
 	}
 

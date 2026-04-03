@@ -102,7 +102,7 @@ public class AppSettings
 	/// <summary>
 	/// Default Claude model identifier.
 	/// </summary>
-	public const string DefaultClaudeModel = "claude-haiku-4-5-20251001";
+	public const string DefaultClaudeModel = "claude-haiku-4-5";
 
 	/// <summary>
 	/// Claude model used for AI commentary generation.

@@ -365,41 +365,63 @@
 									Text="⚠ AI-generated commentary may contain inaccurate or fabricated information. This is more common with smaller local models than with large cloud models."
 									FontSize="12" Foreground="#888888" FontStyle="Italic" TextWrapping="Wrap" />
 
-								<TextBlock Text="API Key" FontSize="12" Foreground="#CCCCCC" Margin="0,8,0,0" />
-								<TextBox Text="{Binding ClaudeApiKey}"
+							<TextBlock Text="API Key" FontSize="12" Foreground="#CCCCCC" Margin="0,8,0,0" />
+							<Grid ColumnDefinitions="*,Auto">
+								<TextBox Grid.Column="0"
+								         Text="{Binding ClaudeApiKey}"
 								         PasswordChar="●"
 								         FontSize="13" Background="#1E1E1E" Foreground="#FFFFFF"
 								         BorderBrush="#555555" BorderThickness="1"
 								         CornerRadius="6" Padding="10,8" />
+								<Button Grid.Column="1"
+								        Command="{Binding CheckClaudeCommand}"
+								        Margin="8,0,0,0" Width="70" Height="36"
+								        Background="#444444" Foreground="#FFFFFF"
+								        BorderThickness="0" CornerRadius="6" Classes="checkButton">
+									<Panel>
+										<TextBlock Text="Check"
+										           IsVisible="{Binding !IsClaudeChecking}"
+										           HorizontalAlignment="Center" VerticalAlignment="Center" />
+										<TextBlock Text="Checking…"
+										           IsVisible="{Binding IsClaudeChecking}"
+										           HorizontalAlignment="Center" VerticalAlignment="Center" />
+									</Panel>
+								</Button>
+							</Grid>
+							<TextBlock Text="✓ Claude API key and model are valid"
+							           IsVisible="{Binding IsClaudeCheckOk}"
+							           Foreground="#66BB6A" FontSize="12" />
+							<TextBlock Text="✗ Claude check failed — verify the API key and model name"
+							           IsVisible="{Binding IsClaudeCheckFailed}"
+							           Foreground="#FF4444" FontSize="12" TextWrapping="Wrap" />
 
-								<TextBlock Text="Model" FontSize="12" Foreground="#CCCCCC" Margin="0,8,0,0" />
-								<Grid ColumnDefinitions="*,Auto">
-									<TextBox Grid.Column="0"
-									         Text="{Binding ClaudeModel}"
-									         FontSize="13" Background="#1E1E1E" Foreground="#FFFFFF"
-									         BorderBrush="#555555" BorderThickness="1"
-									         CornerRadius="6" Padding="10,8" />
-									<Button Grid.Column="1"
-									        Command="{Binding CheckClaudeCommand}"
-									        Margin="8,0,0,0" Width="70" Height="36"
-									        Background="#444444" Foreground="#FFFFFF"
-									        BorderThickness="0" CornerRadius="6" Classes="checkButton">
-										<Panel>
-											<TextBlock Text="Check"
-											           IsVisible="{Binding !IsClaudeChecking}"
-											           HorizontalAlignment="Center" VerticalAlignment="Center" />
-											<TextBlock Text="Checking…"
-											           IsVisible="{Binding IsClaudeChecking}"
-											           HorizontalAlignment="Center" VerticalAlignment="Center" />
-										</Panel>
-									</Button>
-								</Grid>
-								<TextBlock Text="✓ Claude API key and model are valid"
-								           IsVisible="{Binding IsClaudeCheckOk}"
-								           Foreground="#66BB6A" FontSize="12" />
-								<TextBlock Text="✗ Claude check failed — verify the API key and model name"
-								           IsVisible="{Binding IsClaudeCheckFailed}"
-								           Foreground="#FF4444" FontSize="12" TextWrapping="Wrap" />
+							<TextBlock Text="Model" FontSize="12" Foreground="#CCCCCC" Margin="0,8,0,0" />
+							<Grid ColumnDefinitions="*,Auto">
+								<ComboBox Grid.Column="0"
+								          ItemsSource="{Binding ClaudeModels}"
+								          SelectedItem="{Binding ClaudeModel, Mode=TwoWay}"
+								          FontSize="13" Background="#1E1E1E" Foreground="#FFFFFF"
+								          BorderBrush="#555555" BorderThickness="1"
+								          CornerRadius="6" Padding="10,4"
+								          HorizontalAlignment="Stretch" />
+								<Button Grid.Column="1"
+								        Command="{Binding RefreshClaudeModelsCommand}"
+								        Margin="8,0,0,0" Width="70" Height="36"
+								        Background="#444444" Foreground="#FFFFFF"
+								        BorderThickness="0" CornerRadius="6" Classes="checkButton">
+									<Panel>
+										<TextBlock Text="Refresh"
+										           IsVisible="{Binding !IsRefreshingClaudeModels}"
+										           HorizontalAlignment="Center" VerticalAlignment="Center" />
+										<TextBlock Text="Loading…"
+										           IsVisible="{Binding IsRefreshingClaudeModels}"
+										           HorizontalAlignment="Center" VerticalAlignment="Center" />
+									</Panel>
+								</Button>
+							</Grid>
+							<TextBlock Text="{Binding ClaudeModelsRefreshError}"
+							           IsVisible="{Binding HasClaudeModelsRefreshError}"
+							           Foreground="#FF4444" FontSize="12" TextWrapping="Wrap" />
 							</StackPanel>
 
 							<Button Content="Continue to AI Prompt →"

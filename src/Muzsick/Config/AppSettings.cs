@@ -9,6 +9,12 @@ public enum CommentaryMode
 	Ai,
 }
 
+public enum AiProvider
+{
+	Ollama,
+	Claude,
+}
+
 public class AppSettings
 {
 	/// <summary>
@@ -82,4 +88,24 @@ public class AppSettings
 	/// Ollama model used for AI commentary generation.
 	/// </summary>
 	public string OllamaModel { get; set; } = DefaultOllamaModel;
+
+	/// <summary>
+	/// Which AI provider to use when CommentaryMode is Ai.
+	/// </summary>
+	public AiProvider AiProvider { get; set; } = AiProvider.Ollama;
+
+	/// <summary>
+	/// Anthropic API key for Claude commentary generation.
+	/// </summary>
+	public string ClaudeApiKey { get; set; } = "";
+
+	/// <summary>
+	/// Default Claude model identifier.
+	/// </summary>
+	public const string DefaultClaudeModel = "claude-haiku-4-5-20251001";
+
+	/// <summary>
+	/// Claude model used for AI commentary generation.
+	/// </summary>
+	public string ClaudeModel { get; set; } = DefaultClaudeModel;
 }

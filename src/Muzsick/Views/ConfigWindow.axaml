@@ -255,13 +255,53 @@
 								<TextBlock Text="AI Provider"
 								           FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" />
 								<TextBlock
-									Text="Connect Muzsick to a local AI model. These settings apply when AI mode is selected in Commentary."
+									Text="Connect Muzsick to an AI model. These settings apply when AI mode is selected in Commentary."
 									FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
 							</StackPanel>
 
 							<Rectangle Height="1" Fill="#383838" />
 
-							<StackPanel Spacing="6">
+							<!-- Provider selector -->
+							<StackPanel Spacing="8">
+								<TextBlock Text="Provider" FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
+
+								<Border Background="#1E1E1E" BorderBrush="#444444" BorderThickness="1"
+								        CornerRadius="8" Padding="14,10">
+									<Grid ColumnDefinitions="Auto,*">
+										<RadioButton Grid.Column="0"
+										             IsChecked="{Binding IsOllamaProvider}"
+										             GroupName="AiProviderGroup"
+										             VerticalAlignment="Top" Margin="0,2,0,0" />
+										<StackPanel Grid.Column="1" Spacing="2" Margin="10,0,0,0">
+											<TextBlock Text="Ollama (local)"
+											           FontSize="13" FontWeight="SemiBold" Foreground="#FFFFFF" />
+											<TextBlock Text="Runs AI models locally on your machine, keeping everything private and offline."
+											           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
+										</StackPanel>
+									</Grid>
+								</Border>
+
+								<Border Background="#1E1E1E" BorderBrush="#444444" BorderThickness="1"
+								        CornerRadius="8" Padding="14,10">
+									<Grid ColumnDefinitions="Auto,*">
+										<RadioButton Grid.Column="0"
+										             IsChecked="{Binding IsClaudeProvider}"
+										             GroupName="AiProviderGroup"
+										             VerticalAlignment="Top" Margin="0,2,0,0" />
+										<StackPanel Grid.Column="1" Spacing="2" Margin="10,0,0,0">
+											<TextBlock Text="Claude (cloud)"
+											           FontSize="13" FontWeight="SemiBold" Foreground="#FFFFFF" />
+											<TextBlock Text="Anthropic's Claude API. Requires an API key. No local resources needed."
+											           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
+										</StackPanel>
+									</Grid>
+								</Border>
+							</StackPanel>
+
+							<Rectangle Height="1" Fill="#383838" />
+
+							<!-- Ollama block -->
+							<StackPanel Spacing="6" IsVisible="{Binding IsOllamaProvider}">
 								<TextBlock Text="Ollama"
 								           FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
 								<TextBlock Text="Ollama runs AI models locally on your machine, keeping everything private and offline."
@@ -269,9 +309,6 @@
 								<HyperlinkButton Content="Download Ollama at ollama.com"
 								                 NavigateUri="https://ollama.com"
 								                 FontSize="12" Foreground="#FF6B35" Padding="0" />
-								<TextBlock
-									Text="ℹ Only Ollama (local) is supported in this version. Cloud providers (OpenAI, Gemini, Claude) are coming in a future release."
-									FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
 								<TextBlock
 									Text="⚠ AI-generated commentary may contain inaccurate or fabricated information. This is more common with smaller local models than with large cloud models."
 									FontSize="12" Foreground="#888888" FontStyle="Italic" TextWrapping="Wrap" />
@@ -312,6 +349,56 @@
 								           Foreground="#FF9944" FontSize="12" TextWrapping="Wrap" />
 								<TextBlock Text="✗ Cannot reach Ollama — check the URL and make sure Ollama is running"
 								           IsVisible="{Binding IsOllamaCheckFailed}"
+								           Foreground="#FF4444" FontSize="12" TextWrapping="Wrap" />
+							</StackPanel>
+
+							<!-- Claude block -->
+							<StackPanel Spacing="6" IsVisible="{Binding IsClaudeProvider}">
+								<TextBlock Text="Claude"
+								           FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
+								<TextBlock Text="Anthropic's Claude models are fast, capable cloud models — no local GPU required."
+								           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
+								<HyperlinkButton Content="Get an API key at console.anthropic.com"
+								                 NavigateUri="https://console.anthropic.com"
+								                 FontSize="12" Foreground="#FF6B35" Padding="0" />
+								<TextBlock
+									Text="⚠ AI-generated commentary may contain inaccurate or fabricated information. This is more common with smaller local models than with large cloud models."
+									FontSize="12" Foreground="#888888" FontStyle="Italic" TextWrapping="Wrap" />
+
+								<TextBlock Text="API Key" FontSize="12" Foreground="#CCCCCC" Margin="0,8,0,0" />
+								<TextBox Text="{Binding ClaudeApiKey}"
+								         PasswordChar="●"
+								         FontSize="13" Background="#1E1E1E" Foreground="#FFFFFF"
+								         BorderBrush="#555555" BorderThickness="1"
+								         CornerRadius="6" Padding="10,8" />
+
+								<TextBlock Text="Model" FontSize="12" Foreground="#CCCCCC" Margin="0,8,0,0" />
+								<Grid ColumnDefinitions="*,Auto">
+									<TextBox Grid.Column="0"
+									         Text="{Binding ClaudeModel}"
+									         FontSize="13" Background="#1E1E1E" Foreground="#FFFFFF"
+									         BorderBrush="#555555" BorderThickness="1"
+									         CornerRadius="6" Padding="10,8" />
+									<Button Grid.Column="1"
+									        Command="{Binding CheckClaudeCommand}"
+									        Margin="8,0,0,0" Width="70" Height="36"
+									        Background="#444444" Foreground="#FFFFFF"
+									        BorderThickness="0" CornerRadius="6" Classes="checkButton">
+										<Panel>
+											<TextBlock Text="Check"
+											           IsVisible="{Binding !IsClaudeChecking}"
+											           HorizontalAlignment="Center" VerticalAlignment="Center" />
+											<TextBlock Text="Checking…"
+											           IsVisible="{Binding IsClaudeChecking}"
+											           HorizontalAlignment="Center" VerticalAlignment="Center" />
+										</Panel>
+									</Button>
+								</Grid>
+								<TextBlock Text="✓ Claude API key and model are valid"
+								           IsVisible="{Binding IsClaudeCheckOk}"
+								           Foreground="#66BB6A" FontSize="12" />
+								<TextBlock Text="✗ Claude check failed — verify the API key and model name"
+								           IsVisible="{Binding IsClaudeCheckFailed}"
 								           Foreground="#FF4444" FontSize="12" TextWrapping="Wrap" />
 							</StackPanel>
 

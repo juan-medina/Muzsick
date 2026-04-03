@@ -89,7 +89,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			"Muzsick/0.1 (https://github.com/juan-medina/muzsick)");
 		_updateService = new UpdateService();
 		_commentaryGenerator = App.Settings.CommentaryMode == CommentaryMode.Ai
-			? new OllamaCommentaryGenerator(App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>())
+			? App.Settings.AiProvider == AiProvider.Claude
+				? new ClaudeCommentaryGenerator(App.LoggerFactory?.CreateLogger<ClaudeCommentaryGenerator>())
+				: new OllamaCommentaryGenerator(App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>())
 			: new TemplateCommentaryGenerator();
 
 		_discordPresence = new DiscordPresenceService(
@@ -235,7 +237,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		if (saved)
 		{
 			_commentaryGenerator = App.Settings.CommentaryMode == CommentaryMode.Ai
-				? new OllamaCommentaryGenerator(App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>())
+				? App.Settings.AiProvider == AiProvider.Claude
+					? new ClaudeCommentaryGenerator(App.LoggerFactory?.CreateLogger<ClaudeCommentaryGenerator>())
+					: new OllamaCommentaryGenerator(App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>())
 				: new TemplateCommentaryGenerator();
 			UpdateMessage = null;
 		}

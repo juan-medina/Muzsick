@@ -187,11 +187,12 @@ The default template is:
 Now playing {title} by {artist}[year?, released in {year}]
 ```
 
-**AI mode** sends a user-editable prompt to a locally running Ollama instance (OpenAI-compatible HTTP API). The
-prompt receives enriched track metadata as context. The model's response is stripped of any markdown formatting
-before being passed to TTS. If the AI request fails or times out, commentary automatically falls back to the
-template. The recommended default model is `gemma3:4b` — it has no thinking mode and responds in 3–5 seconds on
-typical consumer hardware.
+**AI mode** sends a user-editable prompt to either a locally running Ollama instance or the Anthropic Claude API,
+controlled by the `AiProvider` setting. The prompt receives enriched track metadata as context. The model's response
+is stripped of any markdown formatting before being passed to TTS. If the AI request fails or times out, commentary
+automatically falls back to the template. The recommended default Ollama model is `gemma3:4b` — it has no thinking
+mode and responds in 3–5 seconds on typical consumer hardware. The default Claude model is
+`claude-haiku-4-5-20251001`.
 
 The announcement template is always required regardless of mode. In AI mode it acts as the fallback used when the
 AI is unavailable.
@@ -221,7 +222,7 @@ The Avalonia UI is intentionally minimal — the audio experience is the product
 | Play / Pause          | Toggles stream playback.                                                                                                                                                     |
 | Replay DJ             | Replays the last generated voiceover through the audio mixer with full ducking. Disabled until the first announcement of the session has played.                             |
 | Volume slider         | Controls OpenAL master output gain (0–100%). Persisted across sessions.                                                                                                      |
-| Open stream           | Opens the stream dialog (see §9.11). Tooltip reads "Open stream".                                                                                                           |
+| Open stream           | Opens the stream dialog (see §9.11). Tooltip reads "Open stream".                                                                                                            |
 | Settings button       | Opens the settings window. While open, live track commentary is suspended — no announcements play until the window is closed.                                                |
 | About button          | Opens the about window with version info and attribution.                                                                                                                    |
 | Update/warning banner | Appears below the header when there is a system message — e.g. "⚠ AI commentary unavailable — using template". Hidden when empty.                                            |
@@ -244,7 +245,10 @@ change. No registry entries.
   "AnnouncementTemplate": "Now playing {title} by {artist}[year?, released in {year}]",
   "AiPrompt": "You are an enthusiastic radio DJ. Give a single sentence on-air intro for the next song. Track info: {context}. Respond with only the intro sentence, nothing else.",
   "OllamaUrl": "http://localhost:11434",
-  "OllamaModel": "gemma3:4b"
+  "OllamaModel": "gemma3:4b",
+  "AiProvider": "Ollama",
+  "ClaudeApiKey": "",
+  "ClaudeModel": "claude-haiku-4-5-20251001"
 }
 ```
 
@@ -308,12 +312,12 @@ The Save button is disabled until all validation passes. Errors are shown inline
 
 Preview failures are shown inline below the preview control in red. They clear when the user starts a new preview.
 
-| Condition                         | Message shown                                                       |
-|-----------------------------------|---------------------------------------------------------------------|
-| Ollama not running or unreachable | "Cannot reach Ollama — check AI Provider settings."                 |
-| AI request timed out              | "AI took too long — try a simpler prompt or smaller model."         |
-| AI returned empty response        | "AI returned an empty response. Check your prompt."                 |
-| TTS synthesis failed              | "Voice synthesis failed."                                           |
+| Condition                         | Message shown                                               |
+|-----------------------------------|-------------------------------------------------------------|
+| Ollama not running or unreachable | "Cannot reach Ollama — check AI Provider settings."         |
+| AI request timed out              | "AI took too long — try a simpler prompt or smaller model." |
+| AI returned empty response        | "AI returned an empty response. Check your prompt."         |
+| TTS synthesis failed              | "Voice synthesis failed."                                   |
 
 ### 7.5 Settings Window Behaviour
 
@@ -371,11 +375,17 @@ Artist image resolution chains through three external services (MusicBrainz → 
 chain in one self-contained service means any future replacement for `LastFmMetaService` only needs to supply an
 MBID string — it does not need to know anything about how images are resolved.
 
-### 9.6 Single AI Client for All Commentary Backends
+### 9.6 Two AI Commentary Backends
 
-All AI commentary backends target the OpenAI-compatible HTTP API format. The current implementation uses Ollama's
-`/api/generate` endpoint directly; cloud providers (OpenAI, Gemini, etc.) will use the standard chat completions
-format when added. Switching providers will require only a settings change, not a code change.
+Muzsick supports two AI commentary backends, selected via the `AiProvider` setting:
+
+- **`OllamaCommentaryGenerator`** — local, uses Ollama's `/api/generate` endpoint. Keeps all data on-device.
+- **`ClaudeCommentaryGenerator`** — cloud, uses the Anthropic Messages API at
+  `https://api.anthropic.com/v1/messages`. Requires an API key; no local GPU resources needed.
+
+Both backends build the prompt identically (replacing `{context}` in the user's `AiPrompt` with track metadata
+key-value pairs), apply the same markdown-stripping post-processing, and honour the same 45-second timeout. Switching
+providers requires only a settings change.
 
 ### 9.7 Commentary Suspended While Settings Window Is Open
 

@@ -42,6 +42,14 @@ public enum OllamaCheckState
 	Failed,
 }
 
+public enum ClaudeCheckState
+{
+	Idle,
+	Checking,
+	Ok,
+	Failed,
+}
+
 public enum VoiceTestState
 {
 	Idle,
@@ -111,6 +119,15 @@ public partial class ConfigWindowViewModel(
 	[ObservableProperty] [NotifyPropertyChangedFor(nameof(OllamaModelMissingMessage))]
 	private string _ollamaModel = App.Settings.OllamaModel;
 
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsOllamaProvider))]
+	[NotifyPropertyChangedFor(nameof(IsClaudeProvider))]
+	private AiProvider _aiProvider = App.Settings.AiProvider;
+
+	[ObservableProperty] private string _claudeApiKey = App.Settings.ClaudeApiKey;
+
+	[ObservableProperty] private string _claudeModel = App.Settings.ClaudeModel;
+
 	// ── Computed settings properties ─────────────────────────────────────────
 
 	public bool IsAiMode => CommentaryMode == CommentaryMode.Ai;
@@ -130,6 +147,24 @@ public partial class ConfigWindowViewModel(
 		set
 		{
 			if (value) CommentaryMode = CommentaryMode.Ai;
+		}
+	}
+
+	public bool IsOllamaProvider
+	{
+		get => AiProvider == AiProvider.Ollama;
+		set
+		{
+			if (value) AiProvider = AiProvider.Ollama;
+		}
+	}
+
+	public bool IsClaudeProvider
+	{
+		get => AiProvider == AiProvider.Claude;
+		set
+		{
+			if (value) AiProvider = AiProvider.Claude;
 		}
 	}
 
@@ -321,6 +356,54 @@ public partial class ConfigWindowViewModel(
 		}
 	}
 
+	// ── Claude check ─────────────────────────────────────────────────────────
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsClaudeCheckOk))]
+	[NotifyPropertyChangedFor(nameof(IsClaudeCheckFailed))]
+	[NotifyPropertyChangedFor(nameof(IsClaudeChecking))]
+	[NotifyCanExecuteChangedFor(nameof(CheckClaudeCommand))]
+	private ClaudeCheckState _claudeCheckState = ClaudeCheckState.Idle;
+
+	public bool IsClaudeCheckOk => ClaudeCheckState == ClaudeCheckState.Ok;
+	public bool IsClaudeCheckFailed => ClaudeCheckState == ClaudeCheckState.Failed;
+	public bool IsClaudeChecking => ClaudeCheckState == ClaudeCheckState.Checking;
+
+	private bool CanCheckClaude() => ClaudeCheckState != ClaudeCheckState.Checking;
+
+	[RelayCommand(CanExecute = nameof(CanCheckClaude))]
+	private async Task CheckClaude()
+	{
+		ClaudeCheckState = ClaudeCheckState.Checking;
+		try
+		{
+			using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+			using var client = new HttpClient();
+
+			var requestBody = new JsonObject
+			{
+				["model"] = ClaudeModel.Trim(),
+				["max_tokens"] = 1,
+				["messages"] = new JsonArray { new JsonObject { ["role"] = "user", ["content"] = "test" }, },
+			};
+
+			using var request = new HttpRequestMessage(HttpMethod.Post,
+				"https://api.anthropic.com/v1/messages");
+			request.Headers.Add("x-api-key", ClaudeApiKey.Trim());
+			request.Headers.Add("anthropic-version", "2023-06-01");
+			request.Content = System.Net.Http.Json.JsonContent.Create(requestBody);
+
+			var response = await client.SendAsync(request, cts.Token);
+			ClaudeCheckState = response.IsSuccessStatusCode
+				? ClaudeCheckState.Ok
+				: ClaudeCheckState.Failed;
+		}
+		catch
+		{
+			ClaudeCheckState = ClaudeCheckState.Failed;
+		}
+	}
+
 	// ── Bottom bar Preview ───────────────────────────────────────────────────
 
 	[ObservableProperty]
@@ -409,15 +492,23 @@ public partial class ConfigWindowViewModel(
 				var savedPrompt = App.Settings.AiPrompt;
 				var savedUrl = App.Settings.OllamaUrl;
 				var savedModel = App.Settings.OllamaModel;
+				var savedAiProvider = App.Settings.AiProvider;
+				var savedClaudeApiKey = App.Settings.ClaudeApiKey;
+				var savedClaudeModel = App.Settings.ClaudeModel;
 				App.Settings.AiPrompt = AiPrompt;
 				App.Settings.OllamaUrl = OllamaUrl;
 				App.Settings.OllamaModel = OllamaModel;
+				App.Settings.AiProvider = AiProvider;
+				App.Settings.ClaudeApiKey = ClaudeApiKey;
+				App.Settings.ClaudeModel = ClaudeModel;
+
+				ICommentaryGenerator generator = AiProvider == AiProvider.Claude
+					? new ClaudeCommentaryGenerator(App.LoggerFactory?.CreateLogger<ClaudeCommentaryGenerator>())
+					: new OllamaCommentaryGenerator(App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>());
 
 				string? commentary;
 				try
 				{
-					var generator = new OllamaCommentaryGenerator(
-						App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>());
 					commentary = await generator.GenerateAsync(sampleTrack, token);
 				}
 				catch (TimeoutException)
@@ -430,7 +521,9 @@ public partial class ConfigWindowViewModel(
 				catch (HttpRequestException)
 				{
 					StopElapsedTimer();
-					PreviewError = "Cannot reach Ollama — check AI Provider settings.";
+					PreviewError = AiProvider == AiProvider.Claude
+						? "Cannot reach Claude API — check AI Provider settings."
+						: "Cannot reach Ollama — check AI Provider settings.";
 					CurrentPreviewState = PreviewState.Failed;
 					return;
 				}
@@ -439,6 +532,9 @@ public partial class ConfigWindowViewModel(
 					App.Settings.AiPrompt = savedPrompt;
 					App.Settings.OllamaUrl = savedUrl;
 					App.Settings.OllamaModel = savedModel;
+					App.Settings.AiProvider = savedAiProvider;
+					App.Settings.ClaudeApiKey = savedClaudeApiKey;
+					App.Settings.ClaudeModel = savedClaudeModel;
 				}
 
 				if (token.IsCancellationRequested) return;
@@ -575,6 +671,9 @@ public partial class ConfigWindowViewModel(
 		App.Settings.AiPrompt = AiPrompt.Trim();
 		App.Settings.OllamaUrl = OllamaUrl.Trim();
 		App.Settings.OllamaModel = OllamaModel.Trim();
+		App.Settings.AiProvider = AiProvider;
+		App.Settings.ClaudeApiKey = ClaudeApiKey.Trim();
+		App.Settings.ClaudeModel = ClaudeModel.Trim();
 		SettingsManager.Save(App.Settings);
 		_window?.Close(true);
 	}

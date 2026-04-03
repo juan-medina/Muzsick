@@ -1,6 +1,8 @@
 ﻿// SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 
+using System;
+using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +11,7 @@ using Avalonia.Platform.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Muzsick.Audio;
+using Muzsick.Config;
 
 namespace Muzsick.ViewModels;
 
@@ -75,16 +78,34 @@ public partial class OpenStreamWindowViewModel : ViewModelBase
 			MimeTypes = ["audio/x-scpls", "audio/x-mpegurl", "application/vnd.apple.mpegurl"],
 		};
 
+		var settings = SettingsManager.Load() ?? new AppSettings();
+
+		// First run: default to bundled playlists folder. Otherwise use last directory.
+		var startDir = settings.LastBrowseDirectory != null && Directory.Exists(settings.LastBrowseDirectory)
+			? settings.LastBrowseDirectory
+			: Path.Combine(AppContext.BaseDirectory, "Playlists");
+
+		IStorageFolder? suggestedFolder = null;
+		if (Directory.Exists(startDir))
+			suggestedFolder = await _window.StorageProvider.TryGetFolderFromPathAsync(startDir);
+
 		var result = await _window.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
 		{
-			Title = "Select playlist file", AllowMultiple = false, FileTypeFilter = [filter],
+			Title = "Select playlist file",
+			AllowMultiple = false,
+			FileTypeFilter = [filter],
+			SuggestedStartLocation = suggestedFolder,
 		});
 
 		if (result.Count > 0)
 		{
-			UrlInput = result[0].Path.LocalPath;
+			var path = result[0].Path.LocalPath;
+			UrlInput = path;
 			State = OpenStreamState.Idle;
 			ErrorMessage = "";
+
+			settings.LastBrowseDirectory = Path.GetDirectoryName(path);
+			SettingsManager.Save(settings);
 		}
 	}
 

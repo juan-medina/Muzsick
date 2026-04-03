@@ -108,4 +108,9 @@ public class AppSettings
 	/// Claude model used for AI commentary generation.
 	/// </summary>
 	public string ClaudeModel { get; set; } = DefaultClaudeModel;
+
+	/// <summary>
+	/// Last directory used in the Browse file picker. Null on first run.
+	/// </summary>
+	public string? LastBrowseDirectory { get; set; }
 }

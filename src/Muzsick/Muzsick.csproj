@@ -24,6 +24,13 @@
 		<EmbeddedResource Include="ApiKeys.json"/>
 	</ItemGroup>
 
+	<ItemGroup>
+		<Content Include="Playlists\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<Link>Playlists\%(RecursiveDir)%(Filename)%(Extension)</Link>
+		</Content>
+	</ItemGroup>
+
 	<!-- Bump build number on every local build. Disabled on CI via -p:EnableVersionBump=false -->
 	<Target Name="BumpVersion" BeforeTargets="BeforeBuild" Condition="'$(EnableVersionBump)' == 'true'">
 		<PropertyGroup>
@@ -76,6 +83,15 @@
 			<_KokoroFiles Include="$(_KokoroModelsRoot)/**/*"/>
 		</ItemGroup>
 		<Copy SourceFiles="@(_KokoroFiles)" DestinationFiles="@(_KokoroFiles->'$(PublishDir)Models/KokoroModels/%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true"/>
+	</Target>
+
+	<Target Name="CopyPlaylistsToPublish" AfterTargets="Publish">
+		<ItemGroup>
+			<_PlaylistFiles Include="$(MSBuildThisFileDirectory)Playlists\**\*"/>
+		</ItemGroup>
+		<Copy SourceFiles="@(_PlaylistFiles)"
+		      DestinationFiles="@(_PlaylistFiles->'$(PublishDir)Playlists\%(RecursiveDir)%(Filename)%(Extension)')"
+		      SkipUnchangedFiles="true"/>
 	</Target>
 
 	<ItemGroup>

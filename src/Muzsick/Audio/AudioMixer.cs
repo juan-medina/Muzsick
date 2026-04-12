@@ -19,9 +19,9 @@ namespace Muzsick.Audio;
 public class AudioMixer : IDisposable
 {
 	private const int _bufferCount = 64;
-	private const float _duckGain = 0.20f;
-	private const int _duckDownMs = 500;
-	private const int _duckUpMs = 800;
+	private float _duckGain = 0.20f;
+	private int _duckDownMs = 500;
+	private int _duckUpMs = 800;
 
 	private readonly ILogger? _logger;
 	private readonly AL _al;
@@ -42,7 +42,9 @@ public class AudioMixer : IDisposable
 
 	private int _sampleRate = 44100;
 	private int _channels = 2;
-	private float _gain = 0.5f;
+	private float _masterGain = 0.5f;
+	private float _radioGain = 1.0f;
+	private float _djGain = 1.0f;
 
 	private DuckingController? _ducking;
 
@@ -87,11 +89,12 @@ public class AudioMixer : IDisposable
 
 		_radioSource = _al.GenSource();
 		_al.SetSourceProperty(_radioSource, SourceBoolean.Looping, false);
-		_al.SetSourceProperty(_radioSource, SourceFloat.Gain, _gain);
+		_al.SetSourceProperty(_radioSource, SourceFloat.Gain, _radioGain);
+		_al.SetListenerProperty(ListenerFloat.Gain, _masterGain);
 
 		_ttsSource = _al.GenSource();
 		_al.SetSourceProperty(_ttsSource, SourceBoolean.Looping, false);
-		_al.SetSourceProperty(_ttsSource, SourceFloat.Gain, 1.0f);
+		_al.SetSourceProperty(_ttsSource, SourceFloat.Gain, _djGain);
 
 		_ducking = new DuckingController(_al, _alLock, _logger);
 
@@ -189,8 +192,8 @@ public class AudioMixer : IDisposable
 				}
 			}
 
-			// Duck the radio stream down.
-			await _ducking.FadeAsync(_radioSource, _gain, _gain * _duckGain, _duckDownMs, cancellationToken);
+		// Duck the radio stream down.
+		await _ducking.FadeAsync(_radioSource, _radioGain, _radioGain * _duckGain, _duckDownMs, cancellationToken);
 
 			if (cancellationToken.IsCancellationRequested)
 			{
@@ -233,8 +236,8 @@ public class AudioMixer : IDisposable
 
 			_logger?.LogDebug("PlayVoiceoverAsync: TTS playback complete, fading radio back up");
 
-			// Restore radio gain with a smooth fade.
-			await _ducking.FadeAsync(_radioSource, _gain * _duckGain, _gain, _duckUpMs, cancellationToken);
+		// Restore radio gain with a smooth fade.
+		await _ducking.FadeAsync(_radioSource, _radioGain * _duckGain, _radioGain, _duckUpMs, cancellationToken);
 
 			if (cancellationToken.IsCancellationRequested)
 				RestoreRadioGain();
@@ -250,16 +253,15 @@ public class AudioMixer : IDisposable
 		}
 	}
 
-	// Immediately snaps the radio source back to the user-configured gain.
 	// Used in cancellation paths where a smooth fade is not appropriate.
 	private void RestoreRadioGain()
 	{
 		lock (_alLock)
 		{
-			_al.SetSourceProperty(_radioSource, SourceFloat.Gain, _gain);
+			_al.SetSourceProperty(_radioSource, SourceFloat.Gain, _radioGain);
 		}
 
-		_logger?.LogDebug("AudioMixer: radio gain restored to {Gain:F2}", _gain);
+		_logger?.LogDebug("AudioMixer: radio gain restored to {Gain:F2}", _radioGain);
 	}
 
 	// Parses a standard PCM WAV header.
@@ -344,18 +346,76 @@ public class AudioMixer : IDisposable
 	}
 
 	/// <summary>
-	/// Sets the radio stream gain. <paramref name="volume"/> is 0–100.
+	/// Sets the master output gain via the OpenAL listener. <paramref name="volume"/> is 0–100.
 	/// </summary>
-	public void SetVolume(int volume)
+	public void SetMasterVolume(int volume)
 	{
-		_gain = Math.Clamp(volume, 0, 100) / 100f;
+		_masterGain = Math.Clamp(volume, 0, 100) / 100f;
 
 		lock (_alLock)
 		{
-			_al.SetSourceProperty(_radioSource, SourceFloat.Gain, _gain);
+			_al.SetListenerProperty(ListenerFloat.Gain, _masterGain);
 		}
 
-		_logger?.LogDebug("OpenAL: gain set to {Gain:F2}", _gain);
+		_logger?.LogDebug("OpenAL: master gain set to {Gain:F2}", _masterGain);
+	}
+
+	/// <summary>
+	/// Sets the radio stream source gain. <paramref name="volume"/> is 0–100.
+	/// </summary>
+	public void SetRadioVolume(int volume)
+	{
+		_radioGain = Math.Clamp(volume, 0, 100) / 100f;
+
+		lock (_alLock)
+		{
+			_al.SetSourceProperty(_radioSource, SourceFloat.Gain, _radioGain);
+		}
+
+		_logger?.LogDebug("OpenAL: radio gain set to {Gain:F2}", _radioGain);
+	}
+
+	/// <summary>
+	/// Sets the DJ voiceover source gain. <paramref name="volume"/> is 0–100.
+	/// </summary>
+	public void SetDjVolume(int volume)
+	{
+		_djGain = Math.Clamp(volume, 0, 100) / 100f;
+
+		lock (_alLock)
+		{
+			_al.SetSourceProperty(_ttsSource, SourceFloat.Gain, _djGain);
+		}
+
+		_logger?.LogDebug("OpenAL: DJ gain set to {Gain:F2}", _djGain);
+	}
+
+	/// <summary>
+	/// Sets the duck level — how far the radio drops during a voiceover. <paramref name="level"/> is 0–100.
+	/// 0 = fully silent, 100 = no ducking.
+	/// </summary>
+	public void SetDuckLevel(int level)
+	{
+		_duckGain = Math.Clamp(level, 0, 100) / 100f;
+		_logger?.LogDebug("AudioMixer: duck gain set to {Gain:F2}", _duckGain);
+	}
+
+	/// <summary>
+	/// Sets the duck fade-down duration in milliseconds.
+	/// </summary>
+	public void SetDuckDownMs(int ms)
+	{
+		_duckDownMs = Math.Max(0, ms);
+		_logger?.LogDebug("AudioMixer: duck down ms set to {Ms}", _duckDownMs);
+	}
+
+	/// <summary>
+	/// Sets the duck fade-up duration in milliseconds.
+	/// </summary>
+	public void SetDuckUpMs(int ms)
+	{
+		_duckUpMs = Math.Max(0, ms);
+		_logger?.LogDebug("AudioMixer: duck up ms set to {Ms}", _duckUpMs);
 	}
 
 	// Recycles processed buffers back to the free pool every 50 ms.

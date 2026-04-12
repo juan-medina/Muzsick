@@ -101,8 +101,12 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 		var settings = SettingsManager.Load();
 		if (settings == null) return;
+		App.Settings = settings;
 		_volume = Math.Clamp(settings.Volume, 0, 100);
-		_audioMixer.SetVolume(_volume);
+		_audioMixer.SetMasterVolume(_volume);
+		_audioMixer.SetRadioVolume(settings.RadioVolume);
+		_audioMixer.SetDjVolume(settings.DjVolume);
+		_audioMixer.SetDuckLevel(settings.DuckLevel);
 
 		if (!string.IsNullOrEmpty(settings.StreamUrl))
 			ApplyStream(settings.StreamUrl, settings.StreamName);
@@ -126,11 +130,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 	partial void OnVolumeChanged(int value)
 	{
-		_audioMixer.SetVolume(value);
+		_audioMixer.SetMasterVolume(value);
 
-		var settings = SettingsManager.Load() ?? new AppSettings();
-		settings.Volume = value;
-		SettingsManager.Save(settings);
+		App.Settings.Volume = value;
+		SettingsManager.Save(App.Settings);
 
 		// Show floating label, cancel any previous hide timer
 		_volumeTooltipCts?.Cancel();
@@ -189,10 +192,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 		ApplyStream(url, name);
 
-		var settings = SettingsManager.Load() ?? new AppSettings();
-		settings.StreamUrl = url;
-		settings.StreamName = name;
-		SettingsManager.Save(settings);
+		App.Settings.StreamUrl = url;
+		App.Settings.StreamName = name;
+		SettingsManager.Save(App.Settings);
 
 		await _streamPlayer!.PlayPlaylist(StreamUrl!);
 		IsPlaying = true;
@@ -236,6 +238,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 		if (saved)
 		{
+			Volume = App.Settings.Volume;
 			_commentaryGenerator = App.Settings.CommentaryMode == CommentaryMode.Ai
 				? App.Settings.AiProvider == AiProvider.Claude
 					? new ClaudeCommentaryGenerator(App.LoggerFactory?.CreateLogger<ClaudeCommentaryGenerator>())

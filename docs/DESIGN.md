@@ -221,7 +221,7 @@ The Avalonia UI is intentionally minimal — the audio experience is the product
 | Album name            | Tertiary text below the artist name. Shows album and year when available. Clickable — opens the Last.fm album page. Only active once metadata has been resolved.             |
 | Play / Pause          | Toggles stream playback.                                                                                                                                                     |
 | Replay DJ             | Replays the last generated voiceover through the audio mixer with full ducking. Disabled until the first announcement of the session has played.                             |
-| Volume slider         | Controls OpenAL master output gain (0–100%). Persisted across sessions.                                                                                                      |
+| Volume slider         | Controls the OpenAL listener (master) gain (0–100%). Persisted across sessions. Mirrored in the Volume settings section. |                                                                                                      |
 | Open stream           | Opens the stream dialog (see §9.11). Tooltip reads "Open stream".                                                                                                            |
 | Settings button       | Opens the settings window. While open, live track commentary is suspended — no announcements play until the window is closed.                                                |
 | About button          | Opens the about window with version info and attribution.                                                                                                                    |
@@ -238,6 +238,9 @@ change. No registry entries.
 {
   "LastFmApiKey": "",
   "Volume": 50,
+  "RadioVolume": 100,
+  "DjVolume": 100,
+  "DuckLevel": 20,
   "StreamUrl": null,
   "StreamName": null,
   "TtsVoice": "af_heart",

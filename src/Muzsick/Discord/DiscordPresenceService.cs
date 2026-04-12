@@ -15,11 +15,18 @@ public sealed class DiscordPresenceService : IDisposable
 {
 	private static readonly string _appId = LoadAppId();
 	private readonly ILogger? _logger;
-	private readonly DiscordRpcClient _client;
+	private readonly DiscordRpcClient? _client;
 
 	public DiscordPresenceService(ILogger? logger = null)
 	{
 		_logger = logger;
+
+		if (string.IsNullOrEmpty(_appId))
+		{
+			_logger?.LogDebug("Discord: no app ID configured, presence disabled");
+			return;
+		}
+
 		_client = new DiscordRpcClient(_appId);
 		_client.Initialize();
 		_logger?.LogInformation("Discord: presence service initialised");
@@ -27,11 +34,7 @@ public sealed class DiscordPresenceService : IDisposable
 
 	public void UpdateTrack(TrackInfo track)
 	{
-		if (string.IsNullOrEmpty(_appId))
-		{
-			_logger?.LogWarning("Discord: app ID not configured, skipping presence update");
-			return;
-		}
+		if (_client == null) return;
 
 		try
 		{
@@ -53,6 +56,8 @@ public sealed class DiscordPresenceService : IDisposable
 
 	public void Clear()
 	{
+		if (_client == null) return;
+
 		try
 		{
 			_client.ClearPresence();
@@ -63,7 +68,7 @@ public sealed class DiscordPresenceService : IDisposable
 		}
 	}
 
-	public void Dispose() => _client.Dispose();
+	public void Dispose() => _client?.Dispose();
 
 	private static string LoadAppId()
 	{

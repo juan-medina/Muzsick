@@ -40,6 +40,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private Bitmap? _albumArt;
 	[ObservableProperty] private Bitmap? _artistImage;
 
+	[ObservableProperty] private string _statusMessage = "Vibing with the music";
+	[ObservableProperty] private double _statusDotOpacity = 1.0;
+	[ObservableProperty] private string _statusDotColor = "#3D8C5A";
+	[ObservableProperty] private string _statusTextColor = "#4A7A5E";
+
 	public IReadOnlyDictionary<string, VoiceInfo> TtsAvailableVoices => _ttsBackend.AvailableVoices;
 	internal ITtsBackend TtsBackend => _ttsBackend;
 	internal AudioMixer AudioMixer => _audioMixer;
@@ -59,6 +64,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private readonly HistoryWindowViewModel _historyVm;
 	private HistoryWindow? _historyWindow;
 	private readonly SmtcWatcher? _smtcWatcher;
+	private Timer? _pulseTimer;
+	private double _pulsePhase;
 
 	private const int _maxHistoryEntries = 20;
 
@@ -222,6 +229,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			ArtistLastFmUrl = null;
 			AlbumLastFmUrl = null;
 			TrackLastFmUrl = null;
+			SetStatus("Checking the liner notes…");
 
 			var (enriched, artist) = await _metadataService.EnrichAsync(track);
 
@@ -261,6 +269,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 			if (token.IsCancellationRequested) return;
 
+			SetStatus("Finding the right words…");
 			string? commentary;
 			try
 			{
@@ -268,6 +277,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			}
 			catch (OperationCanceledException)
 			{
+				SetStatus("Vibing with the music");
 				return;
 			}
 			catch (Exception ex)
@@ -288,6 +298,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 			if (string.IsNullOrWhiteSpace(commentary) || token.IsCancellationRequested) return;
 
+			SetStatus("Warming up the mic…");
 			byte[]? wav;
 			try
 			{
@@ -296,6 +307,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			}
 			catch (OperationCanceledException)
 			{
+				SetStatus("Vibing with the music");
 				return;
 			}
 			catch (Exception ex)
@@ -306,6 +318,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			}
 
 			if (token.IsCancellationRequested) return;
+
+			SetStatus("On air…");
 
 			var entry = new HistoryEntry
 			{
@@ -333,6 +347,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			previousVoiceover.Dispose();
 
 			await _audioMixer.PlayVoiceoverAsync(wav, voiceoverCts.Token);
+			SetStatus("Vibing with the music");
 		}
 		catch (Exception ex)
 		{
@@ -380,6 +395,35 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		}
 	}
 
+	private void SetStatus(string message)
+	{
+		var idle = message == "Vibing with the music";
+		Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+		{
+			StatusMessage = message;
+			StatusDotColor = idle ? "#3D8C5A" : "#FF6B35";
+			StatusTextColor = idle ? "#4A7A5E" : "#8A4020";
+
+			_pulseTimer?.Dispose();
+			_pulseTimer = null;
+			_pulsePhase = 0;
+
+			if (!idle)
+			{
+				_pulseTimer = new Timer(_ =>
+				{
+					_pulsePhase = (_pulsePhase + 0.15) % (Math.PI * 2);
+					var opacity = 0.35 + 0.65 * (0.5 + 0.5 * Math.Sin(_pulsePhase));
+					Avalonia.Threading.Dispatcher.UIThread.Post(() => StatusDotOpacity = opacity);
+				}, null, 0, 40);
+			}
+			else
+			{
+				StatusDotOpacity = 1.0;
+			}
+		});
+	}
+
 	public void Dispose()
 	{
 		_volumeTooltipCts?.Cancel();
@@ -388,6 +432,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_trackCts.Dispose();
 		_voiceoverCts.Cancel();
 		_voiceoverCts.Dispose();
+		_pulseTimer?.Dispose();
 		_httpClient.Dispose();
 		_audioMixer.Dispose();
 		_discordPresence.Dispose();

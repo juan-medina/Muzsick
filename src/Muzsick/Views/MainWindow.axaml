@@ -7,13 +7,13 @@
         xmlns:vm="using:Muzsick.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="610"
+        mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="638"
         x:Class="Muzsick.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/muzsick-logo.ico"
         Title="Muzsick"
         Width="540"
-        Height="610"
+        Height="638"
         CanResize="False">
 
 	<Design.DataContext>
@@ -115,6 +115,27 @@
 			           Foreground="#FF6B35"
 			           FontWeight="SemiBold"
 			           HorizontalAlignment="Center" />
+		</Border>
+
+		<!-- Status bar -->
+		<Border DockPanel.Dock="Bottom"
+		        Background="#1A1A1A"
+		        BorderBrush="#2E2E2E"
+		        BorderThickness="0,1,0,0"
+		        Height="28">
+			<StackPanel Orientation="Horizontal"
+			            VerticalAlignment="Center"
+			            Margin="14,0">
+				<Ellipse Width="6" Height="6"
+				         VerticalAlignment="Center"
+				         Margin="0,0,7,0"
+				         Fill="{Binding StatusDotColor}"
+				         Opacity="{Binding StatusDotOpacity}" />
+				<TextBlock Text="{Binding StatusMessage}"
+				           FontSize="11"
+				           Foreground="{Binding StatusTextColor}"
+				           VerticalAlignment="Center" />
+			</StackPanel>
 		</Border>
 
 		<!-- Main Content Area -->

@@ -74,14 +74,12 @@ public partial class ConfigWindowViewModel(
 	[NotifyPropertyChangedFor(nameof(IsCommentarySection))]
 	[NotifyPropertyChangedFor(nameof(IsAiProviderSection))]
 	[NotifyPropertyChangedFor(nameof(IsAiPromptSection))]
-	[NotifyPropertyChangedFor(nameof(IsVolumeSection))]
 	private int _selectedNavIndex = 0;
 
 	public bool IsVoiceSection => SelectedNavIndex == 0;
 	public bool IsCommentarySection => SelectedNavIndex == 1;
 	public bool IsAiProviderSection => SelectedNavIndex == 2;
 	public bool IsAiPromptSection => SelectedNavIndex == 3;
-	public bool IsVolumeSection => SelectedNavIndex == 4;
 
 	[RelayCommand]
 	private void GoToAiProvider() => SelectedNavIndex = 2;
@@ -92,20 +90,12 @@ public partial class ConfigWindowViewModel(
 	[RelayCommand]
 	private void GoToCommentary() => SelectedNavIndex = 1;
 
-	[RelayCommand]
-	private void GoToVolume() => SelectedNavIndex = 4;
 
 	// ── Settings fields ──────────────────────────────────────────────────────
 
 	[ObservableProperty] private VoiceInfo? _selectedVoice;
 
-	[ObservableProperty] private int _volume = Math.Clamp(App.Settings.Volume, 0, 100);
 
-	[ObservableProperty] private int _radioVolume = Math.Clamp(App.Settings.RadioVolume, 0, 100);
-
-	[ObservableProperty] private int _djVolume = Math.Clamp(App.Settings.DjVolume, 0, 100);
-
-	[ObservableProperty] private int _duckLevel = Math.Clamp(App.Settings.DuckLevel, 0, 100);
 
 
 	[ObservableProperty]
@@ -725,34 +715,6 @@ public partial class ConfigWindowViewModel(
 			CurrentPreviewState = PreviewState.Idle;
 	}
 
-	partial void OnVolumeChanged(int value)
-	{
-		audioMixer.SetMasterVolume(value);
-		App.Settings.Volume = value;
-		SettingsManager.Save(App.Settings);
-	}
-
-	partial void OnRadioVolumeChanged(int value)
-	{
-		audioMixer.SetRadioVolume(value);
-		App.Settings.RadioVolume = value;
-		SettingsManager.Save(App.Settings);
-	}
-
-	partial void OnDjVolumeChanged(int value)
-	{
-		audioMixer.SetDjVolume(value);
-		App.Settings.DjVolume = value;
-		SettingsManager.Save(App.Settings);
-	}
-
-	partial void OnDuckLevelChanged(int value)
-	{
-		audioMixer.SetDuckLevel(value);
-		App.Settings.DuckLevel = value;
-		SettingsManager.Save(App.Settings);
-	}
-
 	private void UpdateSample()
 	{
 		TemplateSample = string.IsNullOrWhiteSpace(AnnouncementTemplate)
@@ -808,10 +770,6 @@ public partial class ConfigWindowViewModel(
 		App.Settings.AiProvider = AiProvider;
 		App.Settings.ClaudeApiKey = ClaudeApiKey.Trim();
 		App.Settings.ClaudeModel = ClaudeModel.Trim();
-		App.Settings.Volume = Volume;
-		App.Settings.RadioVolume = RadioVolume;
-		App.Settings.DjVolume = DjVolume;
-		App.Settings.DuckLevel = DuckLevel;
 		SettingsManager.Save(App.Settings);
 		_window?.Close(true);
 	}

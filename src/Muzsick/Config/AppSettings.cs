@@ -23,32 +23,10 @@ public class AppSettings
 	public int Volume { get; set; } = 50;
 
 	/// <summary>
-	/// Radio stream volume (0–100). Independent of master volume. Persisted across sessions.
-	/// </summary>
-	public int RadioVolume { get; set; } = 100;
-
-	/// <summary>
-	/// DJ voiceover volume (0–100). Independent of master volume. Persisted across sessions.
+	/// DJ voiceover volume (0–100). Persisted across sessions.
 	/// </summary>
 	public int DjVolume { get; set; } = 100;
 
-	/// <summary>
-	/// Radio volume during a voiceover (0–100). 0 = silent, 100 = no ducking. Default 20.
-	/// </summary>
-	public int DuckLevel { get; set; } = 20;
-
-
-	/// <summary>
-	/// Resolved bare stream URL from the last opened stream. Restored on next launch.
-	/// Always a playable URL — never a local file path or playlist URL.
-	/// </summary>
-	public string? StreamUrl { get; set; }
-
-	/// <summary>
-	/// Human-readable station name inferred from playlist metadata or the stream URL hostname.
-	/// Displayed before ICY metadata arrives.
-	/// </summary>
-	public string? StreamName { get; set; }
 
 	/// <summary>
 	/// Kokoro TTS voice identifier. Defaults to "af_heart".

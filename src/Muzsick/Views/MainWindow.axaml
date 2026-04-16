@@ -7,13 +7,13 @@
         xmlns:vm="using:Muzsick.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="680"
+        mc:Ignorable="d" d:DesignWidth="540" d:DesignHeight="610"
         x:Class="Muzsick.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/muzsick-logo.ico"
         Title="Muzsick"
         Width="540"
-        Height="680"
+        Height="610"
         CanResize="False">
 
 	<Design.DataContext>
@@ -251,47 +251,7 @@
 			<!-- Control Buttons -->
 			<StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" Margin="0,8,0,8">
 
-				<!-- Open stream — left of play -->
-				<Button
-					Width="44"
-					Height="44"
-					CornerRadius="22"
-					Command="{Binding OpenStreamCommand}"
-					Background="#444444"
-					Foreground="#FFFFFF"
-					HorizontalAlignment="Center"
-					ToolTip.Tip="Open stream"
-					Classes="browseButton">
-					<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-						<Canvas Width="16" Height="16">
-							<Path Fill="#FFFFFF" Data="M1 3h5l2 2h7a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
-						</Canvas>
-					</StackPanel>
-				</Button>
-
-				<!-- Play / Pause — primary action -->
-				<Button
-					Width="80"
-					Height="80"
-					CornerRadius="40"
-					Command="{Binding PlayPauseCommand}"
-					Background="#FF6B35"
-					Foreground="#FFFFFF"
-					HorizontalAlignment="Center"
-					ToolTip.Tip="Play / Pause"
-					Classes="playButton">
-					<StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-						<Canvas Width="28" Height="28" IsVisible="{Binding !IsPlaying}">
-							<Polygon Points="8,4 8,24 24,14" Fill="#FFFFFF" />
-						</Canvas>
-						<Canvas Width="28" Height="28" IsVisible="{Binding IsPlaying}">
-							<Rectangle Canvas.Left="7" Canvas.Top="5" Width="5" Height="18" Fill="#FFFFFF" />
-							<Rectangle Canvas.Left="16" Canvas.Top="5" Width="5" Height="18" Fill="#FFFFFF" />
-						</Canvas>
-					</StackPanel>
-				</Button>
-
-				<!-- History — right of play, opens session history window -->
+				<!-- History — opens session history window -->
 				<Button
 					Width="44"
 					Height="44"

@@ -29,28 +29,24 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	[ObservableProperty] private string _songTitle = "No track loaded";
 	[ObservableProperty] private string _artistName = "Unknown artist";
 	[ObservableProperty] private string _albumName = "Unknown album";
-	[ObservableProperty] private bool _isPlaying;
-	[ObservableProperty] private string? _streamUrl;
-	[ObservableProperty] private string? _streamName;
 	[ObservableProperty] private int _volume = 50;
 	[ObservableProperty] private bool _volumeTooltipVisible;
 	[ObservableProperty] private string? _updateMessage;
 	[ObservableProperty] private string? _artistLastFmUrl;
 	[ObservableProperty] private string? _albumLastFmUrl;
 	[ObservableProperty] private string? _trackLastFmUrl;
-	public IReadOnlyDictionary<string, VoiceInfo> TtsAvailableVoices => _ttsBackend.AvailableVoices;
-	internal ITtsBackend TtsBackend => _ttsBackend;
-	internal AudioMixer AudioMixer => _audioMixer;
-
-	private CancellationTokenSource? _volumeTooltipCts;
 
 	// Bitmap? — null means no image available, UI falls back to placeholder
 	[ObservableProperty] private Bitmap? _albumArt;
 	[ObservableProperty] private Bitmap? _artistImage;
 
+	public IReadOnlyDictionary<string, VoiceInfo> TtsAvailableVoices => _ttsBackend.AvailableVoices;
+	internal ITtsBackend TtsBackend => _ttsBackend;
+	internal AudioMixer AudioMixer => _audioMixer;
+
+	private CancellationTokenSource? _volumeTooltipCts;
 	private Window? _mainWindow;
 	private readonly AudioMixer _audioMixer;
-	private readonly StreamPlayer? _streamPlayer;
 	private readonly IMetaService _metadataService;
 	private readonly ITtsBackend _ttsBackend;
 	private readonly HttpClient _httpClient;
@@ -62,6 +58,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private readonly DiscordPresenceService _discordPresence;
 	private readonly HistoryWindowViewModel _historyVm;
 	private HistoryWindow? _historyWindow;
+	private readonly SmtcWatcher? _smtcWatcher;
 
 	private const int _maxHistoryEntries = 20;
 
@@ -69,21 +66,15 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	{
 #if DEBUG
 		var mixerLogger = App.LoggerFactory?.CreateLogger<AudioMixer>();
-		var streamLogger = App.LoggerFactory?.CreateLogger<StreamPlayer>();
 		var metaLogger = App.LoggerFactory?.CreateLogger<LastFmMetaService>();
 #else
 		ILogger? mixerLogger = null;
-		ILogger? streamLogger = null;
 		ILogger? metaLogger = null;
 #endif
 		_audioMixer = new AudioMixer(mixerLogger);
-		_streamPlayer = new StreamPlayer(_audioMixer, streamLogger);
 		_metadataService = new LastFmMetaService(metaLogger);
 		_ttsBackend = new KokoroTtsBackend(
 			logger: App.LoggerFactory?.CreateLogger<KokoroTtsBackend>());
-		_streamPlayer.StatusChanged += OnStatusChanged;
-		_streamPlayer.TrackChanged += OnTrackChanged;
-		_streamPlayer.Initialize();
 		_httpClient = new HttpClient();
 		_httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(
 			"Muzsick/0.1 (https://github.com/juan-medina/muzsick)");
@@ -100,23 +91,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_historyVm = new HistoryWindowViewModel(_audioMixer);
 
 		var settings = SettingsManager.Load();
-		if (settings == null) return;
-		App.Settings = settings;
-		_volume = Math.Clamp(settings.Volume, 0, 100);
-		_audioMixer.SetMasterVolume(_volume);
-		_audioMixer.SetRadioVolume(settings.RadioVolume);
-		_audioMixer.SetDjVolume(settings.DjVolume);
-		_audioMixer.SetDuckLevel(settings.DuckLevel);
+		if (settings != null)
+		{
+			App.Settings = settings;
+			_volume = Math.Clamp(settings.Volume, 0, 100);
+			_audioMixer.SetDjVolume(settings.DjVolume);
+		}
 
-		if (!string.IsNullOrEmpty(settings.StreamUrl))
-			ApplyStream(settings.StreamUrl, settings.StreamName);
+		_smtcWatcher = new SmtcWatcher(App.LoggerFactory?.CreateLogger<SmtcWatcher>());
+		_smtcWatcher.TrackChanged += track => _ = HandleTrackAsync(track);
+		_smtcWatcher.Start();
 	}
 
 	public void SetMainWindow(Window window)
 	{
 		_mainWindow = window;
-
-		// Fire-and-forget: check for updates in the background after the view is ready.
 		_ = CheckForUpdatesAsync();
 	}
 
@@ -130,12 +119,11 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 	partial void OnVolumeChanged(int value)
 	{
-		_audioMixer.SetMasterVolume(value);
+		_audioMixer.SetDjVolume(value);
 
 		App.Settings.Volume = value;
 		SettingsManager.Save(App.Settings);
 
-		// Show floating label, cancel any previous hide timer
 		_volumeTooltipCts?.Cancel();
 		_volumeTooltipCts = new CancellationTokenSource();
 		VolumeTooltipVisible = true;
@@ -147,78 +135,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			if (!token.IsCancellationRequested)
 				Avalonia.Threading.Dispatcher.UIThread.Post(() => VolumeTooltipVisible = false);
 		}, token).ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnCanceled);
-	}
-
-	[RelayCommand]
-	private async Task PlayPause()
-	{
-		if (_streamPlayer == null) return;
-
-		if (IsPlaying)
-		{
-			_streamPlayer.Stop();
-			IsPlaying = false;
-		}
-		else
-		{
-			if (!string.IsNullOrEmpty(StreamUrl))
-			{
-				await _streamPlayer.PlayPlaylist(StreamUrl);
-				IsPlaying = true;
-			}
-			else
-			{
-				SongTitle = "No stream selected";
-				ArtistName = "Use the folder button to open a stream";
-				AlbumName = "";
-			}
-		}
-	}
-
-	[RelayCommand]
-	private async Task OpenStream()
-	{
-		if (_mainWindow == null) return;
-
-		var dialog = new OpenStreamWindow(_httpClient, StreamUrl);
-		var result = await dialog.ShowDialog<(string StreamUrl, string StreamName)?>(_mainWindow);
-
-		if (result == null) return;
-
-		var (url, name) = result.Value;
-
-		// No-op if the same stream is already playing
-		if (url == StreamUrl && IsPlaying) return;
-
-		ApplyStream(url, name);
-
-		App.Settings.StreamUrl = url;
-		App.Settings.StreamName = name;
-		SettingsManager.Save(App.Settings);
-
-		await _streamPlayer!.PlayPlaylist(StreamUrl!);
-		IsPlaying = true;
-	}
-
-	private void ApplyStream(string url, string? name)
-	{
-		if (IsPlaying)
-		{
-			_streamPlayer?.Stop();
-			IsPlaying = false;
-		}
-
-		StreamUrl = url;
-		StreamName = name;
-
-		SongTitle = name ?? new Uri(url).Host;
-		ArtistName = "Ready to play";
-		AlbumName = "";
-		AlbumArt = null;
-		ArtistImage = null;
-		ArtistLastFmUrl = null;
-		AlbumLastFmUrl = null;
-		TrackLastFmUrl = null;
 	}
 
 	[RelayCommand]
@@ -260,7 +176,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	{
 		if (_mainWindow == null) return;
 
-		// Bring existing window to front rather than opening a second one.
 		if (_historyWindow != null)
 		{
 			_historyWindow.Activate();
@@ -287,11 +202,10 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		}
 	}
 
-	private async void OnTrackChanged(TrackInfo track)
+	public async Task HandleTrackAsync(TrackInfo track)
 	{
 		try
 		{
-			// Cancel everything still running for the previous track.
 			var cts = new CancellationTokenSource();
 			var previous = Interlocked.Exchange(ref _trackCts, cts);
 			await previous.CancelAsync();
@@ -301,11 +215,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 			SongTitle = !string.IsNullOrEmpty(track.Title) ? track.Title : SongTitle;
 			ArtistName = !string.IsNullOrEmpty(track.Artist) ? track.Artist : "Unknown artist";
-			AlbumName = !string.IsNullOrEmpty(track.Album)
-				? track.Album
-				: !string.IsNullOrEmpty(StreamName)
-					? StreamName
-					: "Unknown album";
+			AlbumName = !string.IsNullOrEmpty(track.Album) ? track.Album : "Unknown album";
 
 			AlbumArt = null;
 			ArtistImage = null;
@@ -346,8 +256,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 			_discordPresence.UpdateTrack(enriched);
 
-			// §5.6 — wait before generating commentary to avoid interrupting the song intro.
-			// Also skip commentary entirely while the settings window is open.
 			if (_isConfigOpen) return;
 			await Task.Delay(TimeSpan.FromSeconds(3), token);
 
@@ -367,10 +275,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 				App.LoggerFactory?.CreateLogger("MainWindowViewModel")
 					.LogWarning("Commentary generation failed: {Message}", ex.Message);
 
-				// Fall back to template if AI fails
 				if (_commentaryGenerator is not TemplateCommentaryGenerator)
 				{
-					UpdateMessage = "⚠ AI commentary unavailable — using template";
+					UpdateMessage = "AI commentary unavailable — using template";
 					commentary = await new TemplateCommentaryGenerator().GenerateAsync(enriched, token);
 				}
 				else
@@ -400,7 +307,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 			if (token.IsCancellationRequested) return;
 
-			// Add to session history (cap at _maxHistoryEntries, newest first).
 			var entry = new HistoryEntry
 			{
 				Title = enriched.Title,
@@ -431,7 +337,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		catch (Exception ex)
 		{
 			App.LoggerFactory?.CreateLogger("MainWindowViewModel")
-				.LogError(ex, "Unhandled error in OnTrackChanged");
+				.LogError(ex, "Unhandled error in HandleTrackAsync");
 		}
 	}
 
@@ -448,13 +354,8 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private static string? BuildLastFmTrackUrl(string? artist, string? title) =>
 		string.IsNullOrWhiteSpace(artist) || string.IsNullOrWhiteSpace(title)
 			? null
-			: $"https://www.last.fm/music/{Uri.EscapeDataString(artist).Replace("%20", "+")}/_/{Uri.EscapeDataString(title).Replace("%20", "+")}";
+			: $"https://www.last.fm/music/{Uri.EscapeDataString(artist).Replace("%20", "+")}/{Uri.EscapeDataString(title).Replace("%20", "+")}";
 
-	/// <summary>
-	/// Downloads an image from a URL and decodes it into an Avalonia Bitmap.
-	/// Avalonia cannot load HTTP URLs from a string binding on Image.Source —
-	/// a Bitmap object is required.
-	/// </summary>
 	private async Task<Bitmap?> LoadBitmapAsync(string url)
 	{
 		try
@@ -479,72 +380,6 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		}
 	}
 
-	private void OnStatusChanged(string status)
-	{
-		if (status.StartsWith("Loading"))
-		{
-			SongTitle = status;
-			ArtistName = "Preparing to connect...";
-			AlbumName = "";
-			AlbumArt = null;
-			ArtistImage = null;
-		}
-		else if (status.StartsWith("Starting"))
-		{
-			SongTitle = "Starting Playback";
-			ArtistName = status;
-			AlbumName = "";
-		}
-		else
-			switch (status)
-			{
-				case "Connected to stream" when string.IsNullOrEmpty(StreamUrl):
-					return;
-				case "Connected to stream":
-					SongTitle = StreamName ?? new Uri(StreamUrl!).Host;
-					ArtistName = "Live Radio Stream";
-					AlbumName = "Waiting for track information...";
-					break;
-				case "Stopped":
-				case "Stream ended":
-				{
-					IsPlaying = false;
-					AlbumArt = null;
-					ArtistImage = null;
-					ArtistLastFmUrl = null;
-					AlbumLastFmUrl = null;
-					TrackLastFmUrl = null;
-					if (!string.IsNullOrEmpty(StreamUrl))
-					{
-						SongTitle = StreamName ?? new Uri(StreamUrl).Host;
-						ArtistName = "Ready to play";
-						AlbumName = "";
-					}
-					else
-					{
-						SongTitle = "No track loaded";
-						ArtistName = "Unknown artist";
-						AlbumName = "Unknown album";
-					}
-
-					break;
-				}
-				default:
-				{
-					if (status.StartsWith("Failed") || status.StartsWith("Playback error") ||
-					    status == "Connection error")
-					{
-						SongTitle = "Playback Error";
-						ArtistName = status;
-						AlbumName = "";
-						IsPlaying = false;
-					}
-
-					break;
-				}
-			}
-	}
-
 	public void Dispose()
 	{
 		_volumeTooltipCts?.Cancel();
@@ -554,8 +389,9 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_voiceoverCts.Cancel();
 		_voiceoverCts.Dispose();
 		_httpClient.Dispose();
-		_streamPlayer?.Dispose();
 		_audioMixer.Dispose();
 		_discordPresence.Dispose();
+		_smtcWatcher?.Dispose();
 	}
 }
+

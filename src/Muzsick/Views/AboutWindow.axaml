@@ -72,11 +72,11 @@
 						<TextBlock Text="{Binding AppVersion}"
 						           FontSize="13"
 						           Foreground="#888888" />
-						<TextBlock Text="AI-Powered Radio Companion"
+						<TextBlock Text="AI-Powered Music Companion"
 						           FontSize="12"
 						           Foreground="#AAAAAA" />
 						<TextBlock
-							Text="Plays live internet radio and enriches it with AI-generated DJ commentary synthesised entirely on your device."
+							Text="Listens to what you play on Spotify and enriches it with AI-generated DJ commentary synthesised entirely on your device."
 							FontSize="12"
 							Foreground="#777777"
 							TextWrapping="Wrap" />
@@ -133,16 +133,6 @@
 							                 VerticalAlignment="Center" />
 						</DockPanel>
 
-						<DockPanel LastChildFill="False">
-							<TextBlock DockPanel.Dock="Left" Text="LibVLCSharp"
-							           FontSize="12" Foreground="#CCCCCC"
-							           Width="160" VerticalAlignment="Center" />
-							<HyperlinkButton DockPanel.Dock="Left"
-							                 Content="code.videolan.org/videolan/LibVLCSharp"
-							                 NavigateUri="https://code.videolan.org/videolan/LibVLCSharp"
-							                 FontSize="12" Foreground="#FF6B35" Padding="0"
-							                 VerticalAlignment="Center" />
-						</DockPanel>
 
 						<DockPanel LastChildFill="False">
 							<TextBlock DockPanel.Dock="Left" Text="Silk.NET.OpenAL"
@@ -220,12 +210,12 @@
 						</DockPanel>
 
 						<DockPanel LastChildFill="False">
-							<TextBlock DockPanel.Dock="Left" Text="PlaylistsNET"
+							<TextBlock DockPanel.Dock="Left" Text="WindowsMediaController"
 							           FontSize="12" Foreground="#CCCCCC"
 							           Width="160" VerticalAlignment="Center" />
 							<HyperlinkButton DockPanel.Dock="Left"
-							                 Content="github.com/tmk907/PlaylistsNET"
-							                 NavigateUri="https://github.com/tmk907/PlaylistsNET"
+							                 Content="github.com/DubyaDude/WindowsMediaController"
+							                 NavigateUri="https://github.com/DubyaDude/WindowsMediaController"
 							                 FontSize="12" Foreground="#FF6B35" Padding="0"
 							                 VerticalAlignment="Center" />
 						</DockPanel>

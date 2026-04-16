@@ -59,7 +59,6 @@
 				<ListBoxItem Content="Commentary" />
 				<ListBoxItem Content="AI Provider" />
 				<ListBoxItem Content="AI Prompt" />
-				<ListBoxItem Content="Volume" />
 				</ListBox>
 			</Border>
 
@@ -549,92 +548,6 @@
 					<!-- ══════════════════════════════════════ -->
 					<!-- VOLUME                                  -->
 					<!-- ══════════════════════════════════════ -->
-					<StackPanel Spacing="20" Margin="0,0,0,24" IsVisible="{Binding IsVolumeSection}">
-
-						<TextBlock Text="Volume" FontSize="18" FontWeight="SemiBold" Foreground="#FFFFFF" />
-
-						<!-- Master Volume -->
-						<StackPanel Spacing="8">
-							<DockPanel>
-								<TextBlock DockPanel.Dock="Left"
-								           Text="Master Volume"
-								           FontSize="13" FontWeight="SemiBold" Foreground="#CCCCCC"
-								           VerticalAlignment="Center" />
-								<TextBlock DockPanel.Dock="Right"
-								           Text="{Binding Volume, StringFormat={}{0}%}"
-								           FontSize="13" Foreground="#FF6B35" FontWeight="Bold"
-								           VerticalAlignment="Center" HorizontalAlignment="Right" />
-							</DockPanel>
-							<TextBlock Text="Controls the overall output level. This is the same slider as on the main screen."
-							           FontSize="12" Foreground="#888888" TextWrapping="Wrap" />
-							<Slider Minimum="0" Maximum="100"
-							        Value="{Binding Volume}"
-							        TickFrequency="1" IsSnapToTickEnabled="True" />
-						</StackPanel>
-
-						<!-- Radio Volume -->
-						<StackPanel Spacing="8">
-							<DockPanel>
-								<TextBlock DockPanel.Dock="Left"
-								           Text="Radio Volume"
-								           FontSize="13" FontWeight="SemiBold" Foreground="#CCCCCC"
-								           VerticalAlignment="Center" />
-								<TextBlock DockPanel.Dock="Right"
-								           Text="{Binding RadioVolume, StringFormat={}{0}%}"
-								           FontSize="13" Foreground="#FF6B35" FontWeight="Bold"
-								           VerticalAlignment="Center" HorizontalAlignment="Right" />
-							</DockPanel>
-							<TextBlock Text="Controls the level of the radio stream. Reduces the radio relative to the DJ voice if the stream is too loud."
-							           FontSize="12" Foreground="#888888" TextWrapping="Wrap" />
-							<Slider Minimum="0" Maximum="100"
-							        Value="{Binding RadioVolume}"
-							        TickFrequency="1" IsSnapToTickEnabled="True" />
-						</StackPanel>
-
-						<!-- DJ Volume -->
-						<StackPanel Spacing="8">
-							<DockPanel>
-								<TextBlock DockPanel.Dock="Left"
-								           Text="DJ Volume"
-								           FontSize="13" FontWeight="SemiBold" Foreground="#CCCCCC"
-								           VerticalAlignment="Center" />
-								<TextBlock DockPanel.Dock="Right"
-								           Text="{Binding DjVolume, StringFormat={}{0}%}"
-								           FontSize="13" Foreground="#FF6B35" FontWeight="Bold"
-								           VerticalAlignment="Center" HorizontalAlignment="Right" />
-							</DockPanel>
-							<TextBlock Text="Controls the level of the AI DJ voiceover announcements."
-							           FontSize="12" Foreground="#888888" TextWrapping="Wrap" />
-							<Slider Minimum="0" Maximum="100"
-							        Value="{Binding DjVolume}"
-							        TickFrequency="1" IsSnapToTickEnabled="True" />
-						</StackPanel>
-
-						<Rectangle Height="1" Fill="#383838" />
-
-						<TextBlock Text="Ducking" FontSize="15" FontWeight="SemiBold" Foreground="#FFFFFF" />
-
-						<!-- Duck Level -->
-						<StackPanel Spacing="8">
-							<DockPanel>
-								<TextBlock DockPanel.Dock="Left"
-								           Text="Duck Level"
-								           FontSize="13" FontWeight="SemiBold" Foreground="#CCCCCC"
-								           VerticalAlignment="Center" />
-								<TextBlock DockPanel.Dock="Right"
-								           Text="{Binding DuckLevel, StringFormat={}{0}%}"
-								           FontSize="13" Foreground="#FF6B35" FontWeight="Bold"
-								           VerticalAlignment="Center" HorizontalAlignment="Right" />
-							</DockPanel>
-							<TextBlock Text="Radio volume while the DJ is speaking. Lower = quieter radio during announcements."
-							           FontSize="12" Foreground="#888888" TextWrapping="Wrap" />
-							<Slider Minimum="0" Maximum="100"
-							        Value="{Binding DuckLevel}"
-							        TickFrequency="1" IsSnapToTickEnabled="True" />
-						</StackPanel>
-
-
-					</StackPanel>
 
 					</StackPanel>
 				</Border>

@@ -10,8 +10,24 @@ on:
 
 jobs:
     build:
-        name: Build win-x64
-        runs-on: windows-latest
+        name: Build ${{ matrix.rid }}
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: windows-latest
+                      rid: win-x64
+                      exe: Muzsick.exe
+                      velopack: true
+                    - os: macos-latest
+                      rid: osx-x64
+                      exe: Muzsick
+                      velopack: false
+                    - os: ubuntu-latest
+                      rid: linux-x64
+                      exe: Muzsick
+                      velopack: false
 
         steps:
             -   name: Checkout
@@ -39,7 +55,8 @@ jobs:
                 shell: bash
                 run: |
                     mkdir -p models/KokoroModels
-                    curl -L --fail -o models/KokoroModels/kokoro.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2
+                    curl -L --fail -o models/KokoroModels/kokoro.tar.bz2 \
+                      https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2
                     tar -xjf models/KokoroModels/kokoro.tar.bz2 -C models/KokoroModels
                     rm models/KokoroModels/kokoro.tar.bz2
 
@@ -48,15 +65,18 @@ jobs:
                 run: |
                     dotnet publish src/Muzsick/Muzsick.csproj \
                       -c Release \
-                      -r win-x64 \
+                      -r ${{ matrix.rid }} \
                       --self-contained true \
                       -p:EnableVersionBump=false \
-                      -o publish/win-x64
+                      -o publish/${{ matrix.rid }}
 
+            # Windows: pack with Velopack
             -   name: Install Velopack CLI
+                if: matrix.velopack
                 run: dotnet tool install -g vpk
 
-            -   name: Pack installer
+            -   name: Pack installer (Windows)
+                if: matrix.velopack
                 shell: pwsh
                 run: |
                     $version = $env:GITHUB_REF_NAME -replace '^v', ''
@@ -67,11 +87,27 @@ jobs:
                       --mainExe Muzsick.exe `
                       --outputDir velopack-out
 
-            -   name: Upload artifact
+            -   name: Upload artifact (Windows Velopack)
+                if: matrix.velopack
                 uses: actions/upload-artifact@v4
                 with:
-                    name: Muzsick-win-x64
+                    name: Muzsick-${{ matrix.rid }}
                     path: velopack-out/
+
+            # macOS / Linux: zip the publish output
+            -   name: Zip publish output
+                if: '!matrix.velopack'
+                shell: bash
+                run: |
+                    cd publish/${{ matrix.rid }}
+                    zip -r ../../Muzsick-${{ matrix.rid }}.zip .
+
+            -   name: Upload artifact (non-Windows)
+                if: '!matrix.velopack'
+                uses: actions/upload-artifact@v4
+                with:
+                    name: Muzsick-${{ matrix.rid }}
+                    path: Muzsick-${{ matrix.rid }}.zip
 
     release:
         name: Attach to GitHub Release

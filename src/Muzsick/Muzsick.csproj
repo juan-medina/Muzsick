@@ -5,9 +5,8 @@
 	<Import Project="$(MSBuildThisFileDirectory)../../version.props"/>
 
 	<PropertyGroup>
-		<OutputType>WinExe</OutputType>
-		<TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
-		<SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net9.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 		<AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -17,6 +16,11 @@
 	<PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
 		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<ApplicationIcon>Assets\muzsick-logo.ico</ApplicationIcon>
+		<!-- Activate WinRT projections on Windows without changing the TFM -->
+		<TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
+		<TargetPlatformVersion>10.0.19041.0</TargetPlatformVersion>
+		<!-- Define WINDOWS so #if WINDOWS guards work at compile time -->
+		<DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
 	</PropertyGroup>
 
 	<ItemGroup>

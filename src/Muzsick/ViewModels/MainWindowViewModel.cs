@@ -108,17 +108,21 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 
 		switch (App.Settings.MusicSource)
 		{
-			case Config.MusicSource.SpotifyApi:
+			case MusicSource.SpotifyApi:
 				_musicSource = new SpotifyApiMusicSource(
 					App.LoggerFactory?.CreateLogger<SpotifyApiMusicSource>());
 				break;
 
+#if WINDOWS
 			default:
-				// SMTC is Windows-only; on other platforms no source starts
-				if (OperatingSystem.IsWindows())
-					_musicSource = new SmtcMusicSource(
-						App.LoggerFactory?.CreateLogger<SmtcMusicSource>());
+				_musicSource = new SmtcMusicSource(
+					App.LoggerFactory?.CreateLogger<SmtcMusicSource>());
 				break;
+#else
+			default:
+				// SMTC not available on this platform; no music source started.
+				break;
+#endif
 		}
 
 		if (_musicSource is not null)

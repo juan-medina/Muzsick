@@ -1,6 +1,8 @@
 ﻿// SPDX-FileCopyrightText: 2026 Juan Medina
 // SPDX-License-Identifier: MIT
 
+#if WINDOWS
+
 using System;
 using Microsoft.Extensions.Logging;
 using Muzsick.Metadata;
@@ -83,3 +85,4 @@ public sealed class SmtcMusicSource : IMusicSource
 	}
 }
 
+#endif

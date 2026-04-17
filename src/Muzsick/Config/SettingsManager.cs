@@ -59,6 +59,14 @@ public static class SettingsManager
 	{
 		if (!File.Exists(SettingsPath))
 			Save(new AppSettings());
+
+		// SMTC is Windows-only; fall back to SpotifyApi on other platforms.
+		var settings = Load();
+		if (settings is not null && !OperatingSystem.IsWindows() && settings.MusicSource == MusicSource.Smtc)
+		{
+			settings.MusicSource = MusicSource.SpotifyApi;
+			Save(settings);
+		}
 	}
 }
 

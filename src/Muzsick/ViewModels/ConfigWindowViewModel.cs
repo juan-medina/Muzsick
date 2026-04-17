@@ -20,7 +20,9 @@ using Muzsick.Audio;
 using Muzsick.Commentary;
 using Muzsick.Config;
 using Muzsick.Metadata;
+using Muzsick.Spotify;
 using Muzsick.Tts;
+using SpotifyAPI.Web;
 
 namespace Muzsick.ViewModels;
 
@@ -51,6 +53,14 @@ public enum ClaudeCheckState
 	Failed,
 }
 
+public enum SpotifyCheckState
+{
+	Idle,
+	Checking,
+	Ok,
+	Failed,
+}
+
 public enum VoiceTestState
 {
 	Idle,
@@ -74,21 +84,170 @@ public partial class ConfigWindowViewModel(
 	[NotifyPropertyChangedFor(nameof(IsCommentarySection))]
 	[NotifyPropertyChangedFor(nameof(IsAiProviderSection))]
 	[NotifyPropertyChangedFor(nameof(IsAiPromptSection))]
-	private int _selectedNavIndex = 0;
+	[NotifyPropertyChangedFor(nameof(IsMusicSourceSection))]
+	private int _selectedNavIndex;
 
 	public bool IsVoiceSection => SelectedNavIndex == 0;
-	public bool IsCommentarySection => SelectedNavIndex == 1;
-	public bool IsAiProviderSection => SelectedNavIndex == 2;
-	public bool IsAiPromptSection => SelectedNavIndex == 3;
+	public bool IsMusicSourceSection => SelectedNavIndex == 1;
+	public bool IsCommentarySection => SelectedNavIndex == 2;
+	public bool IsAiProviderSection => SelectedNavIndex == 3;
+	public bool IsAiPromptSection => SelectedNavIndex == 4;
 
 	[RelayCommand]
-	private void GoToAiProvider() => SelectedNavIndex = 2;
+	private void GoToAiProvider() => SelectedNavIndex = 3;
 
 	[RelayCommand]
-	private void GoToAiPrompt() => SelectedNavIndex = 3;
+	private void GoToAiPrompt() => SelectedNavIndex = 4;
 
 	[RelayCommand]
-	private void GoToCommentary() => SelectedNavIndex = 1;
+	private void GoToCommentary() => SelectedNavIndex = 2;
+
+
+	// ── Music Source ─────────────────────────────────────────────────────────
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsSmtcSource))]
+	[NotifyPropertyChangedFor(nameof(IsSpotifyApiSource))]
+	private MusicSource _musicSource = App.Settings.MusicSource;
+
+	public bool IsSmtcSource
+	{
+		get => MusicSource == MusicSource.Smtc;
+		set { if (value) MusicSource = MusicSource.Smtc; }
+	}
+
+	public bool IsSpotifyApiSource
+	{
+		get => MusicSource == MusicSource.SpotifyApi;
+		set { if (value) MusicSource = MusicSource.SpotifyApi; }
+	}
+
+	// SMTC is only available on Windows
+	public bool IsSmtcAvailable => OperatingSystem.IsWindows();
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsConnected))]
+	[NotifyPropertyChangedFor(nameof(IsDisconnected))]
+	[NotifyPropertyChangedFor(nameof(IsConnecting))]
+	[NotifyPropertyChangedFor(nameof(ConnectButtonLabel))]
+	private SpotifyConnectState _spotifyConnectState =
+		string.IsNullOrEmpty(App.Settings.SpotifyRefreshToken)
+			? SpotifyConnectState.Disconnected
+			: SpotifyConnectState.Connected;
+
+	public bool IsConnected => SpotifyConnectState == SpotifyConnectState.Connected;
+	public bool IsDisconnected => SpotifyConnectState != SpotifyConnectState.Connected;
+	public bool IsConnecting => SpotifyConnectState == SpotifyConnectState.Connecting;
+
+	public string ConnectButtonLabel => SpotifyConnectState switch
+	{
+		SpotifyConnectState.Connecting => "Connecting...",
+		SpotifyConnectState.Connected  => "Reconnect",
+		SpotifyConnectState.Failed     => "Retry",
+		_                              => "Connect Spotify",
+	};
+
+	[ObservableProperty] private string _spotifyClientId = App.Settings.SpotifyClientId;
+	[ObservableProperty] private string _spotifyConnectError = "";
+	public bool HasSpotifyConnectError => !string.IsNullOrEmpty(SpotifyConnectError);
+
+	[RelayCommand]
+	private async Task ConnectSpotify()
+	{
+		if (string.IsNullOrWhiteSpace(SpotifyClientId))
+		{
+			SpotifyConnectError = "Enter your Client ID first.";
+			OnPropertyChanged(nameof(HasSpotifyConnectError));
+			return;
+		}
+
+		SpotifyConnectError = "";
+		OnPropertyChanged(nameof(HasSpotifyConnectError));
+		SpotifyConnectState = SpotifyConnectState.Connecting;
+
+		// Save client ID immediately so it persists even if auth is cancelled
+		App.Settings.SpotifyClientId = SpotifyClientId;
+		SettingsManager.Save(App.Settings);
+
+		await _spotifyAuthCts.CancelAsync();
+		_spotifyAuthCts.Dispose();
+		_spotifyAuthCts = new CancellationTokenSource();
+
+		var authService = new SpotifyAuthService(
+			App.LoggerFactory?.CreateLogger<SpotifyAuthService>());
+
+		var refreshToken = await authService.AuthorizeAsync(SpotifyClientId, _spotifyAuthCts.Token);
+
+		if (refreshToken is null)
+		{
+			SpotifyConnectState = SpotifyConnectState.Failed;
+			SpotifyConnectError = "Authentication cancelled or failed. Check your Client ID and try again.";
+			OnPropertyChanged(nameof(HasSpotifyConnectError));
+			return;
+		}
+
+		App.Settings.SpotifyRefreshToken = refreshToken;
+		SettingsManager.Save(App.Settings);
+		SpotifyConnectState = SpotifyConnectState.Connected;
+	}
+
+	[RelayCommand]
+	private void DisconnectSpotify()
+	{
+		_spotifyAuthCts.Cancel();
+		App.Settings.SpotifyRefreshToken = "";
+		SettingsManager.Save(App.Settings);
+		SpotifyConnectState = SpotifyConnectState.Disconnected;
+		SpotifyConnectError = "";
+		OnPropertyChanged(nameof(HasSpotifyConnectError));
+	}
+
+	// ── Spotify connection check ──────────────────────────────────────────────
+
+	[ObservableProperty]
+	[NotifyPropertyChangedFor(nameof(IsSpotifyCheckOk))]
+	[NotifyPropertyChangedFor(nameof(IsSpotifyCheckFailed))]
+	[NotifyPropertyChangedFor(nameof(IsSpotifyChecking))]
+	[NotifyCanExecuteChangedFor(nameof(CheckSpotifyCommand))]
+	private SpotifyCheckState _spotifyCheckState = SpotifyCheckState.Idle;
+
+	public bool IsSpotifyCheckOk => SpotifyCheckState == SpotifyCheckState.Ok;
+	public bool IsSpotifyCheckFailed => SpotifyCheckState == SpotifyCheckState.Failed;
+	public bool IsSpotifyChecking => SpotifyCheckState == SpotifyCheckState.Checking;
+
+	private bool CanCheckSpotify() => SpotifyCheckState != SpotifyCheckState.Checking
+		&& !string.IsNullOrEmpty(App.Settings.SpotifyRefreshToken);
+
+	[RelayCommand(CanExecute = nameof(CanCheckSpotify))]
+	private async Task CheckSpotify()
+	{
+		SpotifyCheckState = SpotifyCheckState.Checking;
+		try
+		{
+			using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+			var refreshResponse = await new OAuthClient().RequestToken(
+				new PKCETokenRefreshRequest(SpotifyClientId, App.Settings.SpotifyRefreshToken), cts.Token);
+
+			// PKCE refresh tokens are single-use — persist the new one immediately
+			App.Settings.SpotifyRefreshToken = refreshResponse.RefreshToken;
+			SettingsManager.Save(App.Settings);
+
+			using var client = new HttpClient();
+			client.DefaultRequestHeaders.Authorization =
+				new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", refreshResponse.AccessToken);
+
+			var response = await client.GetAsync(
+				"https://api.spotify.com/v1/me", cts.Token);
+
+			SpotifyCheckState = response.IsSuccessStatusCode
+				? SpotifyCheckState.Ok
+				: SpotifyCheckState.Failed;
+		}
+		catch
+		{
+			SpotifyCheckState = SpotifyCheckState.Failed;
+		}
+	}
 
 
 	// ── Settings fields ──────────────────────────────────────────────────────
@@ -222,7 +381,7 @@ public partial class ConfigWindowViewModel(
 	public IReadOnlyList<PromptLibraryEntry> PromptLibrary { get; } = Commentary.PromptLibrary.Entries;
 
 	[ObservableProperty] [NotifyPropertyChangedFor(nameof(IsPromptLibraryOpen))]
-	private bool _promptLibraryVisible = false;
+	private bool _promptLibraryVisible;
 
 	public bool IsPromptLibraryOpen => PromptLibraryVisible;
 
@@ -351,7 +510,7 @@ public partial class ConfigWindowViewModel(
 	public string OllamaModelMissingMessage =>
 		$"✗ Model \"{OllamaModel}\" not found — run: ollama pull {OllamaModel}";
 
-	partial void OnOllamaUrlChanged(string value) => OllamaCheckState = OllamaCheckState.Idle;
+	partial void OnOllamaUrlChanged(string _) => OllamaCheckState = OllamaCheckState.Idle;
 
 	private bool CanCheckOllama() => OllamaCheckState != OllamaCheckState.Checking;
 
@@ -690,6 +849,7 @@ public partial class ConfigWindowViewModel(
 
 	private Window? _window;
 	private CancellationTokenSource _previewCts = new();
+	private CancellationTokenSource _spotifyAuthCts = new();
 	private readonly Stopwatch _previewStopwatch = new();
 	private DispatcherTimer? _previewTimer;
 
@@ -702,14 +862,14 @@ public partial class ConfigWindowViewModel(
 		UpdateSample();
 	}
 
-	partial void OnAnnouncementTemplateChanged(string value)
+	partial void OnAnnouncementTemplateChanged(string _)
 	{
 		UpdateSample();
 		if (CurrentPreviewState is PreviewState.Done or PreviewState.Failed)
 			CurrentPreviewState = PreviewState.Idle;
 	}
 
-	partial void OnAiPromptChanged(string value)
+	partial void OnAiPromptChanged(string _)
 	{
 		if (CurrentPreviewState is PreviewState.Done or PreviewState.Failed)
 			CurrentPreviewState = PreviewState.Idle;
@@ -749,6 +909,7 @@ public partial class ConfigWindowViewModel(
 	{
 		_previewCts.Cancel();
 		_voiceTestCts.Cancel();
+		_spotifyAuthCts.Cancel();
 		_previewTimer?.Stop();
 		_previewTimer = null;
 	}
@@ -762,6 +923,9 @@ public partial class ConfigWindowViewModel(
 	{
 		if (SelectedVoice != null)
 			App.Settings.TtsVoice = SelectedVoice.Id;
+		App.Settings.MusicSource = MusicSource;
+		App.Settings.SpotifyClientId = SpotifyClientId;
+		// SpotifyRefreshToken is written directly to App.Settings during the OAuth flow
 		App.Settings.AnnouncementTemplate = AnnouncementTemplate.Trim();
 		App.Settings.CommentaryMode = CommentaryMode;
 		App.Settings.AiPrompt = AiPrompt.Trim();

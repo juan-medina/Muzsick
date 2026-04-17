@@ -56,6 +56,7 @@
 					</ListBox.Styles>
 
 				<ListBoxItem Content="Voice" />
+				<ListBoxItem Content="Music Source" />
 				<ListBoxItem Content="Commentary" />
 				<ListBoxItem Content="AI Provider" />
 				<ListBoxItem Content="AI Prompt" />
@@ -122,6 +123,183 @@
 								           Margin="12,0,0,0" VerticalAlignment="Center"
 								           TextWrapping="Wrap" />
 							</Grid>
+
+						</StackPanel>
+
+						<!-- ══════════════════════════════════════ -->
+						<!-- MUSIC SOURCE                           -->
+						<!-- ══════════════════════════════════════ -->
+						<StackPanel Spacing="16" IsVisible="{Binding IsMusicSourceSection}">
+
+							<StackPanel Spacing="4">
+								<TextBlock Text="Music Source" FontSize="18" FontWeight="Bold" Foreground="#FFFFFF" />
+								<TextBlock Text="Choose how Muzsick detects the currently playing track."
+								           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
+							</StackPanel>
+
+							<Rectangle Height="1" Fill="#383838" />
+
+							<!-- Source selection -->
+							<StackPanel Spacing="8">
+								<TextBlock Text="Source" FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
+
+								<!-- SMTC option -->
+								<Border Background="#1E1E1E" BorderBrush="#444444" BorderThickness="1"
+								        CornerRadius="8" Padding="14,10"
+								        IsEnabled="{Binding IsSmtcAvailable}">
+									<Grid ColumnDefinitions="Auto,*">
+										<RadioButton Grid.Column="0"
+										             IsChecked="{Binding IsSmtcSource}"
+										             GroupName="MusicSourceGroup"
+										             IsEnabled="{Binding IsSmtcAvailable}"
+										             VerticalAlignment="Top" Margin="0,2,0,0" />
+										<StackPanel Grid.Column="1" Spacing="2" Margin="10,0,0,0">
+											<StackPanel Orientation="Horizontal" Spacing="8">
+												<TextBlock Text="Spotify (SMTC)"
+												           FontSize="13" FontWeight="SemiBold" Foreground="#FFFFFF" />
+												<Border Background="#333333" CornerRadius="4" Padding="6,2">
+													<TextBlock Text="Windows only" FontSize="11" Foreground="#AAAAAA" />
+												</Border>
+											</StackPanel>
+											<TextBlock Text="Detects what Spotify is playing via Windows System Media Transport Controls. Zero setup — no credentials required."
+											           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
+											<TextBlock Text="Not available on this platform."
+											           IsVisible="{Binding !IsSmtcAvailable}"
+											           FontSize="12" Foreground="#886644" TextWrapping="Wrap" />
+										</StackPanel>
+									</Grid>
+								</Border>
+
+								<!-- Spotify API option -->
+								<Border Background="#1E1E1E" BorderBrush="#444444" BorderThickness="1"
+								        CornerRadius="8" Padding="14,10">
+									<Grid ColumnDefinitions="Auto,*">
+										<RadioButton Grid.Column="0"
+										             IsChecked="{Binding IsSpotifyApiSource}"
+										             GroupName="MusicSourceGroup"
+										             VerticalAlignment="Top" Margin="0,2,0,0" />
+										<StackPanel Grid.Column="1" Spacing="2" Margin="10,0,0,0">
+											<StackPanel Orientation="Horizontal" Spacing="8">
+												<TextBlock Text="Spotify (API)"
+												           FontSize="13" FontWeight="SemiBold" Foreground="#FFFFFF" />
+												<Border Background="#333333" CornerRadius="4" Padding="6,2">
+													<TextBlock Text="All platforms" FontSize="11" Foreground="#AAAAAA" />
+												</Border>
+											</StackPanel>
+											<TextBlock Text="Uses the Spotify Web API to detect the current track. Requires Spotify Premium and a free Spotify developer app."
+											           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
+										</StackPanel>
+									</Grid>
+								</Border>
+							</StackPanel>
+
+							<!-- Spotify API setup — only shown when API source selected -->
+							<StackPanel Spacing="16" IsVisible="{Binding IsSpotifyApiSource}">
+
+								<Rectangle Height="1" Fill="#383838" />
+
+								<!-- Setup instructions -->
+								<StackPanel Spacing="10">
+									<TextBlock Text="Setup Instructions" FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
+									<Border Background="#1A2A1A" BorderBrush="#2A4A2A" BorderThickness="1"
+									        CornerRadius="8" Padding="14,12">
+										<StackPanel Spacing="8">
+											<TextBlock FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap">
+												<Run Text="1." FontWeight="SemiBold" Foreground="#CCCCCC" />
+												<Run Text=" Go to " />
+												<Run Text="developer.spotify.com/dashboard" Foreground="#FF6B35" />
+												<Run Text=" and create a new app." />
+											</TextBlock>
+											<TextBlock FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap">
+												<Run Text="2." FontWeight="SemiBold" Foreground="#CCCCCC" />
+												<Run Text=" In your app settings, add this Redirect URI:" />
+											</TextBlock>
+											<Border Background="#111111" CornerRadius="4" Padding="10,6">
+												<TextBlock Text="http://127.0.0.1:5543/callback"
+												           FontFamily="Consolas,Monospace"
+												           FontSize="12" Foreground="#FF6B35" />
+											</Border>
+											<TextBlock FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap">
+												<Run Text="3." FontWeight="SemiBold" Foreground="#CCCCCC" />
+												<Run Text=" Copy the Client ID from your app dashboard and paste it below." />
+											</TextBlock>
+											<TextBlock FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap">
+												<Run Text="4." FontWeight="SemiBold" Foreground="#CCCCCC" />
+												<Run Text=" Click Connect Spotify. A browser window will open for you to approve access." />
+											</TextBlock>
+										</StackPanel>
+									</Border>
+									<HyperlinkButton Content="Open Spotify Developer Dashboard"
+									                 NavigateUri="https://developer.spotify.com/dashboard"
+									                 FontSize="12" Foreground="#FF6B35" Padding="0" />
+								</StackPanel>
+
+								<!-- Client ID field -->
+								<StackPanel Spacing="6">
+									<TextBlock Text="Client ID" FontSize="13" FontWeight="SemiBold" Foreground="#DDDDDD" />
+									<TextBox Text="{Binding SpotifyClientId}"
+									         Watermark="Paste your Spotify Client ID here"
+									         Background="#1E1E1E" Foreground="#FFFFFF"
+									         BorderBrush="#444444" BorderThickness="1"
+									         CornerRadius="6" Padding="10,8"
+									         FontFamily="Consolas,Monospace" FontSize="13" />
+								</StackPanel>
+
+								<!-- Connect / status -->
+								<StackPanel Spacing="8">
+									<StackPanel Orientation="Horizontal" Spacing="10">
+										<Button Content="{Binding ConnectButtonLabel}"
+										        Command="{Binding ConnectSpotifyCommand}"
+										        IsEnabled="{Binding !IsConnecting}"
+										        Width="160" Height="34"
+										        Background="#FF6B35" Foreground="#FFFFFF"
+										        BorderThickness="0" CornerRadius="6" FontSize="13" />
+										<Button Content="Disconnect"
+										        Command="{Binding DisconnectSpotifyCommand}"
+										        IsVisible="{Binding IsConnected}"
+										        Width="100" Height="34"
+										        Background="#444444" Foreground="#FFFFFF"
+										        BorderThickness="0" CornerRadius="6" FontSize="13" />
+										<Button Command="{Binding CheckSpotifyCommand}"
+										        IsVisible="{Binding IsConnected}"
+										        Margin="0,0,0,0" Width="70" Height="34"
+										        Background="#444444" Foreground="#FFFFFF"
+										        BorderThickness="0" CornerRadius="6" Classes="checkButton">
+											<Panel>
+												<TextBlock Text="Check"
+												           IsVisible="{Binding !IsSpotifyChecking}"
+												           HorizontalAlignment="Center" VerticalAlignment="Center"
+												           FontSize="13" />
+												<TextBlock Text="Checking…"
+												           IsVisible="{Binding IsSpotifyChecking}"
+												           HorizontalAlignment="Center" VerticalAlignment="Center"
+												           FontSize="13" />
+											</Panel>
+										</Button>
+									</StackPanel>
+
+									<!-- Connected indicator -->
+									<StackPanel Orientation="Horizontal" Spacing="6"
+									            IsVisible="{Binding IsConnected}">
+										<Ellipse Width="8" Height="8" Fill="#44BB44" VerticalAlignment="Center" />
+										<TextBlock Text="Connected" FontSize="12" Foreground="#44BB44" VerticalAlignment="Center" />
+									</StackPanel>
+
+									<!-- Check result -->
+									<TextBlock Text="✓ Spotify API is reachable and credentials are valid"
+									           IsVisible="{Binding IsSpotifyCheckOk}"
+									           Foreground="#66BB6A" FontSize="12" />
+									<TextBlock Text="✗ Could not reach Spotify API — check your Client ID and reconnect"
+									           IsVisible="{Binding IsSpotifyCheckFailed}"
+									           Foreground="#FF4444" FontSize="12" TextWrapping="Wrap" />
+
+									<!-- Error -->
+									<TextBlock Text="{Binding SpotifyConnectError}"
+									           IsVisible="{Binding HasSpotifyConnectError}"
+									           FontSize="12" Foreground="#FF4444" TextWrapping="Wrap" />
+								</StackPanel>
+
+							</StackPanel>
 
 						</StackPanel>
 

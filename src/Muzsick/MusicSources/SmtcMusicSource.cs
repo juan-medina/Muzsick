@@ -6,17 +6,20 @@ using Microsoft.Extensions.Logging;
 using Muzsick.Metadata;
 using WindowsMediaController;
 
-namespace Muzsick;
+namespace Muzsick.MusicSources;
 
-public sealed class SmtcWatcher : IDisposable
+/// <summary>
+/// Detects Spotify track changes via Windows System Media Transport Controls.
+/// Windows only. Requires no credentials.
+/// </summary>
+public sealed class SmtcMusicSource : IMusicSource
 {
 	private readonly ILogger? _logger;
 	private readonly MediaManager _mediaManager = new();
 
-	// Fires when a Spotify track changes. Title and Artist are always non-empty.
 	public event Action<TrackInfo>? TrackChanged;
 
-	public SmtcWatcher(ILogger? logger = null)
+	public SmtcMusicSource(ILogger? logger = null)
 	{
 		_logger = logger;
 	}
@@ -45,21 +48,19 @@ public sealed class SmtcWatcher : IDisposable
 		var title = props.Title;
 		var artist = props.Artist;
 
-		// Skip empty metadata events — Spotify fires one on session open before the track is known
+		// Spotify fires an empty metadata event on session open before the track is known
 		if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(artist)) return;
 
 		_logger?.LogInformation(
 			"[SMTC] Track changed | Title={Title} | Artist={Artist} | Album={Album}",
 			title, artist, props.AlbumTitle);
 
-		var track = new TrackInfo
+		TrackChanged?.Invoke(new TrackInfo
 		{
 			Title = title,
 			Artist = artist,
 			Album = props.AlbumTitle ?? string.Empty,
-		};
-
-		TrackChanged?.Invoke(track);
+		});
 	}
 
 	private void OnPlaybackStateChanged(
@@ -81,3 +82,4 @@ public sealed class SmtcWatcher : IDisposable
 		_mediaManager.Dispose();
 	}
 }
+

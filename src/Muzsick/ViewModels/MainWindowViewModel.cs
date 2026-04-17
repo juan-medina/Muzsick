@@ -18,6 +18,7 @@ using Muzsick.Commentary;
 using Muzsick.Config;
 using Muzsick.Discord;
 using Muzsick.Metadata;
+using Muzsick.MusicSources;
 using Muzsick.Tts;
 using Muzsick.Update;
 using Muzsick.Views;
@@ -63,7 +64,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 	private readonly DiscordPresenceService _discordPresence;
 	private readonly HistoryWindowViewModel _historyVm;
 	private HistoryWindow? _historyWindow;
-	private readonly SmtcWatcher? _smtcWatcher;
+	private readonly IMusicSource? _musicSource;
 	private Timer? _pulseTimer;
 	private double _pulsePhase;
 
@@ -105,9 +106,26 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			_audioMixer.SetDjVolume(settings.DjVolume);
 		}
 
-		_smtcWatcher = new SmtcWatcher(App.LoggerFactory?.CreateLogger<SmtcWatcher>());
-		_smtcWatcher.TrackChanged += track => _ = HandleTrackAsync(track);
-		_smtcWatcher.Start();
+		switch (App.Settings.MusicSource)
+		{
+			case Config.MusicSource.SpotifyApi:
+				_musicSource = new SpotifyApiMusicSource(
+					App.LoggerFactory?.CreateLogger<SpotifyApiMusicSource>());
+				break;
+
+			default:
+				// SMTC is Windows-only; on other platforms no source starts
+				if (OperatingSystem.IsWindows())
+					_musicSource = new SmtcMusicSource(
+						App.LoggerFactory?.CreateLogger<SmtcMusicSource>());
+				break;
+		}
+
+		if (_musicSource is not null)
+		{
+			_musicSource.TrackChanged += track => _ = HandleTrackAsync(track);
+			_musicSource.Start();
+		}
 	}
 
 	public void SetMainWindow(Window window)
@@ -436,7 +454,7 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 		_httpClient.Dispose();
 		_audioMixer.Dispose();
 		_discordPresence.Dispose();
-		_smtcWatcher?.Dispose();
+		_musicSource?.Dispose();
 	}
 }
 

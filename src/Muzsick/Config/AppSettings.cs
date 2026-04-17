@@ -27,6 +27,20 @@ public class AppSettings
 	/// </summary>
 	public int DjVolume { get; set; } = 100;
 
+	/// <summary>
+	/// Which music source to use for track detection.
+	/// </summary>
+	public MusicSource MusicSource { get; set; } = MusicSource.Smtc;
+
+	/// <summary>
+	/// Spotify OAuth Client ID for the Spotify API music source.
+	/// </summary>
+	public string SpotifyClientId { get; set; } = "";
+
+	/// <summary>
+	/// Spotify OAuth refresh token obtained during the PKCE flow.
+	/// </summary>
+	public string SpotifyRefreshToken { get; set; } = "";
 
 	/// <summary>
 	/// Kokoro TTS voice identifier. Defaults to "af_heart".

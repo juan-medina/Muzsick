@@ -14,6 +14,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+		<OutputType>WinExe</OutputType>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<ApplicationIcon>Assets\muzsick-logo.ico</ApplicationIcon>
 		<!-- Activate WinRT projections on Windows without changing the TFM -->

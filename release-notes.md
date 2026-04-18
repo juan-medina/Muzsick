@@ -2,9 +2,9 @@
 
 ### New Features
 
-- **Spotify Integration** —  No the application uses Spotify's instead of VLC for music playback.
-
 ### Bug Fixes
+
+- **Remove console** —  Remove windows console to show when opening the application.
 
 ### Improvements
 

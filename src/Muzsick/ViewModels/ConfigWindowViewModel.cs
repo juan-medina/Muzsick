@@ -510,7 +510,7 @@ public partial class ConfigWindowViewModel(
 	public string OllamaModelMissingMessage =>
 		$"✗ Model \"{OllamaModel}\" not found — run: ollama pull {OllamaModel}";
 
-	partial void OnOllamaUrlChanged(string _) => OllamaCheckState = OllamaCheckState.Idle;
+	partial void OnOllamaUrlChanged(string value) => OllamaCheckState = OllamaCheckState.Idle;
 
 	private bool CanCheckOllama() => OllamaCheckState != OllamaCheckState.Checking;
 
@@ -521,10 +521,11 @@ public partial class ConfigWindowViewModel(
 		try
 		{
 			using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-			using var client = new HttpClient();
-			var response = await client.GetAsync($"{OllamaUrl.TrimEnd('/')}/api/tags", cts.Token);
+			var generator = new OllamaCommentaryGenerator(
+				App.LoggerFactory?.CreateLogger<OllamaCommentaryGenerator>());
+			var available = await generator.GetAvailableModelsAsync(cts.Token);
 
-			if (!response.IsSuccessStatusCode)
+			if (available.Count == 0)
 			{
 				OllamaCheckState = OllamaCheckState.Failed;
 				return;
@@ -534,11 +535,6 @@ public partial class ConfigWindowViewModel(
 			if (!modelToFind.Contains(':'))
 				modelToFind += ":latest";
 
-			var json = await response.Content.ReadAsStringAsync(cts.Token);
-			var node = JsonNode.Parse(json);
-			var available = node?["models"]?.AsArray()
-				.Select(m => m?["name"]?.GetValue<string>() ?? "")
-				.ToList() ?? [];
 
 			OllamaCheckState = available.Any(m =>
 				string.Equals(m, modelToFind, StringComparison.OrdinalIgnoreCase))
@@ -609,28 +605,9 @@ public partial class ConfigWindowViewModel(
 		try
 		{
 			using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-			using var client = new HttpClient();
-
-			using var request = new HttpRequestMessage(HttpMethod.Get,
-				"https://api.anthropic.com/v1/models");
-			request.Headers.Add("x-api-key", ClaudeApiKey.Trim());
-			request.Headers.Add("anthropic-version", "2023-06-01");
-
-			var response = await client.SendAsync(request, cts.Token);
-			if (!response.IsSuccessStatusCode)
-			{
-				ClaudeModelsRefreshError =
-					$"✗ Failed to fetch models ({(int)response.StatusCode}) — check your API key";
-				return;
-			}
-
-			var json = await response.Content.ReadAsStringAsync(cts.Token);
-			var node = JsonNode.Parse(json);
-			var ids = node?["data"]?.AsArray()
-				.Select(m => m?["id"]?.GetValue<string>() ?? "")
-				.Where(id => id.StartsWith("claude-", StringComparison.OrdinalIgnoreCase))
-				.OrderBy(id => id)
-				.ToList() ?? [];
+			var generator = new ClaudeCommentaryGenerator(
+				App.LoggerFactory?.CreateLogger<ClaudeCommentaryGenerator>());
+			var ids = await generator.GetAvailableModelsAsync(cts.Token);
 
 			if (ids.Count == 0)
 			{
@@ -862,14 +839,14 @@ public partial class ConfigWindowViewModel(
 		UpdateSample();
 	}
 
-	partial void OnAnnouncementTemplateChanged(string _)
+	partial void OnAnnouncementTemplateChanged(string value)
 	{
 		UpdateSample();
 		if (CurrentPreviewState is PreviewState.Done or PreviewState.Failed)
 			CurrentPreviewState = PreviewState.Idle;
 	}
 
-	partial void OnAiPromptChanged(string _)
+	partial void OnAiPromptChanged(string value)
 	{
 		if (CurrentPreviewState is PreviewState.Done or PreviewState.Failed)
 			CurrentPreviewState = PreviewState.Idle;

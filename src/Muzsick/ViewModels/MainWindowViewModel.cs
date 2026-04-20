@@ -292,30 +292,38 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			if (token.IsCancellationRequested) return;
 
 			SetStatus("Finding the right words…");
+			var result = await _commentaryGenerator.GenerateAsync(enriched, token);
+
 			string? commentary;
-			try
-			{
-				commentary = await _commentaryGenerator.GenerateAsync(enriched, token);
-			}
-			catch (OperationCanceledException)
+			if (result.Error == Commentary.CommentaryError.Cancelled)
 			{
 				SetStatus("Vibing with the music");
 				return;
 			}
-			catch (Exception ex)
+			else if (result.Error == Commentary.CommentaryError.None)
 			{
-				App.LoggerFactory?.CreateLogger("MainWindowViewModel")
-					.LogWarning("Commentary generation failed: {Message}", ex.Message);
+				commentary = result.Text;
+			}
+			else if (result.Error == Commentary.CommentaryError.EmptyResponse)
+			{
+				SetStatus("Vibing with the music");
+				return;
+			}
+			else
+			{
+				// AI failed — fall back to template with a specific message
+				var fallback = await new TemplateCommentaryGenerator().GenerateAsync(enriched, token);
+				commentary = fallback.Text;
 
-				if (_commentaryGenerator is not TemplateCommentaryGenerator)
+				UpdateMessage = result.Error switch
 				{
-					UpdateMessage = "AI commentary unavailable — using template";
-					commentary = await new TemplateCommentaryGenerator().GenerateAsync(enriched, token);
-				}
-				else
-				{
-					return;
-				}
+					Commentary.CommentaryError.Timeout => "AI took too long — falling back to template",
+					Commentary.CommentaryError.Unreachable => "AI provider unreachable — falling back to template",
+					Commentary.CommentaryError.Unauthorized => "AI key rejected — check Settings → AI Provider",
+					Commentary.CommentaryError.RateLimited => "AI rate limit hit — falling back to template",
+					Commentary.CommentaryError.QuotaExceeded => "AI credits exhausted — check your account",
+					_ => "AI provider error — falling back to template",
+				};
 			}
 
 			if (string.IsNullOrWhiteSpace(commentary) || token.IsCancellationRequested) return;

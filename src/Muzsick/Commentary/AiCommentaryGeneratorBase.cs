@@ -38,7 +38,7 @@ public abstract class AiCommentaryGeneratorBase : ICommentaryGenerator
 		Logger = logger;
 	}
 
-	public async Task<string?> GenerateAsync(TrackInfo track, CancellationToken cancellationToken)
+	public async Task<CommentaryResult> GenerateAsync(TrackInfo track, CancellationToken cancellationToken)
 	{
 		var prompt = BuildPrompt(track);
 		Logger?.LogDebug("{Provider}: sending request for '{Title}' by '{Artist}'",
@@ -54,9 +54,14 @@ public abstract class AiCommentaryGeneratorBase : ICommentaryGenerator
 			var response = await _httpClient.SendAsync(request, cts.Token);
 
 			Logger?.LogDebug("{Provider}: HTTP {StatusCode}", ProviderName, response.StatusCode);
-			response.EnsureSuccessStatusCode();
 
 			var json = await response.Content.ReadAsStringAsync(cts.Token);
+
+			if (!response.IsSuccessStatusCode)
+			{
+				var error = MapErrorStatus((int)response.StatusCode, json);
+				return CommentaryResult.Fail(error);
+			}
 			Logger?.LogDebug("{Provider}: raw response = {Raw}", ProviderName, json);
 
 			var content = ParseResponse(json)?.Trim();
@@ -66,27 +71,32 @@ public abstract class AiCommentaryGeneratorBase : ICommentaryGenerator
 			if (string.IsNullOrEmpty(content))
 			{
 				Logger?.LogWarning("{Provider}: empty response after stripping", ProviderName);
-				return null;
+				return CommentaryResult.Fail(CommentaryError.EmptyResponse);
 			}
 
 			Logger?.LogInformation("{Provider}: commentary = {Content}", ProviderName, content);
-			return content;
+			return CommentaryResult.Success(content);
 		}
 		catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
 		{
 			Logger?.LogWarning("{Provider}: timed out after {Timeout}s", ProviderName, _timeout.TotalSeconds);
-			throw new TimeoutException($"{ProviderName} request timed out after {_timeout.TotalSeconds}s.");
+			return CommentaryResult.Fail(CommentaryError.Timeout);
 		}
 		catch (OperationCanceledException)
 		{
 			Logger?.LogDebug("{Provider}: request cancelled (track change or shutdown)", ProviderName);
-			throw;
+			return CommentaryResult.Fail(CommentaryError.Cancelled);
 		}
-		catch (Exception ex) when (ex is not HttpRequestException)
+		catch (HttpRequestException ex)
+		{
+			Logger?.LogWarning("{Provider}: network error — {Message}", ProviderName, ex.Message);
+			return CommentaryResult.Fail(CommentaryError.Unreachable);
+		}
+		catch (Exception ex)
 		{
 			Logger?.LogWarning("{Provider}: unexpected error — {Type}: {Message}",
 				ProviderName, ex.GetType().Name, ex.Message);
-			return null;
+			return CommentaryResult.Fail(CommentaryError.ServerError);
 		}
 	}
 
@@ -114,6 +124,15 @@ public abstract class AiCommentaryGeneratorBase : ICommentaryGenerator
 			return [];
 		}
 	}
+
+	protected virtual CommentaryError MapErrorStatus(int statusCode, string? responseBody) =>
+		statusCode switch
+		{
+			401 => CommentaryError.Unauthorized,
+			429 => CommentaryError.RateLimited,
+			402 or 529 => CommentaryError.QuotaExceeded,
+			_ => CommentaryError.ServerError,
+		};
 
 	protected static string BuildPrompt(TrackInfo track)
 	{

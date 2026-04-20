@@ -9,6 +9,6 @@ namespace Muzsick.Commentary;
 
 public interface ICommentaryGenerator
 {
-	Task<string?> GenerateAsync(TrackInfo track, CancellationToken cancellationToken);
+	Task<CommentaryResult> GenerateAsync(TrackInfo track, CancellationToken cancellationToken);
 }
 

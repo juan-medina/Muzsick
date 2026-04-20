@@ -10,10 +10,10 @@ namespace Muzsick.Commentary;
 
 public class TemplateCommentaryGenerator : ICommentaryGenerator
 {
-	public Task<string?> GenerateAsync(TrackInfo track, CancellationToken cancellationToken)
+	public Task<CommentaryResult> GenerateAsync(TrackInfo track, CancellationToken cancellationToken)
 	{
 		var text = AnnouncementTemplateRenderer.Render(App.Settings.AnnouncementTemplate, track);
-		return Task.FromResult<string?>(text);
+		return Task.FromResult(CommentaryResult.Success(text));
 	}
 }
 

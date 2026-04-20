@@ -113,13 +113,19 @@ public partial class ConfigWindowViewModel(
 	public bool IsSmtcSource
 	{
 		get => MusicSource == MusicSource.Smtc;
-		set { if (value) MusicSource = MusicSource.Smtc; }
+		set
+		{
+			if (value) MusicSource = MusicSource.Smtc;
+		}
 	}
 
 	public bool IsSpotifyApiSource
 	{
 		get => MusicSource == MusicSource.SpotifyApi;
-		set { if (value) MusicSource = MusicSource.SpotifyApi; }
+		set
+		{
+			if (value) MusicSource = MusicSource.SpotifyApi;
+		}
 	}
 
 	// SMTC is only available on Windows
@@ -142,9 +148,9 @@ public partial class ConfigWindowViewModel(
 	public string ConnectButtonLabel => SpotifyConnectState switch
 	{
 		SpotifyConnectState.Connecting => "Connecting...",
-		SpotifyConnectState.Connected  => "Reconnect",
-		SpotifyConnectState.Failed     => "Retry",
-		_                              => "Connect Spotify",
+		SpotifyConnectState.Connected => "Reconnect",
+		SpotifyConnectState.Failed => "Retry",
+		_ => "Connect Spotify",
 	};
 
 	[ObservableProperty] private string _spotifyClientId = App.Settings.SpotifyClientId;
@@ -216,7 +222,7 @@ public partial class ConfigWindowViewModel(
 	public bool IsSpotifyChecking => SpotifyCheckState == SpotifyCheckState.Checking;
 
 	private bool CanCheckSpotify() => SpotifyCheckState != SpotifyCheckState.Checking
-		&& !string.IsNullOrEmpty(App.Settings.SpotifyRefreshToken);
+	                                  && !string.IsNullOrEmpty(App.Settings.SpotifyRefreshToken);
 
 	[RelayCommand(CanExecute = nameof(CanCheckSpotify))]
 	private async Task CheckSpotify()
@@ -255,8 +261,6 @@ public partial class ConfigWindowViewModel(
 	[ObservableProperty] private VoiceInfo? _selectedVoice;
 
 
-
-
 	[ObservableProperty]
 	[NotifyPropertyChangedFor(nameof(TemplateError))]
 	[NotifyPropertyChangedFor(nameof(HasTemplateError))]
@@ -292,12 +296,10 @@ public partial class ConfigWindowViewModel(
 
 	[ObservableProperty] private string _claudeModel = App.Settings.ClaudeModel;
 
-	[ObservableProperty]
-	[NotifyPropertyChangedFor(nameof(HasClaudeModelsRefreshError))]
+	[ObservableProperty] [NotifyPropertyChangedFor(nameof(HasClaudeModelsRefreshError))]
 	private string? _claudeModelsRefreshError;
 
-	[ObservableProperty]
-	[NotifyCanExecuteChangedFor(nameof(RefreshClaudeModelsCommand))]
+	[ObservableProperty] [NotifyCanExecuteChangedFor(nameof(RefreshClaudeModelsCommand))]
 	private bool _isRefreshingClaudeModels;
 
 	private static readonly string[] _knownClaudeModels =
@@ -741,23 +743,43 @@ public partial class ConfigWindowViewModel(
 				string? commentary;
 				try
 				{
-					commentary = await generator.GenerateAsync(sampleTrack, token);
-				}
-				catch (TimeoutException)
-				{
-					StopElapsedTimer();
-					PreviewError = "AI took too long — try a simpler prompt or smaller model.";
-					CurrentPreviewState = PreviewState.Failed;
-					return;
-				}
-				catch (HttpRequestException)
-				{
-					StopElapsedTimer();
-					PreviewError = AiProvider == AiProvider.Claude
-						? "Cannot reach Claude API — check AI Provider settings."
-						: "Cannot reach Ollama — check AI Provider settings.";
-					CurrentPreviewState = PreviewState.Failed;
-					return;
+					var result = await generator.GenerateAsync(sampleTrack, token);
+
+					if (result.Error == CommentaryError.Cancelled)
+					{
+						StopElapsedTimer();
+						CurrentPreviewState = PreviewState.Idle;
+						PreviewError = null;
+						return;
+					}
+
+					if (result.Error != CommentaryError.None)
+					{
+						StopElapsedTimer();
+						var providerName = AiProvider == AiProvider.Claude ? "Claude" : "Ollama";
+						PreviewError = result.Error switch
+						{
+							CommentaryError.Timeout =>
+								"AI took too long — try a simpler prompt or a smaller model.",
+							CommentaryError.Unreachable =>
+								$"Cannot reach {providerName} — check AI Provider settings.",
+							CommentaryError.Unauthorized =>
+								"API key rejected — check your key in AI Provider settings.",
+							CommentaryError.RateLimited =>
+								"Rate limit hit — wait a moment and try again.",
+							CommentaryError.QuotaExceeded =>
+								"Credits exhausted — check your account balance.",
+							CommentaryError.ServerError =>
+								"Provider returned an error — try again later.",
+							CommentaryError.EmptyResponse =>
+								"AI returned an empty response — check your prompt.",
+							_ => "AI provider error — try again later.",
+						};
+						CurrentPreviewState = PreviewState.Failed;
+						return;
+					}
+
+					commentary = result.Text;
 				}
 				finally
 				{
@@ -775,7 +797,7 @@ public partial class ConfigWindowViewModel(
 
 				if (string.IsNullOrEmpty(commentary))
 				{
-					PreviewError = "AI returned an empty response. Check your prompt.";
+					PreviewError = "AI returned an empty response — check your prompt.";
 					CurrentPreviewState = PreviewState.Failed;
 					return;
 				}

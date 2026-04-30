@@ -1,0 +1,126 @@
+<!--
+    SPDX-FileCopyrightText: 2026 Juan Medina
+    SPDX-License-Identifier: MIT
+-->
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="using:Muzsick.Views"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        x:Class="Muzsick.Views.TrackToastWindow"
+        x:DataType="views:TrackToastWindow"
+        SystemDecorations="None"
+        ShowInTaskbar="False"
+        Topmost="True"
+        CanResize="False"
+        Width="320"
+        Height="90"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent">
+
+	<Border x:Name="RootBorder"
+	        Background="#1A1A1A"
+	        CornerRadius="12"
+	        ClipToBounds="True"
+	        Cursor="Hand"
+	        PointerPressed="RootBorder_PointerPressed">
+		<Border.RenderTransform>
+			<TranslateTransform />
+		</Border.RenderTransform>
+
+		<Grid RowDefinitions="26,*,2">
+
+			<!-- Header row -->
+			<Border Grid.Row="0" Background="#111111">
+				<DockPanel LastChildFill="False" Margin="10,0">
+					<StackPanel DockPanel.Dock="Left"
+					            Orientation="Horizontal"
+					            Spacing="6"
+					            VerticalAlignment="Center">
+						<Ellipse Width="8" Height="8" Fill="#FF6B35" />
+						<TextBlock Text="Muzsick"
+						           FontSize="11"
+						           Foreground="#888888"
+						           VerticalAlignment="Center" />
+					</StackPanel>
+					<TextBlock DockPanel.Dock="Right"
+					           Text="now playing"
+					           FontSize="11"
+					           Foreground="#555555"
+					           VerticalAlignment="Center" />
+				</DockPanel>
+			</Border>
+
+			<!-- Body row -->
+			<DockPanel Grid.Row="1">
+
+				<!-- Orange accent left border -->
+				<Border DockPanel.Dock="Left"
+				        Width="3"
+				        Background="#FF6B35" />
+
+				<!-- 72×72 album art panel -->
+				<Panel Width="72" Height="72" DockPanel.Dock="Left">
+
+					<!-- Vinyl ring placeholder -->
+					<Viewbox Width="72" Height="72"
+					         IsVisible="{Binding AlbumArt, Converter={x:Static ObjectConverters.IsNull}}">
+						<Canvas Width="300" Height="300">
+							<Rectangle Canvas.Left="0" Canvas.Top="0" Width="300" Height="300" Fill="#444444" />
+							<Ellipse Canvas.Left="10" Canvas.Top="10" Width="280" Height="280" Fill="#1a1a1a" />
+							<Ellipse Canvas.Left="20" Canvas.Top="20" Width="260" Height="260" Fill="#2d2d2d" />
+							<Ellipse Canvas.Left="30" Canvas.Top="30" Width="240" Height="240"
+							         Fill="Transparent" Stroke="#1a1a1a" StrokeThickness="2" Opacity="0.3" />
+							<Ellipse Canvas.Left="50" Canvas.Top="50" Width="200" Height="200"
+							         Fill="Transparent" Stroke="#1a1a1a" StrokeThickness="2" Opacity="0.3" />
+							<Ellipse Canvas.Left="70" Canvas.Top="70" Width="160" Height="160"
+							         Fill="Transparent" Stroke="#1a1a1a" StrokeThickness="2" Opacity="0.3" />
+							<Ellipse Canvas.Left="90" Canvas.Top="90" Width="120" Height="120"
+							         Fill="Transparent" Stroke="#1a1a1a" StrokeThickness="2" Opacity="0.3" />
+							<Ellipse Canvas.Left="115" Canvas.Top="115" Width="70" Height="70" Fill="#FF6B35" />
+							<Ellipse Canvas.Left="125" Canvas.Top="125" Width="50" Height="50" Fill="#2d2d2d" />
+							<Ellipse Canvas.Left="142" Canvas.Top="142" Width="16" Height="16" Fill="#FF6B35" />
+						</Canvas>
+					</Viewbox>
+
+					<!-- Album art image -->
+					<Image Source="{Binding AlbumArt}"
+					       Width="72" Height="72"
+					       Stretch="UniformToFill"
+					       IsVisible="{Binding AlbumArt, Converter={x:Static ObjectConverters.IsNotNull}}" />
+
+				</Panel>
+
+				<!-- Track info -->
+				<StackPanel Margin="10,8" VerticalAlignment="Center">
+					<TextBlock Text="{Binding TrackTitle}"
+					           FontSize="14"
+					           Foreground="#FFFFFF"
+					           FontWeight="SemiBold"
+					           TextTrimming="CharacterEllipsis" />
+					<TextBlock Text="{Binding ArtistName}"
+					           FontSize="12"
+					           Foreground="#CCCCCC"
+					           TextTrimming="CharacterEllipsis" />
+					<TextBlock Text="{Binding AlbumLine}"
+					           FontSize="11"
+					           Foreground="#777777"
+					           TextTrimming="CharacterEllipsis"
+					           IsVisible="{Binding AlbumLine, Converter={x:Static ObjectConverters.IsNotNull}}" />
+				</StackPanel>
+
+			</DockPanel>
+
+			<!-- Progress bar row -->
+			<Grid Grid.Row="2" x:Name="ProgressBarContainer">
+				<Rectangle Fill="#222222" />
+				<Rectangle x:Name="ProgressBarRect"
+				           Fill="#FF6B35"
+				           HorizontalAlignment="Left" />
+			</Grid>
+
+		</Grid>
+	</Border>
+
+</Window>

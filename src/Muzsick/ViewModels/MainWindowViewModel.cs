@@ -376,6 +376,31 @@ public partial class MainWindowViewModel : ViewModelBase, IDisposable
 			await previousVoiceover.CancelAsync();
 			previousVoiceover.Dispose();
 
+			if (App.Settings.ShowTrackNotification && _mainWindow != null)
+			{
+				var toastTitle = enriched.Title;
+				var toastArtist = enriched.Artist;
+				var toastAlbum = albumName != null
+					? (!string.IsNullOrEmpty(enriched.Year) ? $"{albumName} ({enriched.Year})" : albumName)
+					: null;
+				var toastAlbumArt = AlbumArt;
+				var corner = App.Settings.TrackNotificationCorner;
+				var mainWin = _mainWindow;
+
+				Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+				{
+					var toast = new Views.TrackToastWindow(
+						toastTitle,
+						toastArtist,
+						toastAlbum,
+						toastAlbumArt,
+						corner,
+						() => Avalonia.Threading.Dispatcher.UIThread.Post(() => mainWin.Activate()));
+					toast.SetOwnerWindow(mainWin);
+					toast.Show();
+				});
+			}
+
 			await _audioMixer.PlayVoiceoverAsync(wav, voiceoverCts.Token);
 			SetStatus("Vibing with the music");
 		}

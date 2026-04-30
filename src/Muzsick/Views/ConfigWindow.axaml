@@ -9,6 +9,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:avaloniaEdit="clr-namespace:AvaloniaEdit;assembly=AvaloniaEdit"
+        xmlns:config="using:Muzsick.Config"
         mc:Ignorable="d" d:DesignWidth="780" d:DesignHeight="700"
         x:Class="Muzsick.Views.ConfigWindow"
         x:DataType="vm:ConfigWindowViewModel"
@@ -60,6 +61,7 @@
 				<ListBoxItem Content="Commentary" />
 				<ListBoxItem Content="AI Provider" />
 				<ListBoxItem Content="AI Prompt" />
+				<ListBoxItem Content="Notifications" />
 				</ListBox>
 			</Border>
 
@@ -724,8 +726,47 @@
 					</StackPanel>
 
 					<!-- ══════════════════════════════════════ -->
-					<!-- VOLUME                                  -->
+					<!-- NOTIFICATIONS                           -->
 					<!-- ══════════════════════════════════════ -->
+					<StackPanel Spacing="16" IsVisible="{Binding IsNotificationsSection}">
+
+						<StackPanel Spacing="3">
+							<TextBlock Text="Notifications"
+							           FontSize="17" FontWeight="Bold" Foreground="#FFFFFF" />
+							<TextBlock Text="Control when and where toast notifications appear."
+							           FontSize="12" Foreground="#AAAAAA" TextWrapping="Wrap" />
+						</StackPanel>
+
+						<Rectangle Height="1" Fill="#383838" />
+
+						<StackPanel Spacing="12">
+
+							<CheckBox IsChecked="{Binding ShowTrackNotification}"
+							          Foreground="#DDDDDD"
+							          FontSize="13"
+							          Content="Show track notifications" />
+
+							<StackPanel Spacing="6"
+							            IsEnabled="{Binding ShowTrackNotification}">
+								<TextBlock Text="Position"
+								           FontSize="13" FontWeight="SemiBold"
+								           Foreground="#DDDDDD" />
+								<ComboBox ItemsSource="{Binding AvailableCorners}"
+								          SelectedItem="{Binding TrackNotificationCorner}"
+								          FontSize="13" Background="#1E1E1E" Foreground="#FFFFFF"
+								          BorderBrush="#555555" BorderThickness="1"
+								          CornerRadius="6" HorizontalAlignment="Stretch">
+									<ComboBox.ItemTemplate>
+										<DataTemplate>
+											<TextBlock Text="{Binding Converter={x:Static config:TrackNotificationCornerConverter.Instance}}" />
+										</DataTemplate>
+									</ComboBox.ItemTemplate>
+								</ComboBox>
+							</StackPanel>
+
+						</StackPanel>
+
+					</StackPanel>
 
 					</StackPanel>
 				</Border>

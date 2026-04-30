@@ -121,4 +121,14 @@ public class AppSettings
 	/// Last directory used in the Browse file picker. Null on first run.
 	/// </summary>
 	public string? LastBrowseDirectory { get; set; }
+
+	/// <summary>
+	/// Whether to show a toast notification when a new track starts playing.
+	/// </summary>
+	public bool ShowTrackNotification { get; set; } = true;
+
+	/// <summary>
+	/// Corner of the screen where the track notification toast appears.
+	/// </summary>
+	public TrackNotificationCorner TrackNotificationCorner { get; set; } = TrackNotificationCorner.BottomRight;
 }

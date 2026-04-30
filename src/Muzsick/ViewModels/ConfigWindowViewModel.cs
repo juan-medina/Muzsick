@@ -85,6 +85,7 @@ public partial class ConfigWindowViewModel(
 	[NotifyPropertyChangedFor(nameof(IsAiProviderSection))]
 	[NotifyPropertyChangedFor(nameof(IsAiPromptSection))]
 	[NotifyPropertyChangedFor(nameof(IsMusicSourceSection))]
+	[NotifyPropertyChangedFor(nameof(IsNotificationsSection))]
 	private int _selectedNavIndex;
 
 	public bool IsVoiceSection => SelectedNavIndex == 0;
@@ -92,6 +93,7 @@ public partial class ConfigWindowViewModel(
 	public bool IsCommentarySection => SelectedNavIndex == 2;
 	public bool IsAiProviderSection => SelectedNavIndex == 3;
 	public bool IsAiPromptSection => SelectedNavIndex == 4;
+	public bool IsNotificationsSection => SelectedNavIndex == 5;
 
 	[RelayCommand]
 	private void GoToAiProvider() => SelectedNavIndex = 3;
@@ -295,6 +297,18 @@ public partial class ConfigWindowViewModel(
 	[ObservableProperty] private string _claudeApiKey = App.Settings.ClaudeApiKey;
 
 	[ObservableProperty] private string _claudeModel = App.Settings.ClaudeModel;
+
+	[ObservableProperty] private bool _showTrackNotification = App.Settings.ShowTrackNotification;
+
+	[ObservableProperty] private TrackNotificationCorner _trackNotificationCorner = App.Settings.TrackNotificationCorner;
+
+	public IReadOnlyList<TrackNotificationCorner> AvailableCorners { get; } =
+	[
+		TrackNotificationCorner.BottomRight,
+		TrackNotificationCorner.BottomLeft,
+		TrackNotificationCorner.TopRight,
+		TrackNotificationCorner.TopLeft,
+	];
 
 	[ObservableProperty] [NotifyPropertyChangedFor(nameof(HasClaudeModelsRefreshError))]
 	private string? _claudeModelsRefreshError;
@@ -933,6 +947,8 @@ public partial class ConfigWindowViewModel(
 		App.Settings.AiProvider = AiProvider;
 		App.Settings.ClaudeApiKey = ClaudeApiKey.Trim();
 		App.Settings.ClaudeModel = ClaudeModel.Trim();
+		App.Settings.ShowTrackNotification = ShowTrackNotification;
+		App.Settings.TrackNotificationCorner = TrackNotificationCorner;
 		SettingsManager.Save(App.Settings);
 		_window?.Close(true);
 	}

@@ -53,3 +53,6 @@ src/Muzsick/ApiKeys.json
 # ----- ML models — downloaded at build time, never committed ----------
 # The Kokoro TTS model is fetched automatically by MSBuild on first build.
 models/
+
+# -- Claude
+.claude/
